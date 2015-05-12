@@ -1,0 +1,10 @@
+%% Specific modules to include in cover.
+{
+ incl_mods,
+ [ serpents
+ , serpents_base_handler
+ , serpents_status_handler
+ , serpents_json
+ , serpents_web_utils
+ ]
+}.
