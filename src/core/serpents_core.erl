@@ -10,6 +10,7 @@
 
 -export(
   [ register_player/1
+  , create_game/0
   , create_game/1
   , join_game/2
   , start_game/1
@@ -47,32 +48,44 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% EXPORTED FUNCTIONS
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% @doc Registers a new player
 -spec register_player(serpents_players:name()) -> serpents_players:player().
 register_player(Name) ->
   serpents_players_repo:register(Name).
 
+%% @equiv create_game(#{}).
+-spec create_game() -> serpents_games:game().
+create_game() -> create_game(#{}).
+
+%% @doc Creates a new game
 -spec create_game(options()) -> serpents_games:game().
 create_game(Options) ->
   Game = serpents_games_repo:create(Options),
   {ok, Pid} = serpents_game_sup:start_child(Game),
   serpents_games:process(Game, Pid).
 
+%% @doc PlayerId joins GameId
 -spec join_game(serpents_games:id(), serpents_players:id()) -> position().
 join_game(GameId, PlayerId) ->
   call(GameId, {join, PlayerId}).
 
+%% @doc Closes the joining period for the game and starts it
 -spec start_game(serpents_games:id()) -> ok.
 start_game(GameId) ->
   cast(GameId, start).
 
+%% @doc a player changes direction
 -spec turn(serpents_games:id(), serpents_players:id(), direction()) -> ok.
 turn(GameId, PlayerId, Direction) ->
   cast(GameId, {turn, PlayerId, Direction}).
 
+%% @doc Retrieves the status of a game
 -spec fetch_game(serpents_games:id()) -> serpents_games:game().
 fetch_game(GameId) ->
   call(GameId, fetch).
 
+%% @doc Retrieves the pid for the event dispatcher associated with a game.
+%%      It's a gen_event dispatcher.
 -spec game_dispatcher(serpents_games:id()) -> pid().
 game_dispatcher(GameId) ->
   call(GameId, dispatcher).

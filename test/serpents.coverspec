@@ -2,8 +2,15 @@
 {
  incl_mods,
  [ serpents
+ , serpents_core
+ , serpents_game_sup
+ , serpents_sup
  , serpents_base_handler
  , serpents_status_handler
+ , serpents_games
+ , serpents_games_repo
+ , serpents_players
+ , serpents_players_repo
  , serpents_json
  , serpents_web_utils
  ]
