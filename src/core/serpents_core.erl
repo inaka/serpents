@@ -12,6 +12,8 @@
   , game_dispatcher/1
   ]).
 
+-export([start_link/1]).
+
 -type options() :: #{ rows => pos_integer()
                     , cols => pos_integer()
                     }.
@@ -34,7 +36,9 @@ register_player(Name) ->
 
 -spec create_game(options()) -> serpents_games:game().
 create_game(Options) ->
-  serpents_game_sup:start_child(Options).
+  Game = serpents_games_repo:create(Options),
+  {ok, Pid} = serpents_game_sup:start_child(Game),
+  serpents_games:process(Game, Pid).
 
 -spec join_game(serpents_games:id(), serpents_players:id()) -> position().
 join_game(GameId, PlayerId) ->
@@ -57,10 +61,18 @@ game_dispatcher(GameId) ->
   call(GameId, dispatcher).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% PRIVATELY EXPORTED FUNCTIONS
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+-spec start_link(serpents_games:game()) -> {ok, pid()}.
+start_link(Game) ->
+  Process = process_name(serpents_games:id(Game)),
+  gen_fsm:start_link({local, Process}, ?MODULE, Game, []).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% INTERNAL FUNCTIONS
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 call(GameId, Event) ->
-  Process = binary_to_atom(<<?MODULE_STRING, $:, GameId/binary>>, utf8),
+  Process = process_name(GameId),
   try do_call(Process, Event) of
     ok -> ok;
     {ok, Result} -> Result;
@@ -72,6 +84,7 @@ call(GameId, Event) ->
         [Event, GameId, Process, Exception, erlang:get_stacktrace()]),
       throw(Exception)
   end.
+
 do_call(Process, fetch) ->
   gen_fsm:sync_send_all_state_event(Process, fetch);
 do_call(Process, dispatcher) ->
@@ -80,5 +93,7 @@ do_call(Process, Event) ->
   gen_fsm:sync_send_event(Process, Event).
 
 cast(GameId, Event) ->
-  Process = binary_to_atom(<<?MODULE_STRING, $:, GameId/binary>>, utf8),
-  gen_fsm:send_event(Process, Event).
+  gen_fsm:send_event(process_name(GameId), Event).
+
+process_name(GameId) ->
+  binary_to_atom(<<?MODULE_STRING, $:, GameId/binary>>, utf8).

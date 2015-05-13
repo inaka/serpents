@@ -27,7 +27,8 @@ stop() -> application:stop(?MODULE).
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% @private
 -spec start(application:start_type(), any()) -> {ok, pid()} | {error, term()}.
-start(_StartType, _Args) -> {ok, self()}.
+start(_StartType, _Args) ->
+  serpents_sup:start_link().
 
 %% @private
 -spec start_phase(atom(), application:start_type(), []) -> ok | {error, _}.
