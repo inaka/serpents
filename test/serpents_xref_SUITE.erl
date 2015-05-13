@@ -12,9 +12,7 @@ all() -> serpents_test_utils:all(?MODULE).
 
 -spec xref(serpents_test_utils:config()) -> {comment, []}.
 xref(_Config) ->
-  Ebin = filename:absname("../../ebin"),
-  Tests = filename:dirname(code:which(?MODULE)),
-  Dirs = [Ebin, Tests],
+  Dirs = [filename:absname("../../ebin")],
   [] = xref_runner:check(undefined_function_calls, #{dirs => Dirs}),
   [] = xref_runner:check(undefined_functions, #{dirs => Dirs}),
   [] = xref_runner:check(locals_not_used, #{dirs => Dirs}),

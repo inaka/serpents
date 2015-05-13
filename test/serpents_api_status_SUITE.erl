@@ -9,10 +9,6 @@
          ]}
        ]).
 
--ignore_xref([all/0]).
--ignore_xref([init_per_suite/1, end_per_suite/1]).
--ignore_xref([returns_ok/1]).
-
 -export([all/0]).
 -export([returns_ok/1]).
 
