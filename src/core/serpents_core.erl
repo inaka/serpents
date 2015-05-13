@@ -2,6 +2,12 @@
 -module(serpents_core).
 -author('elbrujohalcon@inaka.net').
 
+-behavior(gen_fsm).
+
+-type state() :: #{ game => serpents_games:game()
+                  , dispatcher => pid()
+                  }.
+
 -export(
   [ register_player/1
   , create_game/1
@@ -13,6 +19,17 @@
   ]).
 
 -export([start_link/1]).
+-export(
+  [ created/3
+  , created/2
+  , started/2
+  , init/1
+  , handle_event/3
+  , handle_sync_event/4
+  , handle_info/3
+  , terminate/3
+  , code_change/4
+  ]).
 
 -type options() :: #{ rows => pos_integer()
                     , cols => pos_integer()
@@ -42,7 +59,7 @@ create_game(Options) ->
 
 -spec join_game(serpents_games:id(), serpents_players:id()) -> position().
 join_game(GameId, PlayerId) ->
-  call(GameId, {join, GameId, PlayerId}).
+  call(GameId, {join, PlayerId}).
 
 -spec start_game(serpents_games:id()) -> ok.
 start_game(GameId) ->
@@ -56,17 +73,70 @@ turn(GameId, PlayerId, Direction) ->
 fetch_game(GameId) ->
   call(GameId, fetch).
 
--spec game_dispatcher(serpents_games:id()) -> pid() | atom().
+-spec game_dispatcher(serpents_games:id()) -> pid().
 game_dispatcher(GameId) ->
   call(GameId, dispatcher).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% PRIVATELY EXPORTED FUNCTIONS
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
--spec start_link(serpents_games:game()) -> {ok, pid()}.
+-spec start_link(serpents_games:game()) -> {ok, pid()} | {error, term()}.
 start_link(Game) ->
   Process = process_name(serpents_games:id(Game)),
   gen_fsm:start_link({local, Process}, ?MODULE, Game, []).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% FSM CALLBACKS
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+-spec init(serpents_games:game()) -> {ok, created, state()}.
+init(Game) ->
+  {ok, Dispatcher} = gen_event:start_link(),
+  {ok, created, #{game => Game, dispatcher => Dispatcher}}.
+
+-spec handle_event(Event, atom(), state()) ->
+  {stop, {unexpected, Event}, state()}.
+handle_event(Event, _StateName, State) -> {stop, {unexpected, Event}, State}.
+
+-spec handle_sync_event
+  (fetch, _From, atom(), state()) ->
+    {reply, serpents_games:game(), atom(), state()};
+  (dispatcher, _From, atom(), state()) ->
+    {reply, pid(), atom(), state()}.
+handle_sync_event(fetch, _From, StateName, State) ->
+  #{game := Game} = State,
+  {reply, {ok, Game}, StateName, State};
+handle_sync_event(dispatcher, _From, StateName, State) ->
+  #{dispatcher := Dispatcher} = State,
+  {reply, {ok, Dispatcher}, StateName, State}.
+
+-spec handle_info(term(), atom(), state()) -> {next_state, atom(), state()}.
+handle_info(Info, StateName, State) ->
+  lager:notice("~p received at ~p", [Info, StateName]),
+  {next_state, StateName, State}.
+
+-spec terminate(term(), atom(), state()) -> ok.
+terminate(Reason, StateName, State) ->
+  #{dispatcher := Dispatcher} = State,
+  catch gen_event:stop(Dispatcher),
+  lager:notice("Terminating in ~p with reason ~p", [StateName, Reason]).
+
+-spec code_change(term() | {down, term()}, atom(), state(), term()) ->
+    {ok, atom(), state()}.
+code_change(_, StateName, State, _) -> {ok, StateName, State}.
+
+-spec created({join, serpents_players:id()}, _From, state()) ->
+  {reply, {ok, position()} | {error, term()}, created, state()}.
+created({join, PlayerId}, _From, State) ->
+  {reply, {error, not_implemented}, created, State}.
+
+-spec created(start, state()) -> {next_state, started, state()}.
+created(start, State) ->
+  {next_state, started, State}.
+
+-spec started({turn, serpents_players:id(), direction()}, state()) ->
+  {next_state, started | finished, state()}.
+started({turn, PlayerId, Direction}, State) ->
+  {next_state, started, State}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% INTERNAL FUNCTIONS
