@@ -12,7 +12,8 @@
 create(Options) ->
   Rows = maps:get(rows, Options, 20),
   Cols = maps:get(cols, Options, 20),
-  serpents_games:new(Rows, Cols).
+  TickTime = maps:get(ticktime, Options, 250),
+  serpents_games:new(Rows, Cols, TickTime).
 
 %% @doc Adds a player to a game
 -spec join(serpents_games:game(), serpents_players:id()) ->

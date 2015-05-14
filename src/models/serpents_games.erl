@@ -19,6 +19,7 @@
     state => state(),
     rows => pos_integer(),
     cols => pos_integer(),
+    ticktime => pos_integer(),
     cells => [cell()],
     process => undefined | pid(),
     created_at => dcn_datetime:datetime(),
@@ -27,10 +28,11 @@
 -export_type([game/0, state/0, id/0, content/0]).
 
 -export(
-  [ new/2
+  [ new/3
   , id/1
   , rows/1
   , cols/1
+  , ticktime/1
   , state/1
   , players/1
   , process/2
@@ -40,16 +42,18 @@
   , state/2
   ]).
 
--spec new(pos_integer(), pos_integer()) -> game().
-new(Rows, _Cols) when Rows < 5 -> throw(invalid_rows);
-new(_Rows, Cols) when Cols < 5 -> throw(invalid_cols);
-new(Rows, Cols) ->
+-spec new(pos_integer(), pos_integer(), pos_integer()) -> game().
+new(Rows, _Cols, _TickTime) when Rows < 5 -> throw(invalid_rows);
+new(_Rows, Cols, _TickTime) when Cols < 5 -> throw(invalid_cols);
+new(_Rows, _Cols, TickTime) when TickTime < 100 -> throw(invalid_ticktime);
+new(Rows, Cols, TickTime) ->
   Now = ktn_date:now_human_readable(),
   #{ id => uuid:uuid_to_string(uuid:get_v4(), binary_standard)
    , players => []
    , state => created
    , rows => Rows
    , cols => Cols
+   , ticktime => TickTime
    , cells => []
    , process => undefined
    , created_at => Now
@@ -64,6 +68,9 @@ rows(#{rows := Rows}) -> Rows.
 
 -spec cols(game()) -> pos_integer().
 cols(#{cols := Cols}) -> Cols.
+
+-spec ticktime(game()) -> pos_integer().
+ticktime(#{ticktime := TickTime}) -> TickTime.
 
 -spec state(game()) -> state().
 state(#{state := State}) -> State.

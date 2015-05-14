@@ -18,6 +18,7 @@
         , game_creation_with_options/1
         , game_creation_bad_rows/1
         , game_creation_bad_cols/1
+        , game_creation_bad_ticktime/1
         , join_game_ok/1
         , join_game_wrong/1
         , too_many_joins/1
@@ -87,6 +88,7 @@ game_creation_default(_Config) ->
   Game = serpents_core:create_game(),
   20 = serpents_games:rows(Game),
   20 = serpents_games:cols(Game),
+  250 = serpents_games:ticktime(Game),
   created = serpents_games:state(Game),
   [] = serpents_games:players(Game),
   {comment, ""}.
@@ -98,16 +100,31 @@ game_creation_with_options(_Config) ->
   Game0 = serpents_core:create_game(#{rows => 40}),
   40 = serpents_games:rows(Game0),
   20 = serpents_games:cols(Game0),
+  250 = serpents_games:ticktime(Game0),
 
   ct:comment("Create a game with more cols"),
   Game1 = serpents_core:create_game(#{cols => 30}),
   20 = serpents_games:rows(Game1),
   30 = serpents_games:cols(Game1),
+  250 = serpents_games:ticktime(Game1),
+
+  ct:comment("Create a game with more ticktime"),
+  Game2 = serpents_core:create_game(#{ticktime => 300}),
+  20 = serpents_games:rows(Game2),
+  20 = serpents_games:cols(Game2),
+  300 = serpents_games:ticktime(Game2),
 
   ct:comment("Create a game with less cols and rows"),
-  Game2 = serpents_core:create_game(#{cols => 10, rows => 10}),
-  10 = serpents_games:rows(Game2),
-  10 = serpents_games:cols(Game2),
+  Game3 = serpents_core:create_game(#{cols => 10, rows => 10}),
+  10 = serpents_games:rows(Game3),
+  10 = serpents_games:cols(Game3),
+  250 = serpents_games:ticktime(Game3),
+
+  ct:comment("Create a game with less cols, rows and ticktime"),
+  Game4 = serpents_core:create_game(#{cols => 10, rows => 10, ticktime => 500}),
+  10 = serpents_games:rows(Game4),
+  10 = serpents_games:cols(Game4),
+  500 = serpents_games:ticktime(Game4),
 
   {comment, ""}.
 
@@ -153,6 +170,29 @@ game_creation_bad_cols(_Config) ->
   TryWith(0),
 
   ct:comment("Less than 5 cols fails"),
+  TryWith(4),
+
+  {comment, ""}.
+
+-spec game_creation_bad_ticktime(serpents_test_utils:config()) ->
+  {comment, string()}.
+game_creation_bad_ticktime(_Config) ->
+  TryWith =
+    fun(T) ->
+      try serpents_core:create_game(#{ticktime => T}) of
+        G -> ct:fail("Unexpected game with ticktime == ~p: ~p", [T, G])
+      catch
+        throw:invalid_ticktime -> ok
+      end
+    end,
+
+  ct:comment("Negative ticktime fails"),
+  TryWith(-10),
+
+  ct:comment("0 ticktime fails"),
+  TryWith(0),
+
+  ct:comment("Less than 100 ticktime fails"),
   TryWith(4),
 
   {comment, ""}.
