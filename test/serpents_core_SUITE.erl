@@ -20,6 +20,9 @@
         , game_creation_bad_cols/1
         , join_game_ok/1
         , join_game_wrong/1
+        , too_many_joins/1
+        % , start_game_wrong/1
+        % , start_game_ok/1
         ]).
 
 -spec all() -> [atom()].
@@ -28,7 +31,8 @@ all() -> serpents_test_utils:all(?MODULE).
 -spec init_per_testcase(atom(), serpents_test_utils:config()) ->
   serpents_test_utils:config().
 init_per_testcase(JoinGameTest, Config)
-  when JoinGameTest == join_game_ok; JoinGameTest == join_game_wrong ->
+  when JoinGameTest == join_game_ok
+     ; JoinGameTest == join_game_wrong ->
   Game = serpents_core:create_game(#{cols => 10, rows => 10}),
   Player1 = serpents_core:register_player(<<"1">>),
   Player2 = serpents_core:register_player(<<"2">>),
@@ -43,7 +47,8 @@ init_per_testcase(_Test, Config) -> Config.
 -spec end_per_testcase(atom(), serpents_test_utils:config()) ->
   serpents_test_utils:config().
 end_per_testcase(JoinGameTest, Config)
-  when JoinGameTest == join_game_ok; JoinGameTest == join_game_wrong ->
+  when JoinGameTest == join_game_ok
+     ; JoinGameTest == join_game_wrong ->
   lists:filter(
     fun ({K, _}) -> not lists:member(K, [game, player1, player2, player3]) end,
     Config);
@@ -250,5 +255,33 @@ join_game_wrong(Config) ->
     throw:invalid_state -> ok
   end,
   [Player1Id] = serpents_games:players(serpents_core:fetch_game(GameId)),
+
+  {comment, ""}.
+
+-spec too_many_joins(serpents_test_utils:config()) ->
+  {comment, string()}.
+too_many_joins(_Config) ->
+  ct:comment("A small game is created"),
+  Game = serpents_core:create_game(#{cols => 5, rows => 5}),
+  GameId = serpents_games:id(Game),
+
+  ct:comment("Enough players to fill the whole board are registered"),
+  Chars = lists:seq($a, $a + 24),
+  Players =
+    [serpents_players:id(serpents_core:register_player(<<C>>)) || C <- Chars],
+
+  ct:comment("They all join the game"),
+  lists:foreach(
+    fun(PlayerId) ->
+      serpents_core:join_game(GameId, PlayerId)
+    end, Players),
+
+  ct:comment("Another player tries to join the game but it's rejected"),
+  Homero = serpents_players:id(serpents_core:register_player(<<"homero">>)),
+  try serpents_core:join_game(GameId, Homero) of
+    Position -> ct:fail("Unexpected join in ~p: ~p", [GameId, Position])
+  catch
+    throw:game_full -> ok
+  end,
 
   {comment, ""}.
