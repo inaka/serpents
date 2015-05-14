@@ -23,7 +23,10 @@
 -export(
   [ created/3
   , created/2
+  , started/3
   , started/2
+  , finished/3
+  , finished/2
   , init/1
   , handle_event/3
   , handle_sync_event/4
@@ -96,7 +99,7 @@ game_dispatcher(GameId) ->
 -spec start_link(serpents_games:game()) -> {ok, pid()} | {error, term()}.
 start_link(Game) ->
   Process = process_name(serpents_games:id(Game)),
-  gen_fsm:start_link({local, Process}, ?MODULE, Game, []).
+  gen_fsm:start_link({local, Process}, ?MODULE, Game, [{debug, [trace, log]}]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% FSM CALLBACKS
@@ -138,7 +141,9 @@ terminate(Reason, StateName, State) ->
 code_change(_, StateName, State, _) -> {ok, StateName, State}.
 
 -spec created({join, serpents_players:id()}, _From, state()) ->
-  {reply, {ok, position()} | {error, term()}, created, state()}.
+                {reply, {ok, position()} | {error, term()}, created, state()};
+             (term(), _From, state()) ->
+                {reply, {error, invalid_state}, created, state()}.
 created({join, PlayerId}, _From, State) ->
   #{game := Game} = State,
   case serpents_players_repo:is_registered(PlayerId) of
@@ -146,23 +151,50 @@ created({join, PlayerId}, _From, State) ->
     true ->
       try serpents_games_repo:join(Game, PlayerId) of
         NewGame ->
-          Position = serpents_games:head(Game, Player),
+          Position = serpents_games:head(NewGame, PlayerId),
           {reply, {ok, Position}, created, State#{game := NewGame}}
       catch
         _:Error ->
           {reply, {error, Error}, created, State}
       end
-  end,
-  {reply, Result, created, State}.
+  end;
+created(Request, _From, State) ->
+  lager:warning("Invalid Request: ~p", [Request]),
+  {reply, {error, invalid_state}, created, State}.
 
--spec created(start, state()) -> {next_state, started, state()}.
+-spec created(start, state()) -> {next_state, started, state()};
+             (term(), state()) -> {next_state, created, state()}.
 created(start, State) ->
-  {next_state, started, State}.
+  {next_state, started, State};
+created(Request, State) ->
+  lager:warning("Invalid Request: ~p", [Request]),
+  {reply, created, State}.
 
 -spec started({turn, serpents_players:id(), direction()}, state()) ->
-  {next_state, started | finished, state()}.
+                {next_state, started | finished, state()};
+             (term(), state()) -> {next_state, started, state()}.
 started({turn, PlayerId, Direction}, State) ->
-  {next_state, started, State}.
+  {next_state, started, State};
+started(Request, State) ->
+  lager:warning("Invalid Request: ~p", [Request]),
+  {reply, started, State}.
+
+-spec started(term(), _From, state()) ->
+                {reply, {error, invalid_state}, started, state()}.
+started(Request, _From, State) ->
+  lager:warning("Invalid Request: ~p", [Request]),
+  {reply, {error, invalid_state}, started, State}.
+
+-spec finished(term(), state()) -> {next_state, finished, state()}.
+finished(Request, State) ->
+  lager:warning("Invalid Request: ~p", [Request]),
+  {reply, finished, State}.
+
+-spec finished(term(), _From, state()) ->
+                {reply, {error, invalid_state}, finished, state()}.
+finished(Request, _From, State) ->
+  lager:warning("Invalid Request: ~p", [Request]),
+  {reply, {error, invalid_state}, finished, State}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% INTERNAL FUNCTIONS

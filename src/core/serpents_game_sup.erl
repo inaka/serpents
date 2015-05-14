@@ -22,5 +22,5 @@ start_child(Game) ->
 init(_Args) ->
   GameCore =
     {serpents_core, {serpents_core, start_link, []},
-      transient, brutal_kill, worker, [serpents_core]},
+      temporary, brutal_kill, worker, [serpents_core]},
   {ok, {{simple_one_for_one, 5, 10}, [GameCore]}}.

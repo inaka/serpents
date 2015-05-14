@@ -22,15 +22,42 @@ join(Game, PlayerId) ->
     true -> throw(already_joined);
     false ->
       Position = find_empty_position(Game),
-      serpents_games:fill_cell(
-        serpents_games:players(Game, [PlayerId|Players]),
-        Position, player_head, PlayerId)
+      serpents_games:add_player(Game, PlayerId, Position)
   end.
 
+%% @todo wait for ktn_random:uniform/1 and remove the seeding
 find_empty_position(Game) ->
+  random:seed(erlang:now()),
   Rows = serpents_games:rows(Game),
   Cols = serpents_games:cols(Game),
   case try_random_fep(Game, Rows, Cols, 10) of
-    undefined -> walkthrough_fep(Game, Rows, Cols);
+    notfound -> walkthrough_fep(Game, Rows, Cols);
     Position -> Position
+  end.
+
+%% @todo wait for ktn_random:uniform/1 and replace random:uniform here
+try_random_fep(_Game, _Rows, _Cols, 0) ->
+  notfound;
+try_random_fep(Game, Rows, Cols, Attempts) ->
+  Position = {random:uniform(Rows), random:uniform(Cols)},
+  case serpents_games:content(Game, Position) of
+    air -> Position;
+    _ -> try_random_fep(Game, Rows, Cols, Attempts - 1)
+  end.
+
+walkthrough_fep(Game, Rows, Cols) ->
+  walkthrough_fep(Game, Rows, Cols, {1, 1}).
+walkthrough_fep(Game, Rows, Cols, game_full) ->
+  throw(game_full);
+walkthrough_fep(Game, Rows, Cols, Position = {Rows, Cols}) ->
+  try_walkthrough_fep(Game, Rows, Cols, Position, game_full);
+walkthrough_fep(Game, Rows, Cols, Position = {Row, Cols}) ->
+  try_walkthrough_fep(Game, Rows, Cols, Position, {Row + 1, 1});
+walkthrough_fep(Game, Rows, Cols, Position = {Row, Col}) ->
+  try_walkthrough_fep(Game, Rows, Cols, Position, {Row, Col + 1}).
+
+try_walkthrough_fep(Game, Rows, Cols, Position, NextPosition) ->
+  case serpents_games:content(Game, Position) of
+    air -> Position;
+    _ -> walkthrough_fep(Game, Rows, Cols, NextPosition)
   end.

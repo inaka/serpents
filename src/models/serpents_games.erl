@@ -2,13 +2,13 @@
 -module(serpents_games).
 -author('elbrujohalcon@inaka.net').
 
--type content_type() :: air
-                      | wall
-                      | fruit
-                      | {player, head | body, serpents_players:id()}.
+-type content() :: air
+                 | wall
+                 | fruit
+                 | {serpent, head | body, serpents_players:id()}.
 -type cell() ::
   #{ position => serpents_core:position()
-   , content => content_type()
+   , content => content()
    }.
 -type state() :: created | started | finished.
 -opaque id() :: binary().
@@ -19,12 +19,12 @@
     state => state(),
     rows => pos_integer(),
     cols => pos_integer(),
-    full_cells => [cell()],
+    cells => [cell()],
     process => undefined | pid(),
     created_at => dcn_datetime:datetime(),
     updated_at => dcn_datetime:datetime()
   }.
--export_type([game/0, state/0, id/0]).
+-export_type([game/0, state/0, id/0, content/0]).
 
 -export(
   [ new/2
@@ -35,6 +35,8 @@
   , players/1
   , process/2
   , head/2
+  , content/2
+  , add_player/3
   ]).
 
 -spec new(pos_integer(), pos_integer()) -> game().
@@ -47,7 +49,7 @@ new(Rows, Cols) ->
    , state => created
    , rows => Rows
    , cols => Cols
-   , full_cells => []
+   , cells => []
    , process => undefined
    , created_at => Now
    , updated_at => Now
@@ -71,14 +73,33 @@ players(#{players := Players}) -> Players.
 -spec process(game(), pid()) -> game().
 process(Game, Process) -> Game#{process => Process}.
 
+%% @doc where is the head of this player's serpent
 -spec head(game(), serpents_players:id()) ->
   serpents_core:position() | notfound.
-head(#{full_cells := Cells}, PlayerId) ->
+head(#{cells := Cells}, PlayerId) ->
   Heads =
     [ Position
-    || #{position := Position, content := {player, head, P}} <- Cells
+    || #{position := Position, content := {serpent, head, P}} <- Cells
      , P == PlayerId],
   case Heads of
     [] -> notfound;
     [H|_] -> H
   end.
+
+%% @doc returns the content of the cell at that position
+-spec content(game(), serpents_core:position()) -> content().
+content(#{cells := Cells}, Position) ->
+  case [Cell || Cell = #{position := P} <- Cells, P == Position] of
+    [] -> air;
+    [#{content := Content}] -> Content
+  end.
+
+%% @doc adds a new player to the game
+-spec add_player(game(), serpents_players:id(), serpents_core:position()) ->
+  game().
+add_player(Game, PlayerId, Position) ->
+  #{ players := Players
+   , cells := Cells
+   } = Game,
+  Cell = #{position => Position, content => {serpent, head, PlayerId}},
+  Game#{players := [PlayerId | Players], cells := [Cell |Cells]}.
