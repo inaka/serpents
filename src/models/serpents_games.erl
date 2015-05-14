@@ -37,6 +37,7 @@
   , head/2
   , content/2
   , add_player/3
+  , state/2
   ]).
 
 -spec new(pos_integer(), pos_integer()) -> game().
@@ -103,3 +104,6 @@ add_player(Game, PlayerId, Position) ->
    } = Game,
   Cell = #{position => Position, content => {serpent, head, PlayerId}},
   Game#{players := [PlayerId | Players], cells := [Cell |Cells]}.
+
+-spec state(game(), state()) -> game().
+state(Game, State) -> Game#{state => State}.

@@ -4,6 +4,7 @@
 
 -export([ create/1
         , join/2
+        , start/1
         ]).
 
 %% @doc Creates a new game
@@ -24,6 +25,10 @@ join(Game, PlayerId) ->
       Position = find_empty_position(Game),
       serpents_games:add_player(Game, PlayerId, Position)
   end.
+
+%% @doc Starts a game
+-spec start(serpents_games:game()) -> serpents_games:game().
+start(Game) -> serpents_games:state(Game, started).
 
 %% @todo wait for ktn_random:uniform/1 and remove the seeding
 find_empty_position(Game) ->
@@ -47,7 +52,7 @@ try_random_fep(Game, Rows, Cols, Attempts) ->
 
 walkthrough_fep(Game, Rows, Cols) ->
   walkthrough_fep(Game, Rows, Cols, {1, 1}).
-walkthrough_fep(Game, Rows, Cols, game_full) ->
+walkthrough_fep(_Game, _Rows, _Cols, game_full) ->
   throw(game_full);
 walkthrough_fep(Game, Rows, Cols, Position = {Rows, Cols}) ->
   try_walkthrough_fep(Game, Rows, Cols, Position, game_full);

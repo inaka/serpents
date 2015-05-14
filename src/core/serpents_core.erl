@@ -23,6 +23,8 @@
 -export(
   [ created/3
   , created/2
+  , ready_to_start/3
+  , ready_to_start/2
   , started/3
   , started/2
   , finished/3
@@ -144,31 +146,49 @@ code_change(_, StateName, State, _) -> {ok, StateName, State}.
                 {reply, {ok, position()} | {error, term()}, created, state()};
              (term(), _From, state()) ->
                 {reply, {error, invalid_state}, created, state()}.
-created({join, PlayerId}, _From, State) ->
-  #{game := Game} = State,
-  case serpents_players_repo:is_registered(PlayerId) of
-    false -> {reply, {error, invalid_player}, created, State};
-    true ->
-      try serpents_games_repo:join(Game, PlayerId) of
-        NewGame ->
-          Position = serpents_games:head(NewGame, PlayerId),
-          {reply, {ok, Position}, created, State#{game := NewGame}}
-      catch
-        _:Error ->
-          {reply, {error, Error}, created, State}
-      end
-  end;
+created({join, PlayerId}, From, State) ->
+  ready_to_start({join, PlayerId}, From, State);
 created(Request, _From, State) ->
   lager:warning("Invalid Request: ~p", [Request]),
   {reply, {error, invalid_state}, created, State}.
 
--spec created(start, state()) -> {next_state, started, state()};
-             (term(), state()) -> {next_state, created, state()}.
-created(start, State) ->
-  {next_state, started, State};
+-spec created(term(), state()) -> {next_state, created, state()}.
 created(Request, State) ->
   lager:warning("Invalid Request: ~p", [Request]),
-  {reply, created, State}.
+  {next_state, created, State}.
+
+-spec ready_to_start
+  ({join, serpents_players:id()}, _From, state()) ->
+    {reply, {ok, position()} | {error, term()}, ready_to_start, state()};
+  (term(), _From, state()) ->
+    {reply, {error, invalid_state}, ready_to_start, state()}.
+ready_to_start({join, PlayerId}, _From, State) ->
+  #{game := Game} = State,
+  case serpents_players_repo:is_registered(PlayerId) of
+    false -> {reply, {error, invalid_player}, ready_to_start, State};
+    true ->
+      try serpents_games_repo:join(Game, PlayerId) of
+        NewGame ->
+          Position = serpents_games:head(NewGame, PlayerId),
+          {reply, {ok, Position}, ready_to_start, State#{game := NewGame}}
+      catch
+        _:Error ->
+          {reply, {error, Error}, ready_to_start, State}
+      end
+  end;
+ready_to_start(Request, _From, State) ->
+  lager:warning("Invalid Request: ~p", [Request]),
+  {reply, {error, invalid_state}, ready_to_start, State}.
+
+-spec ready_to_start(start, state()) -> {next_state, started, state()};
+                    (term(), state()) -> {next_state, ready_to_start, state()}.
+ready_to_start(start, State) ->
+  #{game := Game} = State,
+  NewGame = serpents_games_repo:start(Game),
+  {next_state, started, State#{game := NewGame}};
+ready_to_start(Request, State) ->
+  lager:warning("Invalid Request: ~p", [Request]),
+  {reply, ready_to_start, State}.
 
 -spec started({turn, serpents_players:id(), direction()}, state()) ->
                 {next_state, started | finished, state()};
@@ -177,7 +197,7 @@ started({turn, PlayerId, Direction}, State) ->
   {next_state, started, State};
 started(Request, State) ->
   lager:warning("Invalid Request: ~p", [Request]),
-  {reply, started, State}.
+  {next_state, started, State}.
 
 -spec started(term(), _From, state()) ->
                 {reply, {error, invalid_state}, started, state()}.

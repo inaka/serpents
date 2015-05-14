@@ -21,8 +21,7 @@
         , join_game_ok/1
         , join_game_wrong/1
         , too_many_joins/1
-        % , start_game_wrong/1
-        % , start_game_ok/1
+        , start_game/1
         ]).
 
 -spec all() -> [atom()].
@@ -32,7 +31,8 @@ all() -> serpents_test_utils:all(?MODULE).
   serpents_test_utils:config().
 init_per_testcase(JoinGameTest, Config)
   when JoinGameTest == join_game_ok
-     ; JoinGameTest == join_game_wrong ->
+     ; JoinGameTest == join_game_wrong
+     ; JoinGameTest == start_game ->
   Game = serpents_core:create_game(#{cols => 10, rows => 10}),
   Player1 = serpents_core:register_player(<<"1">>),
   Player2 = serpents_core:register_player(<<"2">>),
@@ -48,7 +48,8 @@ init_per_testcase(_Test, Config) -> Config.
   serpents_test_utils:config().
 end_per_testcase(JoinGameTest, Config)
   when JoinGameTest == join_game_ok
-     ; JoinGameTest == join_game_wrong ->
+     ; JoinGameTest == join_game_wrong
+     ; JoinGameTest == start_game ->
   lists:filter(
     fun ({K, _}) -> not lists:member(K, [game, player1, player2, player3]) end,
     Config);
@@ -283,5 +284,29 @@ too_many_joins(_Config) ->
   catch
     throw:game_full -> ok
   end,
+
+  {comment, ""}.
+
+-spec start_game(serpents_test_utils:config()) ->
+  {comment, string()}.
+start_game(Config) ->
+  {game, Game} = lists:keyfind(game, 1, Config),
+  {player1, Player1} = lists:keyfind(player1, 1, Config),
+  GameId = serpents_games:id(Game),
+  Player1Id = serpents_players:id(Player1),
+
+  ct:comment("The game can't start if there is noone in it"),
+  [] = serpents_games:players(serpents_core:fetch_game(GameId)),
+  ok = serpents_core:start_game(GameId),
+  #{state := created} = serpents_core:fetch_game(GameId),
+
+  ct:comment("The game can start after the first join"),
+  serpents_core:join_game(GameId, Player1Id),
+  ok = serpents_core:start_game(GameId),
+  #{state := started} = serpents_core:fetch_game(GameId),
+
+  ct:comment("Trying to start the game again has no effect"),
+  ok = serpents_core:start_game(GameId),
+  #{state := started} = serpents_core:fetch_game(GameId),
 
   {comment, ""}.
