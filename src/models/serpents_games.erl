@@ -2,9 +2,13 @@
 -module(serpents_games).
 -author('elbrujohalcon@inaka.net').
 
+-type content_type() :: air
+                      | wall
+                      | fruit
+                      | {player, head | body, serpents_players:id()}.
 -type cell() ::
   #{ position => serpents_core:position()
-   , content => empty | wall | price | {player, serpents_players:id()}
+   , content => content_type()
    }.
 -type state() :: created | started | finished.
 -opaque id() :: binary().
@@ -30,6 +34,7 @@
   , state/1
   , players/1
   , process/2
+  , head/2
   ]).
 
 -spec new(pos_integer(), pos_integer()) -> game().
@@ -65,3 +70,15 @@ players(#{players := Players}) -> Players.
 
 -spec process(game(), pid()) -> game().
 process(Game, Process) -> Game#{process => Process}.
+
+-spec head(game(), serpents_players:id()) ->
+  serpents_core:position() | notfound.
+head(#{full_cells := Cells}, PlayerId) ->
+  Heads =
+    [ Position
+    || #{position := Position, content := {player, head, P}} <- Cells
+     , P == PlayerId],
+  case Heads of
+    [] -> notfound;
+    [H|_] -> H
+  end.

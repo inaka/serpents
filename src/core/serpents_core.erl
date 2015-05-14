@@ -140,7 +140,20 @@ code_change(_, StateName, State, _) -> {ok, StateName, State}.
 -spec created({join, serpents_players:id()}, _From, state()) ->
   {reply, {ok, position()} | {error, term()}, created, state()}.
 created({join, PlayerId}, _From, State) ->
-  {reply, {error, not_implemented}, created, State}.
+  #{game := Game} = State,
+  case serpents_players_repo:is_registered(PlayerId) of
+    false -> {reply, {error, invalid_player}, created, State};
+    true ->
+      try serpents_games_repo:join(Game, PlayerId) of
+        NewGame ->
+          Position = serpents_games:head(Game, Player),
+          {reply, {ok, Position}, created, State#{game := NewGame}}
+      catch
+        _:Error ->
+          {reply, {error, Error}, created, State}
+      end
+  end,
+  {reply, Result, created, State}.
 
 -spec created(start, state()) -> {next_state, started, state()}.
 created(start, State) ->
