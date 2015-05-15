@@ -213,7 +213,9 @@ join_game_ok(Config) ->
   [] = serpents_games:players(serpents_core:fetch_game(GameId)),
 
   ct:comment("Player1 joins"),
-  P1 = {Row1, Col1} = serpents_core:join_game(GameId, Player1Id),
+  {P1, D1} = serpents_core:join_game(GameId, Player1Id),
+  {Row1, Col1} = P1,
+  true = lists:member(D1, [up, down, left, right]),
   true = Row1 > 0,
   true = Row1 < 11,
   true = Col1 > 0,
@@ -221,7 +223,9 @@ join_game_ok(Config) ->
   [Player1Id] = serpents_games:players(serpents_core:fetch_game(GameId)),
 
   ct:comment("Player2 joins"),
-  P2 = {Row2, Col2} = serpents_core:join_game(GameId, Player2Id),
+  {P2, D2} = serpents_core:join_game(GameId, Player2Id),
+  {Row2, Col2} = P2,
+  true = lists:member(D2, [up, down, left, right]),
   true = Row2 > 0,
   true = Row2 < 11,
   true = Col2 > 0,
@@ -235,7 +239,9 @@ join_game_ok(Config) ->
       serpents_games:players(serpents_core:fetch_game(GameId)),
 
   ct:comment("Player3 joins"),
-  P3 = {Row3, Col3} = serpents_core:join_game(GameId, Player3Id),
+  {P3, D3} = serpents_core:join_game(GameId, Player3Id),
+  {Row3, Col3} = P3,
+  true = lists:member(D3, [up, down, left, right]),
   true = Row3 > 0,
   true = Row3 < 11,
   true = Col3 > 0,
@@ -270,7 +276,7 @@ join_game_wrong(Config) ->
 
   ct:comment("Player1 tries to join the game again"),
   try serpents_core:join_game(GameId, Player1Id) of
-    P2 -> ct:fail("Duplicated join ~p in ~p (~p)", [Player1Id, GameId, P2])
+    R2 -> ct:fail("Duplicated join ~p in ~p (~p)", [Player1Id, GameId, R2])
   catch
     throw:already_joined -> ok
   end,
@@ -278,7 +284,7 @@ join_game_wrong(Config) ->
 
   ct:comment("invalid player tries to join the game"),
   try serpents_core:join_game(GameId, <<"not-a-real-player">>) of
-    P3 -> ct:fail("Unexpected join in ~p: ~p", [GameId, P3])
+    R3 -> ct:fail("Unexpected join in ~p: ~p", [GameId, R3])
   catch
     throw:invalid_player -> ok
   end,
@@ -291,7 +297,7 @@ join_game_wrong(Config) ->
       serpents_games:state(serpents_core:fetch_game(GameId))
     end, started),
   try serpents_core:join_game(GameId, Player2Id) of
-    P4 -> ct:fail("Unexpected join in ~p: ~p", [GameId, P4])
+    R4 -> ct:fail("Unexpected join in ~p: ~p", [GameId, R4])
   catch
     throw:invalid_state -> ok
   end,
@@ -320,7 +326,7 @@ too_many_joins(_Config) ->
   ct:comment("Another player tries to join the game but it's rejected"),
   Homero = serpents_players:id(serpents_core:register_player(<<"homero">>)),
   try serpents_core:join_game(GameId, Homero) of
-    Position -> ct:fail("Unexpected join in ~p: ~p", [GameId, Position])
+    Result -> ct:fail("Unexpected join in ~p: ~p", [GameId, Result])
   catch
     throw:game_full -> ok
   end,

@@ -39,16 +39,9 @@
 
 -type options() :: #{ rows => pos_integer()
                     , cols => pos_integer()
+                    , ticktime => pos_integer()
                     }.
--type row() :: pos_integer().
--type col() :: pos_integer().
--type position() :: {row(), col()}.
--type direction() :: left | right | up | down.
--export_type(
-  [ options/0
-  , position/0
-  , direction/0
-  ]).
+-export_type([options/0]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% EXPORTED FUNCTIONS
@@ -70,7 +63,8 @@ create_game(Options) ->
   serpents_games:process(Game, Pid).
 
 %% @doc PlayerId joins GameId
--spec join_game(serpents_games:id(), serpents_players:id()) -> position().
+-spec join_game(serpents_games:id(), serpents_players:id()) ->
+  {serpents_games:position(), serpents_games:direction()}.
 join_game(GameId, PlayerId) ->
   call(GameId, {join, PlayerId}).
 
@@ -80,7 +74,8 @@ start_game(GameId) ->
   cast(GameId, start).
 
 %% @doc a player changes direction
--spec turn(serpents_games:id(), serpents_players:id(), direction()) -> ok.
+-spec turn(
+  serpents_games:id(), serpents_players:id(), serpents_games:direction()) -> ok.
 turn(GameId, PlayerId, Direction) ->
   cast(GameId, {turn, PlayerId, Direction}).
 
@@ -142,8 +137,11 @@ terminate(Reason, StateName, State) ->
     {ok, atom(), state()}.
 code_change(_, StateName, State, _) -> {ok, StateName, State}.
 
+-type join_result() ::
+    {ok, {serpents_games:position(), serpents_games:direction()}}
+  | {error, term()}.
 -spec created({join, serpents_players:id()}, _From, state()) ->
-                {reply, {ok, position()} | {error, term()}, created, state()};
+                {reply, join_result(), created, state()};
              (term(), _From, state()) ->
                 {reply, {error, invalid_state}, created, state()}.
 created({join, PlayerId}, From, State) ->
@@ -159,7 +157,7 @@ created(Request, State) ->
 
 -spec ready_to_start
   ({join, serpents_players:id()}, _From, state()) ->
-    {reply, {ok, position()} | {error, term()}, ready_to_start, state()};
+    {reply, join_result(), ready_to_start, state()};
   (term(), _From, state()) ->
     {reply, {error, invalid_state}, ready_to_start, state()}.
 ready_to_start({join, PlayerId}, _From, State) ->
@@ -170,7 +168,10 @@ ready_to_start({join, PlayerId}, _From, State) ->
       try serpents_games_repo:join(Game, PlayerId) of
         NewGame ->
           Position = serpents_games:head(NewGame, PlayerId),
-          {reply, {ok, Position}, ready_to_start, State#{game := NewGame}}
+          Serpent = serpents_games:serpent(NewGame, PlayerId),
+          Direction = serpents_serpents:direction(Serpent),
+          Response = {ok, {Position, Direction}},
+          {reply, Response, ready_to_start, State#{game := NewGame}}
       catch
         _:Error ->
           {reply, {error, Error}, ready_to_start, State}
@@ -190,9 +191,10 @@ ready_to_start(Request, State) ->
   lager:warning("Invalid Request: ~p", [Request]),
   {reply, ready_to_start, State}.
 
--spec started({turn, serpents_players:id(), direction()}, state()) ->
-                {next_state, started | finished, state()};
-             (term(), state()) -> {next_state, started, state()}.
+-spec started
+  ({turn, serpents_players:id(), serpents_games:direction()}, state()) ->
+    {next_state, started | finished, state()};
+ (term(), state()) -> {next_state, started, state()}.
 started({turn, PlayerId, Direction}, State) ->
   {next_state, started, State};
 started(Request, State) ->

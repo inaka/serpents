@@ -24,7 +24,8 @@ join(Game, PlayerId) ->
     true -> throw(already_joined);
     false ->
       Position = find_empty_position(Game),
-      serpents_games:add_player(Game, PlayerId, Position)
+      Direction = random_direction(),
+      serpents_games:add_player(Game, PlayerId, Position, Direction)
   end.
 
 %% @doc Starts a game
@@ -67,3 +68,7 @@ try_walkthrough_fep(Game, Rows, Cols, Position, NextPosition) ->
     air -> Position;
     _ -> walkthrough_fep(Game, Rows, Cols, NextPosition)
   end.
+
+%% @todo wait for ktn_random:uniform/1 and replace random:uniform here
+random_direction() ->
+  lists:nth(random:uniform(4), [up, down, left, right]).

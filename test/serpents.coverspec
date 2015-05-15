@@ -11,6 +11,7 @@
  , serpents_games_repo
  , serpents_players
  , serpents_players_repo
+ , serpents_serpents
  , serpents_json
  , serpents_web_utils
  ]
