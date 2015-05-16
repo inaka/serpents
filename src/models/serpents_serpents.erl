@@ -9,7 +9,7 @@
                       , direction => direction()
                       , food      => pos_integer()
                       }.
--export_type([serpent/0]).
+-export_type([serpent/0, direction/0]).
 
 -export([new/2]).
 -export([ owner/1

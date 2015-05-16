@@ -95,7 +95,7 @@ game_dispatcher(GameId) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 -spec start_link(serpents_games:game()) -> {ok, pid()} | {error, term()}.
 start_link(Game) ->
-  Process = process_name(serpents_games:id(Game)),
+  Process = serpents_games:process_name(serpents_games:id(Game)),
   gen_fsm:start_link({local, Process}, ?MODULE, Game, [{debug, [trace, log]}]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -113,9 +113,9 @@ handle_event(Event, _StateName, State) -> {stop, {unexpected, Event}, State}.
 
 -spec handle_sync_event
   (fetch, _From, atom(), state()) ->
-    {reply, serpents_games:game(), atom(), state()};
+    {reply, {ok, serpents_games:game()}, atom(), state()};
   (dispatcher, _From, atom(), state()) ->
-    {reply, pid(), atom(), state()}.
+    {reply, {ok, pid()}, atom(), state()}.
 handle_sync_event(fetch, _From, StateName, State) ->
   {reply, {ok, State#state.game}, StateName, State};
 handle_sync_event(dispatcher, _From, StateName, State) ->
@@ -138,10 +138,8 @@ code_change(_, StateName, State, _) -> {ok, StateName, State}.
 -type join_result() ::
     {ok, {serpents_games:position(), serpents_games:direction()}}
   | {error, term()}.
--spec created({join, serpents_players:id()}, _From, state()) ->
-                {reply, join_result(), created, state()};
-             (term(), _From, state()) ->
-                {reply, {error, invalid_state}, created, state()}.
+-spec created({join, serpents_players:id()} | term(), _From, state()) ->
+                {reply, join_result(), created, state()}.
 created({join, PlayerId}, From, State) ->
   ready_to_start({join, PlayerId}, From, State);
 created(Request, _From, State) ->
@@ -153,11 +151,8 @@ created(Request, State) ->
   lager:warning("Invalid Request: ~p", [Request]),
   {next_state, created, State}.
 
--spec ready_to_start
-  ({join, serpents_players:id()}, _From, state()) ->
-    {reply, join_result(), ready_to_start, state()};
-  (term(), _From, state()) ->
-    {reply, {error, invalid_state}, ready_to_start, state()}.
+-spec ready_to_start({join, serpents_players:id()} | term(), _From, state()) ->
+    {reply, join_result(), ready_to_start, state()}.
 ready_to_start({join, PlayerId}, _From, State) ->
   #state{game = Game} = State,
   case serpents_players_repo:is_registered(PlayerId) of
@@ -179,11 +174,9 @@ ready_to_start(Request, _From, State) ->
   lager:warning("Invalid Request: ~p", [Request]),
   {reply, {error, invalid_state}, ready_to_start, State}.
 
--spec ready_to_start
-  ({turn, serpents_players:id(), serpents_games:direction()}, state()) ->
-    {next_state, ready_to_start, state()};
-  (start, state()) -> {next_state, started, state()};
-  (term(), state()) -> {next_state, ready_to_start, state()}.
+-spec ready_to_start(
+  {turn, serpents_players:id(), serpents_games:direction()} | start | term(),
+  state()) -> {next_state, started | ready_to_start, state()}.
 ready_to_start({turn, PlayerId, Direction}, State) ->
   #state{game = Game} = State,
   try serpents_games_repo:turn(Game, PlayerId, Direction) of
@@ -202,10 +195,9 @@ ready_to_start(Request, State) ->
   lager:warning("Invalid Request: ~p", [Request]),
   {next_state, ready_to_start, State}.
 
--spec started
-  ({turn, serpents_players:id(), serpents_games:direction()}, state()) ->
-    {next_state, started | finished, state()};
- (term(), state()) -> {next_state, started, state()}.
+-spec started(
+  {turn, serpents_players:id(), serpents_games:direction()} | term(),
+  state()) -> {next_state, started | finished, state()}.
 started({turn, PlayerId, Direction}, State) ->
   #state{game = Game} = State,
   try serpents_games_repo:turn(Game, PlayerId, Direction) of
@@ -241,7 +233,7 @@ finished(Request, _From, State) ->
 %% INTERNAL FUNCTIONS
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 call(GameId, Event) ->
-  Process = process_name(GameId),
+  Process = serpents_games:process_name(GameId),
   try do_call(Process, Event) of
     ok -> ok;
     {ok, Result} -> Result;
@@ -262,7 +254,4 @@ do_call(Process, Event) ->
   gen_fsm:sync_send_event(Process, Event).
 
 cast(GameId, Event) ->
-  gen_fsm:send_event(process_name(GameId), Event).
-
-process_name(GameId) ->
-  binary_to_atom(<<?MODULE_STRING, $:, GameId/binary>>, utf8).
+  gen_fsm:send_event(serpents_games:process_name(GameId), Event).

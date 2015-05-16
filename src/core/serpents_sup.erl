@@ -7,14 +7,15 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Start / Stop
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
--spec start_link() -> ok.
+-spec start_link() -> {ok, pid()}.
 start_link() ->
   supervisor:start_link({local, ?MODULE}, ?MODULE, noargs).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% SUPERVISOR CALLBACKS
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
--spec init(noargs) -> {ok, term()}.
+-spec init(noargs) ->
+	{ok, {{one_for_one, 5, 10}, [supervisor:child_spec()]}}.
 init(noargs) ->
   KatanaRandom =
     {ktn_random, {ktn_random, start_link, []},

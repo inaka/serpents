@@ -5,6 +5,7 @@
 -behaviour(sumo_doc).
 
 -opaque id() :: binary().
+-type name() :: binary().
 -opaque player() ::
   #{
     id => id(),
@@ -12,7 +13,7 @@
     created_at => dcn_datetime:datetime(),
     updated_at => dcn_datetime:datetime()
   }.
--export_type([player/0, id/0]).
+-export_type([player/0, id/0, name/0]).
 
 -export([new/1]).
 -export([sumo_schema/0, sumo_wakeup/1, sumo_sleep/1]).

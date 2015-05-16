@@ -47,6 +47,7 @@
   , state/2
   , turn/3
   ]).
+-export([process_name/1]).
 
 -spec new(pos_integer(), pos_integer(), pos_integer()) -> game().
 new(Rows, Cols, TickTime) ->
@@ -137,3 +138,7 @@ turn(Game, PlayerId, Direction) ->
       Serpents),
   NewSerpent = serpents_serpents:direction(PlayerSerpent, Direction),
   Game#{serpents := [NewSerpent|OtherSerpents]}.
+
+-spec process_name(id()) -> atom().
+process_name(GameId) ->
+  binary_to_atom(<<?MODULE_STRING, $:, GameId/binary>>, utf8).

@@ -7,18 +7,19 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Start / Stop
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
--spec start_link() -> ok.
+-spec start_link() -> {ok, pid()}.
 start_link() ->
   supervisor:start_link({local, ?MODULE}, ?MODULE, noargs).
 
--spec start_child(serpents_games:game()) -> {ok, pid()}.
+-spec start_child(serpents_games:game()) -> supervisor:startchild_ret().
 start_child(Game) ->
   supervisor:start_child(?MODULE, [Game]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% SUPERVISOR CALLBACKS
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
--spec init(term()) -> {ok, term()}.
+-spec init(term()) ->
+	{ok, {{simple_one_for_one, 5, 10}, [supervisor:child_spec()]}}.
 init(_Args) ->
   GameCore =
     {serpents_core, {serpents_core, start_link, []},
