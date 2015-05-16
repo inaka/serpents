@@ -25,6 +25,7 @@
         , start_game/1
         , turn_wrong/1
         , turn_ok/1
+        , game_dispatcher/1
         ]).
 
 -spec all() -> [atom()].
@@ -400,6 +401,8 @@ turn_wrong(Config) ->
 
   {comment, ""}.
 
+-spec turn_ok(serpents_test_utils:config()) ->
+  {comment, string()}.
 turn_ok(Config) ->
   {game, Game} = lists:keyfind(game, 1, Config),
   {player1, Player1} = lists:keyfind(player1, 1, Config),
@@ -438,5 +441,40 @@ turn_ok(Config) ->
   ct:comment("After the game starts, players can turn"),
   serpents_core:start_game(GameId),
   FullRound(),
+
+  {comment, ""}.
+
+-spec game_dispatcher(serpents_test_utils:config()) ->
+  {comment, string()}.
+game_dispatcher(_Config) ->
+  ct:comment("A game is created"),
+  Game1 = serpents_core:create_game(),
+  Game1Id = serpents_games:id(Game1),
+
+  ct:comment("The dispatcher is a gen_event"),
+  Dispatcher1 = serpents_core:game_dispatcher(Game1Id),
+  {status, Dispatcher1Pid, {module, gen_event}, _} =
+    sys:get_status(Dispatcher1),
+  [] = gen_event:which_handlers(Dispatcher1Pid),
+
+  ct:comment("Another game is created"),
+  Game2 = serpents_core:create_game(),
+  Game2Id = serpents_games:id(Game2),
+
+  ct:comment("The dispatcher is a gen_event"),
+  Dispatcher2 = serpents_core:game_dispatcher(Game2Id),
+  {status, Dispatcher2Pid, {module, gen_event}, _} =
+    sys:get_status(Dispatcher2),
+  [] = gen_event:which_handlers(Dispatcher2Pid),
+
+  ct:comment("The dispatchers are different"),
+  case Dispatcher2 of
+    Dispatcher1 -> ct:fail("Duplicated dispatcher: ~p", [Dispatcher1]);
+    Dispatcher2 -> ok
+  end,
+  case Dispatcher2Pid of
+    Dispatcher1Pid -> ct:fail("Duplicated dispatcher: ~p", [Dispatcher1Pid]);
+    Dispatcher2Pid -> ok
+  end,
 
   {comment, ""}.
