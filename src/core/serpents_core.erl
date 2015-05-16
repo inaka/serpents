@@ -4,9 +4,9 @@
 
 -behavior(gen_fsm).
 
--type state() :: #{ game => serpents_games:game()
-                  , dispatcher => pid()
-                  }.
+-record(state, {game :: serpents_games:game(), dispatcher :: pid()}).
+
+-type state() :: #state{}.
 
 -export(
   [ register_player/1
@@ -105,7 +105,7 @@ start_link(Game) ->
 init(Game) ->
   {ok, Dispatcher} = gen_event:start_link(),
   NewGame = serpents_games:process(Game, self()),
-  {ok, created, #{game => NewGame, dispatcher => Dispatcher}}.
+  {ok, created, #state{game = NewGame, dispatcher = Dispatcher}}.
 
 -spec handle_event(Event, atom(), state()) ->
   {stop, {unexpected, Event}, state()}.
@@ -117,11 +117,9 @@ handle_event(Event, _StateName, State) -> {stop, {unexpected, Event}, State}.
   (dispatcher, _From, atom(), state()) ->
     {reply, pid(), atom(), state()}.
 handle_sync_event(fetch, _From, StateName, State) ->
-  #{game := Game} = State,
-  {reply, {ok, Game}, StateName, State};
+  {reply, {ok, State#state.game}, StateName, State};
 handle_sync_event(dispatcher, _From, StateName, State) ->
-  #{dispatcher := Dispatcher} = State,
-  {reply, {ok, Dispatcher}, StateName, State}.
+  {reply, {ok, State#state.dispatcher}, StateName, State}.
 
 -spec handle_info(term(), atom(), state()) -> {next_state, atom(), state()}.
 handle_info(Info, StateName, State) ->
@@ -130,8 +128,7 @@ handle_info(Info, StateName, State) ->
 
 -spec terminate(term(), atom(), state()) -> ok.
 terminate(Reason, StateName, State) ->
-  #{dispatcher := Dispatcher} = State,
-  catch gen_event:stop(Dispatcher),
+  catch gen_event:stop(State#state.dispatcher),
   lager:notice("Terminating in ~p with reason ~p", [StateName, Reason]).
 
 -spec code_change(term() | {down, term()}, atom(), state(), term()) ->
@@ -162,7 +159,7 @@ created(Request, State) ->
   (term(), _From, state()) ->
     {reply, {error, invalid_state}, ready_to_start, state()}.
 ready_to_start({join, PlayerId}, _From, State) ->
-  #{game := Game} = State,
+  #state{game = Game} = State,
   case serpents_players_repo:is_registered(PlayerId) of
     false -> {reply, {error, invalid_player}, ready_to_start, State};
     true ->
@@ -172,7 +169,7 @@ ready_to_start({join, PlayerId}, _From, State) ->
           Serpent = serpents_games:serpent(NewGame, PlayerId),
           Direction = serpents_serpents:direction(Serpent),
           Response = {ok, {Position, Direction}},
-          {reply, Response, ready_to_start, State#{game := NewGame}}
+          {reply, Response, ready_to_start, State#state{game = NewGame}}
       catch
         _:Error ->
           {reply, {error, Error}, ready_to_start, State}
@@ -188,19 +185,19 @@ ready_to_start(Request, _From, State) ->
   (start, state()) -> {next_state, started, state()};
   (term(), state()) -> {next_state, ready_to_start, state()}.
 ready_to_start({turn, PlayerId, Direction}, State) ->
-  #{game := Game} = State,
+  #state{game = Game} = State,
   try serpents_games_repo:turn(Game, PlayerId, Direction) of
     NewGame ->
-      {next_state, ready_to_start, State#{game := NewGame}}
+      {next_state, ready_to_start, State#state{game = NewGame}}
   catch
     throw:invalid_player ->
       lager:warning("Invalid Turn: ~p / ~p", [PlayerId, Direction]),
       {next_state, ready_to_start, State}
   end;
 ready_to_start(start, State) ->
-  #{game := Game} = State,
+  #state{game = Game} = State,
   NewGame = serpents_games_repo:start(Game),
-  {next_state, started, State#{game := NewGame}};
+  {next_state, started, State#state{game = NewGame}};
 ready_to_start(Request, State) ->
   lager:warning("Invalid Request: ~p", [Request]),
   {next_state, ready_to_start, State}.
@@ -210,10 +207,10 @@ ready_to_start(Request, State) ->
     {next_state, started | finished, state()};
  (term(), state()) -> {next_state, started, state()}.
 started({turn, PlayerId, Direction}, State) ->
-  #{game := Game} = State,
+  #state{game = Game} = State,
   try serpents_games_repo:turn(Game, PlayerId, Direction) of
     NewGame ->
-      {next_state, started, State#{game := NewGame}}
+      {next_state, started, State#state{game = NewGame}}
   catch
     throw:invalid_player ->
       lager:warning("Invalid Turn: ~p / ~p", [PlayerId, Direction]),
