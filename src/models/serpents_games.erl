@@ -38,19 +38,17 @@
   , cols/1
   , ticktime/1
   , state/1
-  , players/1
+  , serpents/1
   , process/2
   , head/2
   , serpent/2
   , content/2
   , add_player/4
   , state/2
+  , turn/3
   ]).
 
 -spec new(pos_integer(), pos_integer(), pos_integer()) -> game().
-new(Rows, _Cols, _TickTime) when Rows < 5 -> throw(invalid_rows);
-new(_Rows, Cols, _TickTime) when Cols < 5 -> throw(invalid_cols);
-new(_Rows, _Cols, TickTime) when TickTime < 100 -> throw(invalid_ticktime);
 new(Rows, Cols, TickTime) ->
   Now = ktn_date:now_human_readable(),
   #{ id => uuid:uuid_to_string(uuid:get_v4(), binary_standard)
@@ -80,9 +78,8 @@ ticktime(#{ticktime := TickTime}) -> TickTime.
 -spec state(game()) -> state().
 state(#{state := State}) -> State.
 
--spec players(game()) -> [serpents_players:id()].
-players(#{serpents := Serpents}) ->
-  [serpents_serpents:owner(Serpent) || Serpent <- Serpents].
+-spec serpents(game()) -> [serpents_serpents:serpent()].
+serpents(#{serpents := Serpents}) -> Serpents.
 
 -spec serpent(game(), serpents_players:id()) ->
   serpents_serpents:serpent() | notfound.
@@ -130,3 +127,13 @@ add_player(Game, PlayerId, Position, Direction) ->
 
 -spec state(game(), state()) -> game().
 state(Game, State) -> Game#{state => State}.
+
+-spec turn(game(), serpents_players:id(), direction()) -> game().
+turn(Game, PlayerId, Direction) ->
+  #{serpents := Serpents} = Game,
+  {[PlayerSerpent], OtherSerpents} =
+    lists:partition(
+      fun(Serpent) -> serpents_serpents:is_owner(Serpent, PlayerId) end,
+      Serpents),
+  NewSerpent = serpents_serpents:direction(PlayerSerpent, Direction),
+  Game#{serpents := [NewSerpent|OtherSerpents]}.

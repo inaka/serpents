@@ -5,6 +5,7 @@
 -export([ create/1
         , join/2
         , start/1
+        , turn/3
         ]).
 
 %% @doc Creates a new game
@@ -13,24 +14,34 @@ create(Options) ->
   Rows = maps:get(rows, Options, 20),
   Cols = maps:get(cols, Options, 20),
   TickTime = maps:get(ticktime, Options, 250),
+  validate(Rows, Cols, TickTime),
   serpents_games:new(Rows, Cols, TickTime).
 
 %% @doc Adds a player to a game
 -spec join(serpents_games:game(), serpents_players:id()) ->
   serpents_games:game().
 join(Game, PlayerId) ->
-  Players = serpents_games:players(Game),
-  case lists:member(PlayerId, Players) of
-    true -> throw(already_joined);
-    false ->
+  case serpents_games:serpent(Game, PlayerId) of
+    notfound ->
       Position = find_empty_position(Game),
       Direction = random_direction(),
-      serpents_games:add_player(Game, PlayerId, Position, Direction)
+      serpents_games:add_player(Game, PlayerId, Position, Direction);
+    _ -> throw(already_joined)
   end.
 
 %% @doc Starts a game
 -spec start(serpents_games:game()) -> serpents_games:game().
 start(Game) -> serpents_games:state(Game, started).
+
+%% @doc Registers a change in direction for a player
+-spec turn(
+  serpents_games:game(), serpents_players:id(),
+  serpents_serpents:direction()) -> serpents_games:game().
+turn(Game, PlayerId, Direction) ->
+  case serpents_games:serpent(Game, PlayerId) of
+    notfound -> throw(invalid_player);
+    _Serpent -> serpents_games:turn(Game, PlayerId, Direction)
+  end.
 
 %% @todo wait for ktn_random:uniform/1 and remove the seeding
 find_empty_position(Game) ->
@@ -72,3 +83,8 @@ try_walkthrough_fep(Game, Rows, Cols, Position, NextPosition) ->
 %% @todo wait for ktn_random:uniform/1 and replace random:uniform here
 random_direction() ->
   lists:nth(random:uniform(4), [up, down, left, right]).
+
+validate(Rows, _Cols, _TickTime) when Rows < 5 -> throw(invalid_rows);
+validate(_Rows, Cols, _TickTime) when Cols < 5 -> throw(invalid_cols);
+validate(_Rows, _Cols, TickTime) when TickTime < 100 -> throw(invalid_ticktime);
+validate(_Rows, _Cols, _TickTime) -> ok.

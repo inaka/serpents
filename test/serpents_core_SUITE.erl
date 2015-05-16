@@ -23,6 +23,8 @@
         , join_game_wrong/1
         , too_many_joins/1
         , start_game/1
+        , turn_wrong/1
+        , turn_ok/1
         ]).
 
 -spec all() -> [atom()].
@@ -30,10 +32,22 @@ all() -> serpents_test_utils:all(?MODULE).
 
 -spec init_per_testcase(atom(), serpents_test_utils:config()) ->
   serpents_test_utils:config().
+init_per_testcase(turn_ok, Config0) ->
+  Config = init_per_testcase(turn_wrong, Config0),
+  {game, Game} = lists:keyfind(game, 1, Config),
+  {player1, Player1} = lists:keyfind(player1, 1, Config),
+  {player2, Player2} = lists:keyfind(player2, 1, Config),
+  GameId = serpents_games:id(Game),
+  Player1Id = serpents_players:id(Player1),
+  Player2Id = serpents_players:id(Player2),
+  {_, _} = serpents_core:join_game(GameId, Player1Id),
+  {_, _} = serpents_core:join_game(GameId, Player2Id),
+  Config;
 init_per_testcase(JoinGameTest, Config)
   when JoinGameTest == join_game_ok
      ; JoinGameTest == join_game_wrong
-     ; JoinGameTest == start_game ->
+     ; JoinGameTest == start_game
+     ; JoinGameTest == turn_wrong ->
   Game = serpents_core:create_game(#{cols => 10, rows => 10}),
   Player1 = serpents_core:register_player(<<"1">>),
   Player2 = serpents_core:register_player(<<"2">>),
@@ -50,7 +64,8 @@ init_per_testcase(_Test, Config) -> Config.
 end_per_testcase(JoinGameTest, Config)
   when JoinGameTest == join_game_ok
      ; JoinGameTest == join_game_wrong
-     ; JoinGameTest == start_game ->
+     ; JoinGameTest == start_game
+     ; JoinGameTest == turn_wrong ->
   lists:filter(
     fun ({K, _}) -> not lists:member(K, [game, player1, player2, player3]) end,
     Config);
@@ -90,7 +105,7 @@ game_creation_default(_Config) ->
   20 = serpents_games:cols(Game),
   250 = serpents_games:ticktime(Game),
   created = serpents_games:state(Game),
-  [] = serpents_games:players(Game),
+  [] = serpents_games:serpents(Game),
   {comment, ""}.
 
 -spec game_creation_with_options(serpents_test_utils:config()) ->
@@ -210,7 +225,7 @@ join_game_ok(Config) ->
   Player3Id = serpents_players:id(Player3),
 
   ct:comment("There is noone on the game"),
-  [] = serpents_games:players(serpents_core:fetch_game(GameId)),
+  [] = serpents_games:serpents(serpents_core:fetch_game(GameId)),
 
   ct:comment("Player1 joins"),
   {P1, D1} = serpents_core:join_game(GameId, Player1Id),
@@ -220,7 +235,8 @@ join_game_ok(Config) ->
   true = Row1 < 11,
   true = Col1 > 0,
   true = Col1 < 11,
-  [Player1Id] = serpents_games:players(serpents_core:fetch_game(GameId)),
+  [Serpent1] = serpents_games:serpents(serpents_core:fetch_game(GameId)),
+  Player1Id = serpents_serpents:owner(Serpent1),
 
   ct:comment("Player2 joins"),
   {P2, D2} = serpents_core:join_game(GameId, Player2Id),
@@ -234,9 +250,9 @@ join_game_ok(Config) ->
     P1 -> ct:fail("Duplicated position: ~p", [P1]);
     P2 -> ok
   end,
-  [] =
-    [Player1Id, Player2Id] --
-      serpents_games:players(serpents_core:fetch_game(GameId)),
+  [Serpent2] =
+    serpents_games:serpents(serpents_core:fetch_game(GameId)) -- [Serpent1],
+  Player2Id = serpents_serpents:owner(Serpent2),
 
   ct:comment("Player3 joins"),
   {P3, D3} = serpents_core:join_game(GameId, Player3Id),
@@ -251,9 +267,10 @@ join_game_ok(Config) ->
     P2 -> ct:fail("Duplicated position: ~p", [P2]);
     P3 -> ok
   end,
-  [] =
-    [Player1Id, Player2Id, Player3Id] --
-      serpents_games:players(serpents_core:fetch_game(GameId)),
+  [Serpent3] =
+    serpents_games:serpents(serpents_core:fetch_game(GameId)) --
+      [Serpent1, Serpent2],
+  Player3Id = serpents_serpents:owner(Serpent3),
 
   {comment, ""}.
 
@@ -268,11 +285,12 @@ join_game_wrong(Config) ->
   Player2Id = serpents_players:id(Player2),
 
   ct:comment("There is noone on the game"),
-  [] = serpents_games:players(serpents_core:fetch_game(GameId)),
+  [] = serpents_games:serpents(serpents_core:fetch_game(GameId)),
 
   ct:comment("Player1 joins"),
   serpents_core:join_game(GameId, Player1Id),
-  [Player1Id] = serpents_games:players(serpents_core:fetch_game(GameId)),
+  [Serpent1] = serpents_games:serpents(serpents_core:fetch_game(GameId)),
+  Player1Id = serpents_serpents:owner(Serpent1),
 
   ct:comment("Player1 tries to join the game again"),
   try serpents_core:join_game(GameId, Player1Id) of
@@ -280,7 +298,7 @@ join_game_wrong(Config) ->
   catch
     throw:already_joined -> ok
   end,
-  [Player1Id] = serpents_games:players(serpents_core:fetch_game(GameId)),
+  [Serpent1] = serpents_games:serpents(serpents_core:fetch_game(GameId)),
 
   ct:comment("invalid player tries to join the game"),
   try serpents_core:join_game(GameId, <<"not-a-real-player">>) of
@@ -288,7 +306,7 @@ join_game_wrong(Config) ->
   catch
     throw:invalid_player -> ok
   end,
-  [Player1Id] = serpents_games:players(serpents_core:fetch_game(GameId)),
+  [Serpent1] = serpents_games:serpents(serpents_core:fetch_game(GameId)),
 
   ct:comment("Player2 can't join after game starts"),
   ok = serpents_core:start_game(GameId),
@@ -301,7 +319,7 @@ join_game_wrong(Config) ->
   catch
     throw:invalid_state -> ok
   end,
-  [Player1Id] = serpents_games:players(serpents_core:fetch_game(GameId)),
+  [Serpent1] = serpents_games:serpents(serpents_core:fetch_game(GameId)),
 
   {comment, ""}.
 
@@ -342,17 +360,83 @@ start_game(Config) ->
   Player1Id = serpents_players:id(Player1),
 
   ct:comment("The game can't start if there is noone in it"),
-  [] = serpents_games:players(serpents_core:fetch_game(GameId)),
+  [] = serpents_games:serpents(serpents_core:fetch_game(GameId)),
   ok = serpents_core:start_game(GameId),
-  #{state := created} = serpents_core:fetch_game(GameId),
+  created = serpents_games:state(serpents_core:fetch_game(GameId)),
 
   ct:comment("The game can start after the first join"),
   serpents_core:join_game(GameId, Player1Id),
   ok = serpents_core:start_game(GameId),
-  #{state := started} = serpents_core:fetch_game(GameId),
+  started = serpents_games:state(serpents_core:fetch_game(GameId)),
 
   ct:comment("Trying to start the game again has no effect"),
   ok = serpents_core:start_game(GameId),
-  #{state := started} = serpents_core:fetch_game(GameId),
+  started = serpents_games:state(serpents_core:fetch_game(GameId)),
+
+  {comment, ""}.
+
+-spec turn_wrong(serpents_test_utils:config()) ->
+  {comment, string()}.
+turn_wrong(Config) ->
+  {game, Game} = lists:keyfind(game, 1, Config),
+  {player1, Player1} = lists:keyfind(player1, 1, Config),
+  {player2, Player2} = lists:keyfind(player2, 1, Config),
+  GameId = serpents_games:id(Game),
+  Player1Id = serpents_players:id(Player1),
+  Player2Id = serpents_players:id(Player2),
+
+  ct:comment("Turn is inconsequential if the game hasn't started"),
+  [] = serpents_games:serpents(serpents_core:fetch_game(GameId)),
+  ok = serpents_core:turn(GameId, Player1Id, right),
+  [] = serpents_games:serpents(serpents_core:fetch_game(GameId)),
+
+  ct:comment("A player that's outside the game can't turn his snake"),
+  {_, D1} = serpents_core:join_game(GameId, Player1Id),
+  ok = serpents_core:turn(GameId, Player2Id, right),
+  D1 =
+    serpents_serpents:direction(
+      serpents_games:serpent(
+        serpents_core:fetch_game(GameId), Player1Id)),
+
+  {comment, ""}.
+
+turn_ok(Config) ->
+  {game, Game} = lists:keyfind(game, 1, Config),
+  {player1, Player1} = lists:keyfind(player1, 1, Config),
+  {player2, Player2} = lists:keyfind(player2, 1, Config),
+  GameId = serpents_games:id(Game),
+  Player1Id = serpents_players:id(Player1),
+  Player2Id = serpents_players:id(Player2),
+
+  TryWith =
+    fun(PlayerId, Direction) ->
+      serpents_core:turn(GameId, PlayerId, Direction),
+      { serpents_serpents:direction(
+          serpents_games:serpent(
+            serpents_core:fetch_game(GameId), Player1Id))
+      , serpents_serpents:direction(
+          serpents_games:serpent(
+            serpents_core:fetch_game(GameId), Player2Id))
+      }
+    end,
+
+  FullRound =
+    fun() ->
+      {up, _} = TryWith(Player1Id, up),
+      {up, up} = TryWith(Player2Id, up),
+      {down, up} = TryWith(Player1Id, down),
+      {down, down} = TryWith(Player2Id, down),
+      {down, left} = TryWith(Player2Id, left),
+      {left, left} = TryWith(Player1Id, left),
+      {left, right} = TryWith(Player2Id, right),
+      {right, right} = TryWith(Player1Id, right)
+    end,
+
+  ct:comment("Before the game starts, players can turn"),
+  FullRound(),
+
+  ct:comment("After the game starts, players can turn"),
+  serpents_core:start_game(GameId),
+  FullRound(),
 
   {comment, ""}.

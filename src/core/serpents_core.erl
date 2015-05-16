@@ -104,7 +104,8 @@ start_link(Game) ->
 -spec init(serpents_games:game()) -> {ok, created, state()}.
 init(Game) ->
   {ok, Dispatcher} = gen_event:start_link(),
-  {ok, created, #{game => Game, dispatcher => Dispatcher}}.
+  NewGame = serpents_games:process(Game, self()),
+  {ok, created, #{game => NewGame, dispatcher => Dispatcher}}.
 
 -spec handle_event(Event, atom(), state()) ->
   {stop, {unexpected, Event}, state()}.
@@ -181,22 +182,43 @@ ready_to_start(Request, _From, State) ->
   lager:warning("Invalid Request: ~p", [Request]),
   {reply, {error, invalid_state}, ready_to_start, State}.
 
--spec ready_to_start(start, state()) -> {next_state, started, state()};
-                    (term(), state()) -> {next_state, ready_to_start, state()}.
+-spec ready_to_start
+  ({turn, serpents_players:id(), serpents_games:direction()}, state()) ->
+    {next_state, ready_to_start, state()};
+  (start, state()) -> {next_state, started, state()};
+  (term(), state()) -> {next_state, ready_to_start, state()}.
+ready_to_start({turn, PlayerId, Direction}, State) ->
+  #{game := Game} = State,
+  try serpents_games_repo:turn(Game, PlayerId, Direction) of
+    NewGame ->
+      {next_state, ready_to_start, State#{game := NewGame}}
+  catch
+    throw:invalid_player ->
+      lager:warning("Invalid Turn: ~p / ~p", [PlayerId, Direction]),
+      {next_state, ready_to_start, State}
+  end;
 ready_to_start(start, State) ->
   #{game := Game} = State,
   NewGame = serpents_games_repo:start(Game),
   {next_state, started, State#{game := NewGame}};
 ready_to_start(Request, State) ->
   lager:warning("Invalid Request: ~p", [Request]),
-  {reply, ready_to_start, State}.
+  {next_state, ready_to_start, State}.
 
 -spec started
   ({turn, serpents_players:id(), serpents_games:direction()}, state()) ->
     {next_state, started | finished, state()};
  (term(), state()) -> {next_state, started, state()}.
 started({turn, PlayerId, Direction}, State) ->
-  {next_state, started, State};
+  #{game := Game} = State,
+  try serpents_games_repo:turn(Game, PlayerId, Direction) of
+    NewGame ->
+      {next_state, started, State#{game := NewGame}}
+  catch
+    throw:invalid_player ->
+      lager:warning("Invalid Turn: ~p / ~p", [PlayerId, Direction]),
+      {next_state, started, State}
+  end;
 started(Request, State) ->
   lager:warning("Invalid Request: ~p", [Request]),
   {next_state, started, State}.
@@ -210,7 +232,7 @@ started(Request, _From, State) ->
 -spec finished(term(), state()) -> {next_state, finished, state()}.
 finished(Request, State) ->
   lager:warning("Invalid Request: ~p", [Request]),
-  {reply, finished, State}.
+  {next_state, finished, State}.
 
 -spec finished(term(), _From, state()) ->
                 {reply, {error, invalid_state}, finished, state()}.

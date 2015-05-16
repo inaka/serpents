@@ -15,6 +15,7 @@
 -export([ owner/1
         , is_owner/2
         , direction/1
+        , direction/2
         ]).
 
 -spec new(serpents_players:id(), direction()) -> serpent().
@@ -34,3 +35,6 @@ direction(#{direction := Direction}) -> Direction.
 -spec is_owner(serpent(), serpents_players:id()) -> boolean().
 is_owner(#{owner := Owner}, Owner) -> true;
 is_owner(_, _) -> false.
+
+-spec direction(serpent(), direction()) -> serpent().
+direction(Serpent, Direction) -> Serpent#{direction := Direction}.
