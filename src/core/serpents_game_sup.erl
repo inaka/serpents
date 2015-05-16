@@ -18,8 +18,8 @@ start_child(Game) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% SUPERVISOR CALLBACKS
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
--spec init(term()) ->
-	{ok, {{simple_one_for_one, 5, 10}, [supervisor:child_spec()]}}.
+-spec init(noargs) ->
+  {ok, {{simple_one_for_one, 5, 10}, [supervisor:child_spec()]}}.
 init(_Args) ->
   GameCore =
     {serpents_core, {serpents_core, start_link, []},

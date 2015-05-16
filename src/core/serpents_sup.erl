@@ -15,7 +15,7 @@ start_link() ->
 %% SUPERVISOR CALLBACKS
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 -spec init(noargs) ->
-	{ok, {{one_for_one, 5, 10}, [supervisor:child_spec()]}}.
+  {ok, {{one_for_one, 5, 10}, [supervisor:child_spec()]}}.
 init(noargs) ->
   KatanaRandom =
     {ktn_random, {ktn_random, start_link, []},
