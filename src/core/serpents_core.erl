@@ -59,8 +59,8 @@ create_game() -> create_game(#{}).
 -spec create_game(options()) -> serpents_games:game().
 create_game(Options) ->
   Game = serpents_games_repo:create(Options),
-  {ok, Pid} = serpents_game_sup:start_child(Game),
-  serpents_games:process(Game, Pid).
+  {ok, _Pid} = serpents_game_sup:start_child(Game),
+  Game.
 
 %% @doc PlayerId joins GameId
 -spec join_game(serpents_games:id(), serpents_players:id()) ->
@@ -104,8 +104,7 @@ start_link(Game) ->
 -spec init(serpents_games:game()) -> {ok, created, state()}.
 init(Game) ->
   {ok, Dispatcher} = gen_event:start_link(),
-  NewGame = serpents_games:process(Game, self()),
-  {ok, created, #state{game = NewGame, dispatcher = Dispatcher}}.
+  {ok, created, #state{game = Game, dispatcher = Dispatcher}}.
 
 -spec handle_event(Event, atom(), state()) ->
   {stop, {unexpected, Event}, state()}.

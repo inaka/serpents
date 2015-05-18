@@ -25,7 +25,6 @@
     cols => pos_integer(),
     ticktime => pos_integer(),
     cells => [cell()],
-    process => undefined | pid(),
     created_at => dcn_datetime:datetime(),
     updated_at => dcn_datetime:datetime()
   }.
@@ -39,7 +38,6 @@
   , ticktime/1
   , state/1
   , serpents/1
-  , process/2
   , head/2
   , serpent/2
   , content/2
@@ -59,7 +57,6 @@ new(Rows, Cols, TickTime) ->
    , cols => Cols
    , ticktime => TickTime
    , cells => []
-   , process => undefined
    , created_at => Now
    , updated_at => Now
    }.
@@ -90,9 +87,6 @@ serpent(#{serpents := Serpents}, PlayerId) ->
     [] -> notfound;
     [Serpent|_] -> Serpent
   end.
-
--spec process(game(), pid()) -> game().
-process(Game, Process) -> Game#{process => Process}.
 
 %% @doc where is the head of this player's serpent
 -spec head(game(), serpents_players:id()) ->
