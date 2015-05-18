@@ -120,7 +120,19 @@ handle_sync_event(fetch, _From, StateName, State) ->
 handle_sync_event(dispatcher, _From, StateName, State) ->
   {reply, {ok, State#state.dispatcher}, StateName, State}.
 
--spec handle_info(term(), atom(), state()) -> {next_state, atom(), state()}.
+-spec handle_info(tick|term(), atom(), state()) ->
+  {next_state, atom(), state()}.
+handle_info(tick, started, State) ->
+  #state{game = Game} = State,
+  NewGame = serpents_games_repo:advance(Game),
+  NewState = State#state{game = NewGame},
+  case serpents_games:state(NewGame) of
+    finished ->
+      {next_state, finished, NewState};
+    started ->
+      tick(NewGame),
+      {next_state, started, NewState}
+  end;
 handle_info(Info, StateName, State) ->
   lager:notice("~p received at ~p", [Info, StateName]),
   {next_state, StateName, State}.
@@ -159,8 +171,8 @@ ready_to_start({join, PlayerId}, _From, State) ->
     true ->
       try serpents_games_repo:join(Game, PlayerId) of
         NewGame ->
-          Position = serpents_games:head(NewGame, PlayerId),
           Serpent = serpents_games:serpent(NewGame, PlayerId),
+          [Position|_] = serpents_serpents:body(Serpent),
           Direction = serpents_serpents:direction(Serpent),
           Response = {ok, {Position, Direction}},
           {reply, Response, ready_to_start, State#state{game = NewGame}}
@@ -189,6 +201,7 @@ ready_to_start({turn, PlayerId, Direction}, State) ->
 ready_to_start(start, State) ->
   #state{game = Game} = State,
   NewGame = serpents_games_repo:start(Game),
+  tick(Game),
   {next_state, started, State#state{game = NewGame}};
 ready_to_start(Request, State) ->
   lager:warning("Invalid Request: ~p", [Request]),
@@ -254,3 +267,5 @@ do_call(Process, Event) ->
 
 cast(GameId, Event) ->
   gen_fsm:send_event(serpents_games:process_name(GameId), Event).
+
+tick(Game) -> erlang:send_after(serpents_games:ticktime(Game), self(), tick).

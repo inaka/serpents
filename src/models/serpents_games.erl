@@ -5,14 +5,12 @@
 -type row() :: pos_integer().
 -type col() :: pos_integer().
 -type position() :: {row(), col()}.
--type direction() :: serpents_serpents:direction().
--type content() :: air
-                 | wall
-                 | fruit
-                 | {serpent, head | body, serpents_players:id()}.
+-type direction() :: left | right | up | down.
+-type content() :: air | special_content() | {serpent, serpents_players:id()}.
+-type special_content() :: wall | fruit.
 -type cell() ::
   #{ position => position()
-   , content => content()
+   , content => special_content()
    }.
 -type state() :: created | started | finished.
 -opaque id() :: binary().
@@ -38,12 +36,14 @@
   , ticktime/1
   , state/1
   , serpents/1
-  , head/2
   , serpent/2
   , content/2
-  , add_player/4
+  , content/3
+  , find/2
+  , add_serpent/2
   , state/2
   , turn/3
+  , advance_serpents/1
   ]).
 -export([process_name/1]).
 
@@ -88,37 +88,43 @@ serpent(#{serpents := Serpents}, PlayerId) ->
     [Serpent|_] -> Serpent
   end.
 
-%% @doc where is the head of this player's serpent
--spec head(game(), serpents_players:id()) ->
-  position() | notfound.
-head(#{cells := Cells}, PlayerId) ->
-  Heads =
-    [ Position
-    || #{position := Position, content := {serpent, head, P}} <- Cells
-     , P == PlayerId],
-  case Heads of
-    [] -> notfound;
-    [H|_] -> H
-  end.
-
 %% @doc returns the content of the cell at that position
 -spec content(game(), position()) -> content().
-content(#{cells := Cells}, Position) ->
+content(Game, Position) ->
+  #{cells := Cells, serpents := Serpents} = Game,
   case [Cell || Cell = #{position := P} <- Cells, P == Position] of
-    [] -> air;
+    [] ->
+      case [ Serpent
+           || Serpent <- Serpents
+            , P <- serpents_serpents:body(Serpent)
+            , P == Position] of
+        [] -> air;
+        [S|_] -> {serpent, serpents_serpents:owner(S)}
+      end;
     [#{content := Content}] -> Content
   end.
 
+%% @doc adds a content in a position
+-spec content(game(), position(), special_content()) -> game().
+content(Game, Position, Content) ->
+  #{cells := Cells} = Game,
+  Cell = #{position => Position, content => Content},
+  Game#{cells := [Cell | Cells]}.
+
+%% @doc finds the position for a content
+-spec find(game(), special_content()) -> notfound | position().
+find(Game, Content) ->
+  #{cells := Cells} = Game,
+  case [P || #{position := P, content := C} <- Cells, C == Content] of
+    [] -> notfound;
+    [Position|_] -> Position
+  end.
+
 %% @doc adds a new player to the game
--spec add_player(game(), serpents_players:id(), position(), direction()) ->
-  game().
-add_player(Game, PlayerId, Position, Direction) ->
-  #{ serpents := Serpents
-   , cells := Cells
-   } = Game,
-  Cell = #{position => Position, content => {serpent, head, PlayerId}},
-  Serpent = serpents_serpents:new(PlayerId, Direction),
-  Game#{serpents := [Serpent | Serpents], cells := [Cell |Cells]}.
+-spec add_serpent(game(), serpents_serpents:serpent()) -> game().
+add_serpent(Game, Serpent) ->
+  #{serpents := Serpents} = Game,
+  Game#{serpents := [Serpent | Serpents]}.
 
 -spec state(game(), state()) -> game().
 state(Game, State) -> Game#{state => State}.
@@ -136,3 +142,16 @@ turn(Game, PlayerId, Direction) ->
 -spec process_name(id()) -> atom().
 process_name(GameId) ->
   binary_to_atom(<<?MODULE_STRING, $:, GameId/binary>>, utf8).
+
+-spec advance_serpents(game()) -> game().
+advance_serpents(Game) ->
+  #{serpents := Serpents} = Game,
+  NewSerpents = [serpents_serpents:advance(Serpent) || Serpent <- Serpents],
+  FinalSerpents = kill_colliding_serpents(Game, NewSerpents),
+  case [S || S <- FinalSerpents, serpents_serpents:status(S) == alive] of
+    [] -> Game#{serpents := [], state := finished};
+    [_|_] -> Game#{serpents := FinalSerpents}
+  end.
+
+%% @todo actually kill the colliding ones
+kill_colliding_serpents(_Game, NewSerpents) -> NewSerpents.

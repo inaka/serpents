@@ -66,12 +66,10 @@ serpent_movement(Config) ->
         ExpectedDirection = serpents_serpents:direction(Serpent),
         ExpectedDirection = serpents_serpents:direction(NewSerpent),
 
+        [Head|_] = serpents_serpents:body(Serpent),
         ExpectedPosition =
-          move(
-            serpents_games:head(Game, serpents_serpents:owner(Serpent)),
-            serpents_serpents:direction(Serpent)),
-        ExpectedPosition =
-          serpents_games:head(NewGame, serpents_serpents:owner(NewSerpent)),
+          serpents_test_utils:move(Head, serpents_serpents:direction(Serpent)),
+        [ExpectedPosition|_] = serpents_serpents:body(NewSerpent),
 
         NewSerpent
       end, Serpents),
@@ -80,8 +78,3 @@ serpent_movement(Config) ->
   [] = serpents_games:serpents(NewGame) -- FoundSerpents,
 
   {comment, ""}.
-
-move({Row, Col}, up) -> {Row-1, Col};
-move({Row, Col}, down) -> {Row+1, Col};
-move({Row, Col}, left) -> {Row, Col-1};
-move({Row, Col}, right) -> {Row, Col+1}.

@@ -6,8 +6,12 @@
         , join/2
         , start/1
         , turn/3
+        , advance/1
         ]).
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% EXPORTED FUNCTIONS
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% @doc Creates a new game
 -spec create(serpents_core:options()) -> serpents_games:game().
 create(Options) ->
@@ -23,9 +27,10 @@ create(Options) ->
 join(Game, PlayerId) ->
   case serpents_games:serpent(Game, PlayerId) of
     notfound ->
-      Position = find_empty_position(Game),
+      Position = find_empty_position(Game, fun is_proper_starting_point/2),
       Direction = random_direction(Game, Position),
-      serpents_games:add_player(Game, PlayerId, Position, Direction);
+      Serpent = serpents_serpents:new(PlayerId, Position, Direction),
+      serpents_games:add_serpent(Game, Serpent);
     _ -> throw(already_joined)
   end.
 
@@ -36,46 +41,65 @@ start(Game) -> serpents_games:state(Game, started).
 %% @doc Registers a change in direction for a player
 -spec turn(
   serpents_games:game(), serpents_players:id(),
-  serpents_serpents:direction()) -> serpents_games:game().
+  serpents_games:direction()) -> serpents_games:game().
 turn(Game, PlayerId, Direction) ->
   case serpents_games:serpent(Game, PlayerId) of
     notfound -> throw(invalid_player);
     _Serpent -> serpents_games:turn(Game, PlayerId, Direction)
   end.
 
+%% @doc moves the game
+-spec advance(serpents_games:game()) -> serpents_games:game().
+advance(Game) ->
+  ensure_fruit(serpents_games:advance_serpents(Game)).
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% INTERNAL FUNCTIONS
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+ensure_fruit(Game) ->
+  case serpents_games:find(Game, fruit) of
+    [] ->
+      Position = find_empty_position(Game, fun is_empty_spot/2),
+      serpents_games:content(Game, Position, fruit);
+    [_|_] ->
+      Game
+  end.
+
+
 %% @todo wait for ktn_random:uniform/1 and remove the seeding
-find_empty_position(Game) ->
+find_empty_position(Game, Validator) ->
   random:seed(erlang:now()),
   Rows = serpents_games:rows(Game),
   Cols = serpents_games:cols(Game),
-  case try_random_fep(Game, Rows, Cols, 10) of
-    notfound -> walkthrough_fep(Game, Rows, Cols);
+  case try_random_fep(Game, Rows, Cols, Validator, 10) of
+    notfound -> walkthrough_fep(Game, Rows, Cols, Validator);
     Position -> Position
   end.
 
 %% @todo wait for ktn_random:uniform/1 and replace random:uniform here
-try_random_fep(_Game, _Rows, _Cols, 0) ->
+try_random_fep(_Game, _Rows, _Cols, _Validator, 0) ->
   notfound;
-try_random_fep(Game, Rows, Cols, Attempts) ->
+try_random_fep(Game, Rows, Cols, Validator, Attempts) ->
   Position = {random:uniform(Rows), random:uniform(Cols)},
-  case is_proper_starting_point(Game, Position) of
+  case Validator(Game, Position) of
     true -> Position;
-    _ -> try_random_fep(Game, Rows, Cols, Attempts - 1)
+    _ -> try_random_fep(Game, Rows, Cols, Validator, Attempts - 1)
   end.
 
-walkthrough_fep(Game, Rows, Cols) ->
-  walkthrough_fep(Game, Rows, Cols, {1, 1}).
-walkthrough_fep(_Game, _Rows, _Cols, game_full) ->
+walkthrough_fep(Game, Rows, Cols, Validator) ->
+  walkthrough_fep(Game, Rows, Cols, Validator, {1, 1}).
+walkthrough_fep(_Game, _Rows, _Cols, _Validator, game_full) ->
   throw(game_full);
-walkthrough_fep(Game, Rows, Cols, Position = {Rows, Cols}) ->
-  try_walkthrough_fep(Game, Rows, Cols, Position, game_full);
-walkthrough_fep(Game, Rows, Cols, Position = {Row, Cols}) ->
-  try_walkthrough_fep(Game, Rows, Cols, Position, {Row + 1, 1});
-walkthrough_fep(Game, Rows, Cols, Position = {Row, Col}) ->
-  try_walkthrough_fep(Game, Rows, Cols, Position, {Row, Col + 1}).
+walkthrough_fep(Game, Rows, Cols, Validator, Position = {Rows, Cols}) ->
+  try_walkthrough_fep(Game, Rows, Cols, Validator, Position, game_full);
+walkthrough_fep(Game, Rows, Cols, Validator, Position = {Row, Cols}) ->
+  try_walkthrough_fep(Game, Rows, Cols, Validator, Position, {Row + 1, 1});
+walkthrough_fep(Game, Rows, Cols, Validator, Position = {Row, Col}) ->
+  try_walkthrough_fep(Game, Rows, Cols, Validator, Position, {Row, Col + 1}).
 
-try_walkthrough_fep(Game, Rows, Cols, Position, NextPosition) ->
-  case is_proper_starting_point(Game, Position) of
+try_walkthrough_fep(Game, Rows, Cols, Validator, Position, NextPosition) ->
+  case Validator(Game, Position) of
     true -> Position;
     _ -> walkthrough_fep(Game, Rows, Cols, NextPosition)
   end.
@@ -101,6 +125,8 @@ is_proper_starting_point(Game, {Row, Col}) ->
   lists:all(
     fun({Pos, _}) -> air == serpents_games:content(Game, Pos) end,
     [{{Row, Col}, none} | SurroundingPositions]).
+
+is_empty_spot(Game, Pos) -> air == serpents_games:content(Game, Pos).
 
 surrounding_positions(Row, Col, Rows, Cols) ->
   Candidates =

@@ -53,7 +53,7 @@ api_call(Method, Uri, Headers, Body) ->
     shotgun:close(Pid)
   end.
 
--spec move(serpents_games:position(), serpents_serpents:direction()) ->
+-spec move(serpents_games:position(), serpents_games:direction()) ->
   serpents_games:position().
 move({Row, Col}, up) -> {Row-1, Col};
 move({Row, Col}, down) -> {Row+1, Col};
