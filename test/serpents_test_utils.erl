@@ -12,6 +12,9 @@
         , api_call/3
         , api_call/4
         ]).
+-export([ move/2
+        , check_bounds/2
+        ]).
 
 -spec all(atom()) -> [atom()].
 all(Module) ->
@@ -49,3 +52,20 @@ api_call(Method, Uri, Headers, Body) ->
   after
     shotgun:close(Pid)
   end.
+
+-spec move(serpents_games:position(), serpents_serpents:direction()) ->
+  serpents_games:position().
+move({Row, Col}, up) -> {Row-1, Col};
+move({Row, Col}, down) -> {Row+1, Col};
+move({Row, Col}, left) -> {Row, Col-1};
+move({Row, Col}, right) -> {Row, Col+1}.
+
+-spec check_bounds(serpents_games:game(), serpents_games:position()) -> in|out.
+check_bounds(Game, Position) ->
+  check_bounds(Position, serpents_games:rows(Game), serpents_games:cols(Game)).
+
+check_bounds({0, _}, _, _) -> out;
+check_bounds({_, 0}, _, _) -> out;
+check_bounds({Row, _}, Rows, _) when Row > Rows -> out;
+check_bounds({_, Col}, _, Cols) when Col > Cols -> out;
+check_bounds(_, _, _) -> in.

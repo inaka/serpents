@@ -24,7 +24,7 @@ join(Game, PlayerId) ->
   case serpents_games:serpent(Game, PlayerId) of
     notfound ->
       Position = find_empty_position(Game),
-      Direction = random_direction(),
+      Direction = random_direction(Game, Position),
       serpents_games:add_player(Game, PlayerId, Position, Direction);
     _ -> throw(already_joined)
   end.
@@ -58,8 +58,8 @@ try_random_fep(_Game, _Rows, _Cols, 0) ->
   notfound;
 try_random_fep(Game, Rows, Cols, Attempts) ->
   Position = {random:uniform(Rows), random:uniform(Cols)},
-  case serpents_games:content(Game, Position) of
-    air -> Position;
+  case is_proper_starting_point(Game, Position) of
+    true -> Position;
     _ -> try_random_fep(Game, Rows, Cols, Attempts - 1)
   end.
 
@@ -75,16 +75,38 @@ walkthrough_fep(Game, Rows, Cols, Position = {Row, Col}) ->
   try_walkthrough_fep(Game, Rows, Cols, Position, {Row, Col + 1}).
 
 try_walkthrough_fep(Game, Rows, Cols, Position, NextPosition) ->
-  case serpents_games:content(Game, Position) of
-    air -> Position;
+  case is_proper_starting_point(Game, Position) of
+    true -> Position;
     _ -> walkthrough_fep(Game, Rows, Cols, NextPosition)
   end.
 
 %% @todo wait for ktn_random:uniform/1 and replace random:uniform here
-random_direction() ->
-  lists:nth(random:uniform(4), [up, down, left, right]).
+random_direction(Game, {Row, Col}) ->
+  Candidates =
+    surrounding_positions(
+      Row, Col, serpents_games:rows(Game), serpents_games:cols(Game)),
+  {_, Direction} =
+    lists:nth(random:uniform(length(Candidates)), Candidates),
+  Direction.
 
 validate(Rows, _Cols, _TickTime) when Rows < 5 -> throw(invalid_rows);
 validate(_Rows, Cols, _TickTime) when Cols < 5 -> throw(invalid_cols);
 validate(_Rows, _Cols, TickTime) when TickTime < 100 -> throw(invalid_ticktime);
 validate(_Rows, _Cols, _TickTime) -> ok.
+
+is_proper_starting_point(Game, {Row, Col}) ->
+  SurroundingPositions =
+    surrounding_positions(
+      Row, Col, serpents_games:rows(Game), serpents_games:cols(Game)),
+  lists:all(
+    fun({Pos, _}) -> air == serpents_games:content(Game, Pos) end,
+    [{{Row, Col}, none} | SurroundingPositions]).
+
+surrounding_positions(Row, Col, Rows, Cols) ->
+  Candidates =
+    [ {Row-1, Col, up}
+    , {Row+1, Col, down}
+    , {Row, Col-1, left}
+    , {Row, Col+1, right}
+    ],
+  [{{R, C}, D} || {R, C, D} <- Candidates, R > 0, C > 0, R =< Rows, C =< Cols].

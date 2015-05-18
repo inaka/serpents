@@ -336,19 +336,27 @@ too_many_joins(_Config) ->
   Players =
     [serpents_players:id(serpents_core:register_player(<<C>>)) || C <- Chars],
 
-  ct:comment("They all join the game"),
-  lists:foreach(
-    fun(PlayerId) ->
-      serpents_core:join_game(GameId, PlayerId)
-    end, Players),
+  ct:comment("They all try to join the game, at least one must fail"),
+  JoinResults =
+    lists:map(
+      fun(PlayerId) ->
+        try serpents_core:join_game(GameId, PlayerId)
+        catch
+          throw:game_full -> game_full
+        end
+      end, Players),
 
-  ct:comment("Another player tries to join the game but it's rejected"),
-  Homero = serpents_players:id(serpents_core:register_player(<<"homero">>)),
-  try serpents_core:join_game(GameId, Homero) of
-    Result -> ct:fail("Unexpected join in ~p: ~p", [GameId, Result])
-  catch
-    throw:game_full -> ok
-  end,
+  {[_|_], PlayersInGame} =
+    lists:partition(fun(X) -> X == game_full end, JoinResults),
+
+  ct:comment("All players should be free to move"),
+  NewGame = serpents_core:fetch_game(GameId),
+  lists:foreach(
+    fun({Position, Direction}) ->
+      NewPosition = serpents_test_utils:move(Position, Direction),
+      air = serpents_games:content(NewGame, NewPosition),
+      in = serpents_test_utils:check_bounds(NewGame, NewPosition)
+    end, PlayersInGame),
 
   {comment, ""}.
 
