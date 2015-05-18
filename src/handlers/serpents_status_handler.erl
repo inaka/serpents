@@ -17,7 +17,7 @@
         , handle_get/2
         ]).
 
--type state() :: lsl_base_handler:state().
+-type state() :: serpents_base_handler:state().
 
 -spec init({atom(), atom()}, cowboy_req:req(), state()) ->
   {upgrade, protocol, cowboy_rest}.
