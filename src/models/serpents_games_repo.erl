@@ -51,7 +51,12 @@ turn(Game, PlayerId, Direction) ->
 %% @doc moves the game
 -spec advance(serpents_games:game()) -> serpents_games:game().
 advance(Game) ->
-  ensure_fruit(serpents_games:advance_serpents(Game)).
+  NewGame = serpents_games:advance_serpents(Game),
+  case [Serpent || Serpent <- serpents_games:serpents(NewGame)
+                 , alive == serpents_serpents:status(Serpent)] of
+    [] -> serpents_games:state(NewGame, finished);
+    [_|_] -> ensure_fruit(NewGame)
+  end.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -60,7 +65,7 @@ advance(Game) ->
 ensure_fruit(Game) ->
   case serpents_games:find(Game, fruit) of
     [] ->
-      Position = find_empty_position(Game, fun is_empty_spot/2),
+      Position = find_empty_position(Game, fun serpents_games:is_empty/2),
       serpents_games:content(Game, Position, fruit);
     [_|_] ->
       Game
@@ -123,10 +128,8 @@ is_proper_starting_point(Game, {Row, Col}) ->
     surrounding_positions(
       Row, Col, serpents_games:rows(Game), serpents_games:cols(Game)),
   lists:all(
-    fun({Pos, _}) -> air == serpents_games:content(Game, Pos) end,
+    fun({Pos, _}) -> serpents_games:is_empty(Game, Pos) end,
     [{{Row, Col}, none} | SurroundingPositions]).
-
-is_empty_spot(Game, Pos) -> air == serpents_games:content(Game, Pos).
 
 surrounding_positions(Row, Col, Rows, Cols) ->
   Candidates =

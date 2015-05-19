@@ -20,6 +20,7 @@
         , status/2
         , status/1
         , advance/1
+        , feed/1
         ]).
 
 -spec new(
@@ -67,6 +68,9 @@ advance(Serpent) ->
       {Food, Tail} -> {Food - 1, Tail}
     end,
   Serpent#{body := [NewHead | NewTail], food := NewFood}.
+
+-spec feed(serpent()) -> serpent().
+feed(Serpent = #{food := Food}) -> Serpent#{food := Food + 1}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% INTERNAL FUNCTIONS

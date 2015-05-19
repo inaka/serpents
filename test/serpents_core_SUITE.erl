@@ -354,7 +354,7 @@ too_many_joins(_Config) ->
   lists:foreach(
     fun({Position, Direction}) ->
       NewPosition = serpents_test_utils:move(Position, Direction),
-      air = serpents_games:content(NewGame, NewPosition),
+      true = serpents_games:is_empty(NewGame, NewPosition),
       in = serpents_test_utils:check_bounds(NewGame, NewPosition)
     end, PlayersInGame),
 
