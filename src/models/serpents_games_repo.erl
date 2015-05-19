@@ -101,7 +101,7 @@ walkthrough_fep(Game, Rows, Cols, Validator, Position = {Row, Col}) ->
 try_walkthrough_fep(Game, Rows, Cols, Validator, Position, NextPosition) ->
   case Validator(Game, Position) of
     true -> Position;
-    _ -> walkthrough_fep(Game, Rows, Cols, NextPosition)
+    _ -> walkthrough_fep(Game, Rows, Cols, Validator, NextPosition)
   end.
 
 %% @todo wait for ktn_random:uniform/1 and replace random:uniform here

@@ -19,6 +19,7 @@
         , body/1
         , status/2
         , status/1
+        , advance/1
         ]).
 
 -spec new(
@@ -53,3 +54,25 @@ status(#{status := Status}) -> Status.
 
 -spec status(serpent(), status()) -> serpent().
 status(Serpent, Status) -> Serpent#{status := Status}.
+
+-spec advance(serpent()) -> serpent().
+advance(Serpent = #{status := dead}) -> Serpent;
+advance(Serpent) ->
+  #{body := [Head|Tail], direction := Direction, food := Food} = Serpent,
+  NewHead = advance(Head, Direction),
+  {NewFood, NewTail} =
+    case {Food, Tail} of
+      {0, []} -> {0, []};
+      {0, Tail} -> {0, [Head | lists:droplast(Tail)]};
+      {Food, Tail} -> {Food - 1, Tail}
+    end,
+  Serpent#{body := [NewHead | NewTail], food := NewFood}.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% INTERNAL FUNCTIONS
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+advance({Row, Col}, up) -> {Row-1, Col};
+advance({Row, Col}, down) -> {Row+1, Col};
+advance({Row, Col}, left) -> {Row, Col-1};
+advance({Row, Col}, right) -> {Row, Col+1}.

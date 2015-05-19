@@ -112,13 +112,10 @@ content(Game, Position, Content) ->
   Game#{cells := [Cell | Cells]}.
 
 %% @doc finds the position for a content
--spec find(game(), special_content()) -> notfound | position().
+-spec find(game(), special_content()) -> [position()].
 find(Game, Content) ->
   #{cells := Cells} = Game,
-  case [P || #{position := P, content := C} <- Cells, C == Content] of
-    [] -> notfound;
-    [Position|_] -> Position
-  end.
+  [P || #{position := P, content := C} <- Cells, C == Content].
 
 %% @doc adds a new player to the game
 -spec add_serpent(game(), serpents_serpents:serpent()) -> game().
