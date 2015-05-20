@@ -71,7 +71,6 @@ ensure_fruit(Game) ->
       Game
   end.
 
-
 %% @todo wait for ktn_random:uniform/1 and remove the seeding
 find_empty_position(Game, Validator) ->
   random:seed(erlang:now()),

@@ -20,6 +20,9 @@
         , collision_detection_down_wall/1
         , collision_with_serpent_body/1
         , collision_with_serpent_head/1
+        , always_a_fruit/1
+        , fruit_reapears/1
+        , fruit_feeds/1
         ]).
 
 -spec all() -> [atom()].
@@ -43,7 +46,9 @@ init_per_testcase(serpent_movement, Config) ->
   , {game, GameId}
   | Config];
 init_per_testcase(Test, Config) when Test == collision_with_serpent_body;
-                                     Test == collision_with_serpent_head ->
+                                     Test == collision_with_serpent_head;
+                                     Test == fruit_reapears;
+                                     Test == fruit_feeds ->
   Game = serpents_games_repo:create(#{cols => 5, rows => 5}),
   Player1Id = serpents_players:id(serpents_core:register_player(<<"1">>)),
   Player2Id = serpents_players:id(serpents_core:register_player(<<"2">>)),
@@ -196,5 +201,108 @@ collision_with_serpent_head(Config) ->
 
   ct:comment("The game finished"),
   finished = serpents_games:state(NewGame),
+
+  {comment, ""}.
+
+-spec always_a_fruit(serpents_test_utils:config()) ->
+  {comment, []}.
+always_a_fruit(Config) ->
+  {game, GameId} = lists:keyfind(game, 1, Config),
+  {player1, Player1Id} = lists:keyfind(player1, 1, Config),
+
+  Cycle =
+    case serpents_serpents:body(
+          serpents_games:serpent(
+            serpents_core:fetch_game(GameId), Player1Id)) of
+      [{1, 1} | _] -> [right, down, left, up];
+      [{1, _} | _] -> [down, left, up, right];
+      [{5, 5} | _] -> [left, up, right, down];
+      [{5, _} | _] -> [up, right, down, left];
+      [_|_] -> [up, right, down, left]
+    end,
+
+  serpents_core:start_game(GameId),
+
+  Advance =
+    fun(Direction) ->
+      ct:comment("Pick the serpent and get it to move ~p", [Direction]),
+      ok = serpents_core:turn(GameId, Player1Id, Direction),
+      serpents_games:process_name(GameId) ! tick,
+      NewGame = serpents_core:fetch_game(GameId),
+      ct:comment("Fruit is still there: ~p / ~p", [NewGame, Cycle]),
+      [_|_] = serpents_games:find(NewGame, fruit)
+    end,
+
+  lists:foreach(Advance, Cycle),
+
+  {comment, ""}.
+
+-spec fruit_reapears(serpents_test_utils:config()) ->
+  {comment, []}.
+fruit_reapears(Config) ->
+  {game, Game} = lists:keyfind(game, 1, Config),
+  {player1, Player1Id} = lists:keyfind(player1, 1, Config),
+
+  ct:comment("Serpent and fruit are placed in proper positions"),
+  Serpent1 = serpents_serpents:new(Player1Id, {2, 2}, right),
+  GameWithSerpentAndFruit =
+    serpents_games:add_serpent(
+      serpents_games:content(Game, {2, 3}, fruit), Serpent1),
+
+  ct:comment("When serpent moves it feeds"),
+  NewGame = serpents_games_repo:advance(GameWithSerpentAndFruit),
+
+  ct:comment("Serpent is alive and its head is where the fruit was"),
+  NewSerpent1 = serpents_games:serpent(NewGame, Player1Id),
+  alive = serpents_serpents:status(NewSerpent1),
+  [{2, 3}] = serpents_serpents:body(NewSerpent1),
+
+  ct:comment("Fruit is somewhere else"),
+  case serpents_games:find(NewGame, fruit) of
+    [{2, 3}] -> ct:fail("Fruit did not move");
+    [_NewFruit] -> ok
+  end,
+
+  {comment, ""}.
+
+-spec fruit_feeds(serpents_test_utils:config()) ->
+  {comment, []}.
+fruit_feeds(Config) ->
+  {game, Game} = lists:keyfind(game, 1, Config),
+  {player1, Player1Id} = lists:keyfind(player1, 1, Config),
+
+  ct:comment("Serpent and fruit are placed in proper positions"),
+  Serpent1 = serpents_serpents:new(Player1Id, {2, 2}, right),
+  [{2, 2}] = serpents_serpents:body(Serpent1),
+  GameWithSerpentAndFruit =
+    serpents_games:add_serpent(
+      serpents_games:content(Game, {2, 3}, fruit), Serpent1),
+
+  ct:comment("When serpent moves it feeds"),
+  NewGame = serpents_games_repo:advance(GameWithSerpentAndFruit),
+
+  ct:comment("Serpent is alive and its head is where the fruit was"),
+  NewSerpent1 = serpents_games:serpent(NewGame, Player1Id),
+  alive = serpents_serpents:status(NewSerpent1),
+  [{2, 3}] = serpents_serpents:body(NewSerpent1),
+
+  ct:comment("Serpent advances again, it's body is extended"),
+  NewerGame = serpents_games_repo:advance(NewGame),
+  NewerSerpent1 = serpents_games:serpent(NewerGame, Player1Id),
+  alive = serpents_serpents:status(NewerSerpent1),
+  [{2, 4}, {2, 3}] = serpents_serpents:body(NewerSerpent1),
+
+  ct:comment("Serpent advances yet again, it's body is not extended"),
+  {Direction, FinalHead} =
+    case serpents_games:find(NewerGame, fruit) of
+      [{3, 4}] -> {up, {1, 4}};
+      [_NewFruit] -> {down, {3, 4}}
+    end,
+  FinalGame =
+    serpents_games_repo:advance(
+      serpents_games_repo:turn(NewerGame, Player1Id, Direction)),
+  FinalSerpent1 = serpents_games:serpent(FinalGame, Player1Id),
+  alive = serpents_serpents:status(FinalSerpent1),
+  [FinalHead, {2, 4}] = serpents_serpents:body(FinalSerpent1),
 
   {comment, ""}.
