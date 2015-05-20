@@ -1,4 +1,4 @@
--module(serpents_xref_SUITE).
+-module(spts_xref_SUITE).
 -author('elbrujohalcon@inaka.net').
 
 -ignore_xref([all/0]).
@@ -8,9 +8,9 @@
 -export([xref/1]).
 
 -spec all() -> [atom()].
-all() -> serpents_test_utils:all(?MODULE).
+all() -> spts_test_utils:all(?MODULE).
 
--spec xref(serpents_test_utils:config()) -> {comment, []}.
+-spec xref(spts_test_utils:config()) -> {comment, []}.
 xref(_Config) ->
   Dirs = [filename:absname("../../ebin")],
   [] = xref_runner:check(undefined_function_calls, #{dirs => Dirs}),

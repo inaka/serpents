@@ -1,5 +1,5 @@
 %%% @doc Games repository
--module(serpents_games_repo).
+-module(spts_games_repo).
 -author('elbrujohalcon@inaka.net').
 
 -export([ create/1
@@ -13,48 +13,46 @@
 %% EXPORTED FUNCTIONS
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% @doc Creates a new game
--spec create(serpents_core:options()) -> serpents_games:game().
+-spec create(spts_core:options()) -> spts_games:game().
 create(Options) ->
   Rows = maps:get(rows, Options, 20),
   Cols = maps:get(cols, Options, 20),
   TickTime = maps:get(ticktime, Options, 250),
   validate(Rows, Cols, TickTime),
-  serpents_games:new(Rows, Cols, TickTime).
+  spts_games:new(Rows, Cols, TickTime).
 
 %% @doc Adds a player to a game
--spec join(serpents_games:game(), serpents_players:id()) ->
-  serpents_games:game().
+-spec join(spts_games:game(), spts_players:id()) -> spts_games:game().
 join(Game, PlayerId) ->
-  case serpents_games:serpent(Game, PlayerId) of
+  case spts_games:serpent(Game, PlayerId) of
     notfound ->
       Position = find_empty_position(Game, fun is_proper_starting_point/2),
       Direction = random_direction(Game, Position),
-      Serpent = serpents_serpents:new(PlayerId, Position, Direction),
-      serpents_games:add_serpent(Game, Serpent);
+      Serpent = spts_serpents:new(PlayerId, Position, Direction),
+      spts_games:add_serpent(Game, Serpent);
     _ -> throw(already_joined)
   end.
 
 %% @doc Starts a game
--spec start(serpents_games:game()) -> serpents_games:game().
-start(Game) -> serpents_games:state(Game, started).
+-spec start(spts_games:game()) -> spts_games:game().
+start(Game) -> spts_games:state(Game, started).
 
 %% @doc Registers a change in direction for a player
--spec turn(
-  serpents_games:game(), serpents_players:id(),
-  serpents_games:direction()) -> serpents_games:game().
+-spec turn(spts_games:game(), spts_players:id(), spts_games:direction()) ->
+  spts_games:game().
 turn(Game, PlayerId, Direction) ->
-  case serpents_games:serpent(Game, PlayerId) of
+  case spts_games:serpent(Game, PlayerId) of
     notfound -> throw(invalid_player);
-    _Serpent -> serpents_games:turn(Game, PlayerId, Direction)
+    _Serpent -> spts_games:turn(Game, PlayerId, Direction)
   end.
 
 %% @doc moves the game
--spec advance(serpents_games:game()) -> serpents_games:game().
+-spec advance(spts_games:game()) -> spts_games:game().
 advance(Game) ->
-  NewGame = serpents_games:advance_serpents(Game),
-  case [Serpent || Serpent <- serpents_games:serpents(NewGame)
-                 , alive == serpents_serpents:status(Serpent)] of
-    [] -> serpents_games:state(NewGame, finished);
+  NewGame = spts_games:advance_serpents(Game),
+  case [Serpent || Serpent <- spts_games:serpents(NewGame)
+                 , alive == spts_serpents:status(Serpent)] of
+    [] -> spts_games:state(NewGame, finished);
     [_|_] -> ensure_fruit(NewGame)
   end.
 
@@ -63,10 +61,10 @@ advance(Game) ->
 %% INTERNAL FUNCTIONS
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ensure_fruit(Game) ->
-  case serpents_games:find(Game, fruit) of
+  case spts_games:find(Game, fruit) of
     [] ->
-      Position = find_empty_position(Game, fun serpents_games:is_empty/2),
-      serpents_games:content(Game, Position, fruit);
+      Position = find_empty_position(Game, fun spts_games:is_empty/2),
+      spts_games:content(Game, Position, fruit);
     [_|_] ->
       Game
   end.
@@ -74,8 +72,8 @@ ensure_fruit(Game) ->
 %% @todo wait for ktn_random:uniform/1 and remove the seeding
 find_empty_position(Game, Validator) ->
   random:seed(erlang:now()),
-  Rows = serpents_games:rows(Game),
-  Cols = serpents_games:cols(Game),
+  Rows = spts_games:rows(Game),
+  Cols = spts_games:cols(Game),
   case try_random_fep(Game, Rows, Cols, Validator, 10) of
     notfound -> walkthrough_fep(Game, Rows, Cols, Validator);
     Position -> Position
@@ -112,7 +110,7 @@ try_walkthrough_fep(Game, Rows, Cols, Validator, Position, NextPosition) ->
 random_direction(Game, {Row, Col}) ->
   Candidates =
     surrounding_positions(
-      Row, Col, serpents_games:rows(Game), serpents_games:cols(Game)),
+      Row, Col, spts_games:rows(Game), spts_games:cols(Game)),
   {_, Direction} =
     lists:nth(random:uniform(length(Candidates)), Candidates),
   Direction.
@@ -125,9 +123,9 @@ validate(_Rows, _Cols, _TickTime) -> ok.
 is_proper_starting_point(Game, {Row, Col}) ->
   SurroundingPositions =
     surrounding_positions(
-      Row, Col, serpents_games:rows(Game), serpents_games:cols(Game)),
+      Row, Col, spts_games:rows(Game), spts_games:cols(Game)),
   lists:all(
-    fun({Pos, _}) -> serpents_games:is_empty(Game, Pos) end,
+    fun({Pos, _}) -> spts_games:is_empty(Game, Pos) end,
     [{{Row, Col}, none} | SurroundingPositions]).
 
 surrounding_positions(Row, Col, Rows, Cols) ->

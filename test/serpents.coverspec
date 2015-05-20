@@ -2,17 +2,17 @@
 {
  incl_mods,
  [ serpents
- , serpents_core
- , serpents_game_sup
- , serpents_sup
- , serpents_base_handler
- , serpents_status_handler
- , serpents_games
- , serpents_games_repo
- , serpents_players
- , serpents_players_repo
- , serpents_serpents
- , serpents_json
- , serpents_web_utils
+ , spts_core
+ , spts_game_sup
+ , spts_sup
+ , spts_base_handler
+ , spts_status_handler
+ , spts_games
+ , spts_games_repo
+ , spts_players
+ , spts_players_repo
+ , spts_serpents
+ , spts_json
+ , spts_web_utils
  ]
 }.

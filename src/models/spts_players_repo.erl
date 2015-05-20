@@ -1,5 +1,5 @@
 %%% @doc Players repository
--module(serpents_players_repo).
+-module(spts_players_repo).
 -author('elbrujohalcon@inaka.net').
 
 -export([ register/1
@@ -7,12 +7,12 @@
         ]).
 
 %% @doc Creates a new player
--spec register(binary()) -> serpents_players:player().
+-spec register(binary()) -> spts_players:player().
 register(Name) ->
-  Player = serpents_players:new(Name),
-  sumo:persist(serpents_players, Player).
+  Player = spts_players:new(Name),
+  sumo:persist(spts_players, Player).
 
 %% @doc Is the player registered?
--spec is_registered(serpents_players:id()) -> boolean().
+-spec is_registered(spts_players:id()) -> boolean().
 is_registered(PlayerId) ->
-  notfound =/= sumo:find(serpents_players, PlayerId).
+  notfound =/= sumo:find(spts_players, PlayerId).

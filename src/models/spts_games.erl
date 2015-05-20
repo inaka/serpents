@@ -1,12 +1,12 @@
 %% @doc Games model
--module(serpents_games).
+-module(spts_games).
 -author('elbrujohalcon@inaka.net').
 
 -type row() :: pos_integer().
 -type col() :: pos_integer().
 -type position() :: {row(), col()}.
 -type direction() :: left | right | up | down.
--type content() :: special_content() | {serpent, serpents_players:id()}.
+-type content() :: special_content() | {serpent, spts_players:id()}.
 -type special_content() :: wall | fruit.
 -type cell() ::
   #{ position => position()
@@ -17,7 +17,7 @@
 -opaque game() ::
   #{
     id => binary(),
-    serpents => [serpents_serpents:serpent()],
+    serpents => [spts_serpents:serpent()],
     state => state(),
     rows => pos_integer(),
     cols => pos_integer(),
@@ -76,14 +76,13 @@ ticktime(#{ticktime := TickTime}) -> TickTime.
 -spec state(game()) -> state().
 state(#{state := State}) -> State.
 
--spec serpents(game()) -> [serpents_serpents:serpent()].
+-spec serpents(game()) -> [spts_serpents:serpent()].
 serpents(#{serpents := Serpents}) -> Serpents.
 
--spec serpent(game(), serpents_players:id()) ->
-  serpents_serpents:serpent() | notfound.
+-spec serpent(game(), spts_players:id()) -> spts_serpents:serpent() | notfound.
 serpent(#{serpents := Serpents}, PlayerId) ->
   case [Serpent || Serpent <- Serpents
-                 , serpents_serpents:is_owner(Serpent, PlayerId)] of
+                 , spts_serpents:is_owner(Serpent, PlayerId)] of
     [] -> notfound;
     [Serpent|_] -> Serpent
   end.
@@ -106,7 +105,7 @@ find(Game, Content) ->
   [P || #{position := P, content := C} <- Cells, C == Content].
 
 %% @doc adds a new player to the game
--spec add_serpent(game(), serpents_serpents:serpent()) -> game().
+-spec add_serpent(game(), spts_serpents:serpent()) -> game().
 add_serpent(Game, Serpent) ->
   #{serpents := Serpents} = Game,
   Game#{serpents := [Serpent | Serpents]}.
@@ -114,14 +113,14 @@ add_serpent(Game, Serpent) ->
 -spec state(game(), state()) -> game().
 state(Game, State) -> Game#{state => State}.
 
--spec turn(game(), serpents_players:id(), direction()) -> game().
+-spec turn(game(), spts_players:id(), direction()) -> game().
 turn(Game, PlayerId, Direction) ->
   #{serpents := Serpents} = Game,
   {[PlayerSerpent], OtherSerpents} =
     lists:partition(
-      fun(Serpent) -> serpents_serpents:is_owner(Serpent, PlayerId) end,
+      fun(Serpent) -> spts_serpents:is_owner(Serpent, PlayerId) end,
       Serpents),
-  NewSerpent = serpents_serpents:direction(PlayerSerpent, Direction),
+  NewSerpent = spts_serpents:direction(PlayerSerpent, Direction),
   Game#{serpents := [NewSerpent|OtherSerpents]}.
 
 -spec process_name(id()) -> atom().
@@ -132,10 +131,10 @@ process_name(GameId) ->
 advance_serpents(Game = #{state := finished}) -> Game;
 advance_serpents(Game) ->
   #{serpents := Serpents} = Game,
-  NewSerpents = [serpents_serpents:advance(Serpent) || Serpent <- Serpents],
+  NewSerpents = [spts_serpents:advance(Serpent) || Serpent <- Serpents],
   FinalSerpents = kill_or_feed(Game, NewSerpents),
   FinalGame = maybe_remove_fruit(Game#{serpents := FinalSerpents}),
-  case [S || S <- FinalSerpents, serpents_serpents:status(S) == alive] of
+  case [S || S <- FinalSerpents, spts_serpents:status(S) == alive] of
     [] -> FinalGame#{state := finished};
     [_|_] -> FinalGame
   end.
@@ -161,20 +160,20 @@ kill_or_feed(Game, Serpents) ->
   [do_kill_or_feed(NewGame, Serpent) || Serpent <- Serpents].
 
 do_kill_or_feed(Game, Serpent) ->
-  [Head | _] = serpents_serpents:body(Serpent),
-  Owner = serpents_serpents:owner(Serpent),
+  [Head | _] = spts_serpents:body(Serpent),
+  Owner = spts_serpents:owner(Serpent),
   case lists:sort(contents(Game, Head)) of
     [{serpent, Owner}] -> Serpent;
-    [fruit, {serpent, Owner}] -> serpents_serpents:feed(Serpent);
-    [_, _| _] -> serpents_serpents:status(Serpent, dead)
+    [fruit, {serpent, Owner}] -> spts_serpents:feed(Serpent);
+    [_, _| _] -> spts_serpents:status(Serpent, dead)
   end.
 
 contents(Game, Position) ->
   #{serpents := Serpents} = Game,
   SerpentsInPos =
-    [ {serpent, serpents_serpents:owner(Serpent)}
+    [ {serpent, spts_serpents:owner(Serpent)}
     || Serpent <- Serpents
-     , P <- serpents_serpents:body(Serpent)
+     , P <- spts_serpents:body(Serpent)
      , P == Position],
   SerpentsInPos ++ contents_in_cells(Game, Position).
 

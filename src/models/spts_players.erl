@@ -1,5 +1,5 @@
 %%% @doc Players document
--module(serpents_players).
+-module(spts_players).
 -author('elbrujohalcon@inaka.net').
 
 -behaviour(sumo_doc).

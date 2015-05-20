@@ -1,5 +1,5 @@
 %%% @doc Default rest handler implementation
--module(serpents_base_handler).
+-module(spts_base_handler).
 -author('elbrujohalcon@inaka.net').
 
 -export([ init/3
@@ -23,7 +23,7 @@ init(_Transport, _Req, _Opts) ->
 -spec rest_init(cowboy_req:req(), state()) ->
   {ok, cowboy_req:req(), term()}.
 rest_init(Req, _Opts) ->
-  Req1 = serpents_web_utils:announce_req(Req, []),
+  Req1 = spts_web_utils:announce_req(Req, []),
   {ok, Req1, #{}}.
 
 -spec content_types_provided(cowboy_req:req(), state()) ->

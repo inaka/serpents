@@ -1,5 +1,5 @@
 %%% @doc main serpents supervisor
--module(serpents_sup).
+-module(spts_sup).
 -behavior(supervisor).
 
 -export([start_link/0, init/1]).
@@ -21,6 +21,6 @@ init(noargs) ->
     {ktn_random, {ktn_random, start_link, []},
       permanent, 5000, worker, [ktn_random]},
   GameSup =
-    {serpents_game_sup, {serpents_game_sup, start_link, []},
-      permanent, 5000, supervisor, [serpents_game_sup]},
+    {spts_game_sup, {spts_game_sup, start_link, []},
+      permanent, 5000, supervisor, [spts_game_sup]},
   {ok, {{one_for_one, 5, 10}, [KatanaRandom, GameSup]}}.

@@ -1,9 +1,9 @@
--module(serpents_core_SUITE).
+-module(spts_core_SUITE).
 -author('elbrujohalcon@inaka.net').
 
 -include_lib("mixer/include/mixer.hrl").
 -mixin([
-        {serpents_test_utils,
+        {spts_test_utils,
          [ init_per_suite/1
          , end_per_suite/1
          ]}
@@ -29,30 +29,30 @@
         ]).
 
 -spec all() -> [atom()].
-all() -> serpents_test_utils:all(?MODULE).
+all() -> spts_test_utils:all(?MODULE).
 
--spec init_per_testcase(atom(), serpents_test_utils:config()) ->
-  serpents_test_utils:config().
+-spec init_per_testcase(atom(), spts_test_utils:config()) ->
+  spts_test_utils:config().
 init_per_testcase(turn_ok, Config0) ->
   Config = init_per_testcase(turn_wrong, Config0),
   {game, Game} = lists:keyfind(game, 1, Config),
   {player1, Player1} = lists:keyfind(player1, 1, Config),
   {player2, Player2} = lists:keyfind(player2, 1, Config),
-  GameId = serpents_games:id(Game),
-  Player1Id = serpents_players:id(Player1),
-  Player2Id = serpents_players:id(Player2),
-  {_, _} = serpents_core:join_game(GameId, Player1Id),
-  {_, _} = serpents_core:join_game(GameId, Player2Id),
+  GameId = spts_games:id(Game),
+  Player1Id = spts_players:id(Player1),
+  Player2Id = spts_players:id(Player2),
+  {_, _} = spts_core:join_game(GameId, Player1Id),
+  {_, _} = spts_core:join_game(GameId, Player2Id),
   Config;
 init_per_testcase(JoinGameTest, Config)
   when JoinGameTest == join_game_ok
      ; JoinGameTest == join_game_wrong
      ; JoinGameTest == start_game
      ; JoinGameTest == turn_wrong ->
-  Game = serpents_core:create_game(#{cols => 10, rows => 10}),
-  Player1 = serpents_core:register_player(<<"1">>),
-  Player2 = serpents_core:register_player(<<"2">>),
-  Player3 = serpents_core:register_player(<<"3">>),
+  Game = spts_core:create_game(#{cols => 10, rows => 10}),
+  Player1 = spts_core:register_player(<<"1">>),
+  Player2 = spts_core:register_player(<<"2">>),
+  Player3 = spts_core:register_player(<<"3">>),
   [ {player1, Player1}
   , {player2, Player2}
   , {player3, Player3}
@@ -60,8 +60,8 @@ init_per_testcase(JoinGameTest, Config)
   | Config];
 init_per_testcase(_Test, Config) -> Config.
 
--spec end_per_testcase(atom(), serpents_test_utils:config()) ->
-  serpents_test_utils:config().
+-spec end_per_testcase(atom(), spts_test_utils:config()) ->
+  spts_test_utils:config().
 end_per_testcase(JoinGameTest, Config)
   when JoinGameTest == join_game_ok
      ; JoinGameTest == join_game_wrong
@@ -72,84 +72,84 @@ end_per_testcase(JoinGameTest, Config)
     Config);
 end_per_testcase(_Test, Config) -> Config.
 
--spec player_registration(serpents_test_utils:config()) -> {comment, string()}.
+-spec player_registration(spts_test_utils:config()) -> {comment, string()}.
 player_registration(_Config) ->
   ct:comment("A player is created"),
-  Player1 = serpents_core:register_player(<<"name 1">>),
-  <<"name 1">> = serpents_players:name(Player1),
-  Id1 = serpents_players:id(Player1),
+  Player1 = spts_core:register_player(<<"name 1">>),
+  <<"name 1">> = spts_players:name(Player1),
+  Id1 = spts_players:id(Player1),
 
   ct:comment("Another player is created"),
-  Player2 = serpents_core:register_player(<<"name 2">>),
-  <<"name 2">> = serpents_players:name(Player2),
-  case serpents_players:id(Player2) of
+  Player2 = spts_core:register_player(<<"name 2">>),
+  <<"name 2">> = spts_players:name(Player2),
+  case spts_players:id(Player2) of
     Id1 -> ct:fail("Duplicated id: ~p", [Id1]);
     _ -> ok
   end,
 
   ct:comment("Even with the same name, no validations"),
-  Player3 = serpents_core:register_player(<<"name 3">>),
-  <<"name 3">> = serpents_players:name(Player3),
-  case serpents_players:id(Player3) of
+  Player3 = spts_core:register_player(<<"name 3">>),
+  <<"name 3">> = spts_players:name(Player3),
+  case spts_players:id(Player3) of
     Id1 -> ct:fail("Duplicated id: ~p", [Id1]);
     _ -> ok
   end,
 
   {comment, ""}.
 
--spec game_creation_default(serpents_test_utils:config()) ->
+-spec game_creation_default(spts_test_utils:config()) ->
   {comment, string()}.
 game_creation_default(_Config) ->
   ct:comment("Create a game with default options"),
-  Game = serpents_core:create_game(),
-  20 = serpents_games:rows(Game),
-  20 = serpents_games:cols(Game),
-  250 = serpents_games:ticktime(Game),
-  created = serpents_games:state(Game),
-  [] = serpents_games:serpents(Game),
+  Game = spts_core:create_game(),
+  20 = spts_games:rows(Game),
+  20 = spts_games:cols(Game),
+  250 = spts_games:ticktime(Game),
+  created = spts_games:state(Game),
+  [] = spts_games:serpents(Game),
   {comment, ""}.
 
--spec game_creation_with_options(serpents_test_utils:config()) ->
+-spec game_creation_with_options(spts_test_utils:config()) ->
   {comment, string()}.
 game_creation_with_options(_Config) ->
   ct:comment("Create a game with more rows"),
-  Game0 = serpents_core:create_game(#{rows => 40}),
-  40 = serpents_games:rows(Game0),
-  20 = serpents_games:cols(Game0),
-  250 = serpents_games:ticktime(Game0),
+  Game0 = spts_core:create_game(#{rows => 40}),
+  40 = spts_games:rows(Game0),
+  20 = spts_games:cols(Game0),
+  250 = spts_games:ticktime(Game0),
 
   ct:comment("Create a game with more cols"),
-  Game1 = serpents_core:create_game(#{cols => 30}),
-  20 = serpents_games:rows(Game1),
-  30 = serpents_games:cols(Game1),
-  250 = serpents_games:ticktime(Game1),
+  Game1 = spts_core:create_game(#{cols => 30}),
+  20 = spts_games:rows(Game1),
+  30 = spts_games:cols(Game1),
+  250 = spts_games:ticktime(Game1),
 
   ct:comment("Create a game with more ticktime"),
-  Game2 = serpents_core:create_game(#{ticktime => 300}),
-  20 = serpents_games:rows(Game2),
-  20 = serpents_games:cols(Game2),
-  300 = serpents_games:ticktime(Game2),
+  Game2 = spts_core:create_game(#{ticktime => 300}),
+  20 = spts_games:rows(Game2),
+  20 = spts_games:cols(Game2),
+  300 = spts_games:ticktime(Game2),
 
   ct:comment("Create a game with less cols and rows"),
-  Game3 = serpents_core:create_game(#{cols => 10, rows => 10}),
-  10 = serpents_games:rows(Game3),
-  10 = serpents_games:cols(Game3),
-  250 = serpents_games:ticktime(Game3),
+  Game3 = spts_core:create_game(#{cols => 10, rows => 10}),
+  10 = spts_games:rows(Game3),
+  10 = spts_games:cols(Game3),
+  250 = spts_games:ticktime(Game3),
 
   ct:comment("Create a game with less cols, rows and ticktime"),
-  Game4 = serpents_core:create_game(#{cols => 10, rows => 10, ticktime => 500}),
-  10 = serpents_games:rows(Game4),
-  10 = serpents_games:cols(Game4),
-  500 = serpents_games:ticktime(Game4),
+  Game4 = spts_core:create_game(#{cols => 10, rows => 10, ticktime => 500}),
+  10 = spts_games:rows(Game4),
+  10 = spts_games:cols(Game4),
+  500 = spts_games:ticktime(Game4),
 
   {comment, ""}.
 
--spec game_creation_bad_rows(serpents_test_utils:config()) ->
+-spec game_creation_bad_rows(spts_test_utils:config()) ->
   {comment, string()}.
 game_creation_bad_rows(_Config) ->
   TryWith =
     fun(R) ->
-      try serpents_core:create_game(#{rows => R}) of
+      try spts_core:create_game(#{rows => R}) of
         G -> ct:fail("Unexpected game with ~p rows: ~p", [R, G])
       catch
         throw:invalid_rows -> ok
@@ -167,12 +167,11 @@ game_creation_bad_rows(_Config) ->
 
   {comment, ""}.
 
--spec game_creation_bad_cols(serpents_test_utils:config()) ->
-  {comment, string()}.
+-spec game_creation_bad_cols(spts_test_utils:config()) -> {comment, string()}.
 game_creation_bad_cols(_Config) ->
   TryWith =
     fun(R) ->
-      try serpents_core:create_game(#{cols => R}) of
+      try spts_core:create_game(#{cols => R}) of
         G -> ct:fail("Unexpected game with ~p cols: ~p", [R, G])
       catch
         throw:invalid_cols -> ok
@@ -190,12 +189,12 @@ game_creation_bad_cols(_Config) ->
 
   {comment, ""}.
 
--spec game_creation_bad_ticktime(serpents_test_utils:config()) ->
+-spec game_creation_bad_ticktime(spts_test_utils:config()) ->
   {comment, string()}.
 game_creation_bad_ticktime(_Config) ->
   TryWith =
     fun(T) ->
-      try serpents_core:create_game(#{ticktime => T}) of
+      try spts_core:create_game(#{ticktime => T}) of
         G -> ct:fail("Unexpected game with ticktime == ~p: ~p", [T, G])
       catch
         throw:invalid_ticktime -> ok
@@ -213,34 +212,33 @@ game_creation_bad_ticktime(_Config) ->
 
   {comment, ""}.
 
--spec join_game_ok(serpents_test_utils:config()) ->
-  {comment, string()}.
+-spec join_game_ok(spts_test_utils:config()) -> {comment, string()}.
 join_game_ok(Config) ->
   {game, Game} = lists:keyfind(game, 1, Config),
   {player1, Player1} = lists:keyfind(player1, 1, Config),
   {player2, Player2} = lists:keyfind(player2, 1, Config),
   {player3, Player3} = lists:keyfind(player3, 1, Config),
-  GameId = serpents_games:id(Game),
-  Player1Id = serpents_players:id(Player1),
-  Player2Id = serpents_players:id(Player2),
-  Player3Id = serpents_players:id(Player3),
+  GameId = spts_games:id(Game),
+  Player1Id = spts_players:id(Player1),
+  Player2Id = spts_players:id(Player2),
+  Player3Id = spts_players:id(Player3),
 
   ct:comment("There is noone on the game"),
-  [] = serpents_games:serpents(serpents_core:fetch_game(GameId)),
+  [] = spts_games:serpents(spts_core:fetch_game(GameId)),
 
   ct:comment("Player1 joins"),
-  {P1, D1} = serpents_core:join_game(GameId, Player1Id),
+  {P1, D1} = spts_core:join_game(GameId, Player1Id),
   {Row1, Col1} = P1,
   true = lists:member(D1, [up, down, left, right]),
   true = Row1 > 0,
   true = Row1 < 11,
   true = Col1 > 0,
   true = Col1 < 11,
-  [Serpent1] = serpents_games:serpents(serpents_core:fetch_game(GameId)),
-  Player1Id = serpents_serpents:owner(Serpent1),
+  [Serpent1] = spts_games:serpents(spts_core:fetch_game(GameId)),
+  Player1Id = spts_serpents:owner(Serpent1),
 
   ct:comment("Player2 joins"),
-  {P2, D2} = serpents_core:join_game(GameId, Player2Id),
+  {P2, D2} = spts_core:join_game(GameId, Player2Id),
   {Row2, Col2} = P2,
   true = lists:member(D2, [up, down, left, right]),
   true = Row2 > 0,
@@ -251,12 +249,11 @@ join_game_ok(Config) ->
     P1 -> ct:fail("Duplicated position: ~p", [P1]);
     P2 -> ok
   end,
-  [Serpent2] =
-    serpents_games:serpents(serpents_core:fetch_game(GameId)) -- [Serpent1],
-  Player2Id = serpents_serpents:owner(Serpent2),
+  [Serpent2] = spts_games:serpents(spts_core:fetch_game(GameId)) -- [Serpent1],
+  Player2Id = spts_serpents:owner(Serpent2),
 
   ct:comment("Player3 joins"),
-  {P3, D3} = serpents_core:join_game(GameId, Player3Id),
+  {P3, D3} = spts_core:join_game(GameId, Player3Id),
   {Row3, Col3} = P3,
   true = lists:member(D3, [up, down, left, right]),
   true = Row3 > 0,
@@ -269,78 +266,75 @@ join_game_ok(Config) ->
     P3 -> ok
   end,
   [Serpent3] =
-    serpents_games:serpents(serpents_core:fetch_game(GameId)) --
+    spts_games:serpents(spts_core:fetch_game(GameId)) --
       [Serpent1, Serpent2],
-  Player3Id = serpents_serpents:owner(Serpent3),
+  Player3Id = spts_serpents:owner(Serpent3),
 
   {comment, ""}.
 
--spec join_game_wrong(serpents_test_utils:config()) ->
-  {comment, string()}.
+-spec join_game_wrong(spts_test_utils:config()) -> {comment, string()}.
 join_game_wrong(Config) ->
   {game, Game} = lists:keyfind(game, 1, Config),
   {player1, Player1} = lists:keyfind(player1, 1, Config),
   {player2, Player2} = lists:keyfind(player2, 1, Config),
-  GameId = serpents_games:id(Game),
-  Player1Id = serpents_players:id(Player1),
-  Player2Id = serpents_players:id(Player2),
+  GameId = spts_games:id(Game),
+  Player1Id = spts_players:id(Player1),
+  Player2Id = spts_players:id(Player2),
 
   ct:comment("There is noone on the game"),
-  [] = serpents_games:serpents(serpents_core:fetch_game(GameId)),
+  [] = spts_games:serpents(spts_core:fetch_game(GameId)),
 
   ct:comment("Player1 joins"),
-  serpents_core:join_game(GameId, Player1Id),
-  [Serpent1] = serpents_games:serpents(serpents_core:fetch_game(GameId)),
-  Player1Id = serpents_serpents:owner(Serpent1),
+  spts_core:join_game(GameId, Player1Id),
+  [Serpent1] = spts_games:serpents(spts_core:fetch_game(GameId)),
+  Player1Id = spts_serpents:owner(Serpent1),
 
   ct:comment("Player1 tries to join the game again"),
-  try serpents_core:join_game(GameId, Player1Id) of
+  try spts_core:join_game(GameId, Player1Id) of
     R2 -> ct:fail("Duplicated join ~p in ~p (~p)", [Player1Id, GameId, R2])
   catch
     throw:already_joined -> ok
   end,
-  [Serpent1] = serpents_games:serpents(serpents_core:fetch_game(GameId)),
+  [Serpent1] = spts_games:serpents(spts_core:fetch_game(GameId)),
 
   ct:comment("invalid player tries to join the game"),
-  try serpents_core:join_game(GameId, <<"not-a-real-player">>) of
+  try spts_core:join_game(GameId, <<"not-a-real-player">>) of
     R3 -> ct:fail("Unexpected join in ~p: ~p", [GameId, R3])
   catch
     throw:invalid_player -> ok
   end,
-  [Serpent1] = serpents_games:serpents(serpents_core:fetch_game(GameId)),
+  [Serpent1] = spts_games:serpents(spts_core:fetch_game(GameId)),
 
   ct:comment("Player2 can't join after game starts"),
-  ok = serpents_core:start_game(GameId),
+  ok = spts_core:start_game(GameId),
   ktn_task:wait_for(
     fun() ->
-      serpents_games:state(serpents_core:fetch_game(GameId))
+      spts_games:state(spts_core:fetch_game(GameId))
     end, started),
-  try serpents_core:join_game(GameId, Player2Id) of
+  try spts_core:join_game(GameId, Player2Id) of
     R4 -> ct:fail("Unexpected join in ~p: ~p", [GameId, R4])
   catch
     throw:invalid_state -> ok
   end,
-  [Serpent1] = serpents_games:serpents(serpents_core:fetch_game(GameId)),
+  [Serpent1] = spts_games:serpents(spts_core:fetch_game(GameId)),
 
   {comment, ""}.
 
--spec too_many_joins(serpents_test_utils:config()) ->
-  {comment, string()}.
+-spec too_many_joins(spts_test_utils:config()) -> {comment, string()}.
 too_many_joins(_Config) ->
   ct:comment("A small game is created"),
-  Game = serpents_core:create_game(#{cols => 5, rows => 5}),
-  GameId = serpents_games:id(Game),
+  Game = spts_core:create_game(#{cols => 5, rows => 5}),
+  GameId = spts_games:id(Game),
 
   ct:comment("Enough players to fill the whole board are registered"),
   Chars = lists:seq($a, $a + 24),
-  Players =
-    [serpents_players:id(serpents_core:register_player(<<C>>)) || C <- Chars],
+  Players = [spts_players:id(spts_core:register_player(<<C>>)) || C <- Chars],
 
   ct:comment("They all try to join the game, at least one must fail"),
   JoinResults =
     lists:map(
       fun(PlayerId) ->
-        try serpents_core:join_game(GameId, PlayerId)
+        try spts_core:join_game(GameId, PlayerId)
         catch
           throw:game_full -> game_full
         end
@@ -350,84 +344,81 @@ too_many_joins(_Config) ->
     lists:partition(fun(X) -> X == game_full end, JoinResults),
 
   ct:comment("All players should be free to move"),
-  NewGame = serpents_core:fetch_game(GameId),
+  NewGame = spts_core:fetch_game(GameId),
   lists:foreach(
     fun({Position, Direction}) ->
-      NewPosition = serpents_test_utils:move(Position, Direction),
-      true = serpents_games:is_empty(NewGame, NewPosition),
-      in = serpents_test_utils:check_bounds(NewGame, NewPosition)
+      NewPosition = spts_test_utils:move(Position, Direction),
+      true = spts_games:is_empty(NewGame, NewPosition),
+      in = spts_test_utils:check_bounds(NewGame, NewPosition)
     end, PlayersInGame),
 
   {comment, ""}.
 
--spec start_game(serpents_test_utils:config()) ->
-  {comment, string()}.
+-spec start_game(spts_test_utils:config()) -> {comment, string()}.
 start_game(Config) ->
   {game, Game} = lists:keyfind(game, 1, Config),
   {player1, Player1} = lists:keyfind(player1, 1, Config),
-  GameId = serpents_games:id(Game),
-  Player1Id = serpents_players:id(Player1),
+  GameId = spts_games:id(Game),
+  Player1Id = spts_players:id(Player1),
 
   ct:comment("The game can't start if there is noone in it"),
-  [] = serpents_games:serpents(serpents_core:fetch_game(GameId)),
-  ok = serpents_core:start_game(GameId),
-  created = serpents_games:state(serpents_core:fetch_game(GameId)),
+  [] = spts_games:serpents(spts_core:fetch_game(GameId)),
+  ok = spts_core:start_game(GameId),
+  created = spts_games:state(spts_core:fetch_game(GameId)),
 
   ct:comment("The game can start after the first join"),
-  serpents_core:join_game(GameId, Player1Id),
-  ok = serpents_core:start_game(GameId),
-  started = serpents_games:state(serpents_core:fetch_game(GameId)),
+  spts_core:join_game(GameId, Player1Id),
+  ok = spts_core:start_game(GameId),
+  started = spts_games:state(spts_core:fetch_game(GameId)),
 
   ct:comment("Trying to start the game again has no effect"),
-  ok = serpents_core:start_game(GameId),
-  started = serpents_games:state(serpents_core:fetch_game(GameId)),
+  ok = spts_core:start_game(GameId),
+  started = spts_games:state(spts_core:fetch_game(GameId)),
 
   {comment, ""}.
 
--spec turn_wrong(serpents_test_utils:config()) ->
-  {comment, string()}.
+-spec turn_wrong(spts_test_utils:config()) -> {comment, string()}.
 turn_wrong(Config) ->
   {game, Game} = lists:keyfind(game, 1, Config),
   {player1, Player1} = lists:keyfind(player1, 1, Config),
   {player2, Player2} = lists:keyfind(player2, 1, Config),
-  GameId = serpents_games:id(Game),
-  Player1Id = serpents_players:id(Player1),
-  Player2Id = serpents_players:id(Player2),
+  GameId = spts_games:id(Game),
+  Player1Id = spts_players:id(Player1),
+  Player2Id = spts_players:id(Player2),
 
   ct:comment("Turn is inconsequential if the game hasn't started"),
-  [] = serpents_games:serpents(serpents_core:fetch_game(GameId)),
-  ok = serpents_core:turn(GameId, Player1Id, right),
-  [] = serpents_games:serpents(serpents_core:fetch_game(GameId)),
+  [] = spts_games:serpents(spts_core:fetch_game(GameId)),
+  ok = spts_core:turn(GameId, Player1Id, right),
+  [] = spts_games:serpents(spts_core:fetch_game(GameId)),
 
   ct:comment("A player that's outside the game can't turn his snake"),
-  {_, D1} = serpents_core:join_game(GameId, Player1Id),
-  ok = serpents_core:turn(GameId, Player2Id, right),
+  {_, D1} = spts_core:join_game(GameId, Player1Id),
+  ok = spts_core:turn(GameId, Player2Id, right),
   D1 =
-    serpents_serpents:direction(
-      serpents_games:serpent(
-        serpents_core:fetch_game(GameId), Player1Id)),
+    spts_serpents:direction(
+      spts_games:serpent(
+        spts_core:fetch_game(GameId), Player1Id)),
 
   {comment, ""}.
 
--spec turn_ok(serpents_test_utils:config()) ->
-  {comment, string()}.
+-spec turn_ok(spts_test_utils:config()) -> {comment, string()}.
 turn_ok(Config) ->
   {game, Game} = lists:keyfind(game, 1, Config),
   {player1, Player1} = lists:keyfind(player1, 1, Config),
   {player2, Player2} = lists:keyfind(player2, 1, Config),
-  GameId = serpents_games:id(Game),
-  Player1Id = serpents_players:id(Player1),
-  Player2Id = serpents_players:id(Player2),
+  GameId = spts_games:id(Game),
+  Player1Id = spts_players:id(Player1),
+  Player2Id = spts_players:id(Player2),
 
   TryWith =
     fun(PlayerId, Direction) ->
-      serpents_core:turn(GameId, PlayerId, Direction),
-      { serpents_serpents:direction(
-          serpents_games:serpent(
-            serpents_core:fetch_game(GameId), Player1Id))
-      , serpents_serpents:direction(
-          serpents_games:serpent(
-            serpents_core:fetch_game(GameId), Player2Id))
+      spts_core:turn(GameId, PlayerId, Direction),
+      { spts_serpents:direction(
+          spts_games:serpent(
+            spts_core:fetch_game(GameId), Player1Id))
+      , spts_serpents:direction(
+          spts_games:serpent(
+            spts_core:fetch_game(GameId), Player2Id))
       }
     end,
 
@@ -447,30 +438,29 @@ turn_ok(Config) ->
   FullRound(),
 
   ct:comment("After the game starts, players can turn"),
-  serpents_core:start_game(GameId),
+  spts_core:start_game(GameId),
   FullRound(),
 
   {comment, ""}.
 
--spec game_dispatcher(serpents_test_utils:config()) ->
-  {comment, string()}.
+-spec game_dispatcher(spts_test_utils:config()) -> {comment, string()}.
 game_dispatcher(_Config) ->
   ct:comment("A game is created"),
-  Game1 = serpents_core:create_game(),
-  Game1Id = serpents_games:id(Game1),
+  Game1 = spts_core:create_game(),
+  Game1Id = spts_games:id(Game1),
 
   ct:comment("The dispatcher is a gen_event"),
-  Dispatcher1 = serpents_core:game_dispatcher(Game1Id),
+  Dispatcher1 = spts_core:game_dispatcher(Game1Id),
   {status, Dispatcher1Pid, {module, gen_event}, _} =
     sys:get_status(Dispatcher1),
   [] = gen_event:which_handlers(Dispatcher1Pid),
 
   ct:comment("Another game is created"),
-  Game2 = serpents_core:create_game(),
-  Game2Id = serpents_games:id(Game2),
+  Game2 = spts_core:create_game(),
+  Game2Id = spts_games:id(Game2),
 
   ct:comment("The dispatcher is a gen_event"),
-  Dispatcher2 = serpents_core:game_dispatcher(Game2Id),
+  Dispatcher2 = spts_core:game_dispatcher(Game2Id),
   {status, Dispatcher2Pid, {module, gen_event}, _} =
     sys:get_status(Dispatcher2),
   [] = gen_event:which_handlers(Dispatcher2Pid),

@@ -28,7 +28,7 @@ stop() -> application:stop(?MODULE).
 %% @private
 -spec start(application:start_type(), any()) -> {ok, pid()} | {error, term()}.
 start(_StartType, _Args) ->
-  serpents_sup:start_link().
+  spts_sup:start_link().
 
 %% @private
 -spec start_phase(atom(), application:start_type(), []) -> ok | {error, _}.
@@ -43,13 +43,13 @@ start_phase(start_cowboy_listeners, _StartType, []) ->
 
   Routes =
     [{'_',
-      [ {"/status", serpents_status_handler,  []}
+      [ {"/status", spts_status_handler,  []}
       ]
      }
     ],
   Dispatch = cowboy_router:compile(Routes),
   case cowboy:start_http(
-        serpents_http_listener, ListenerCount, [{port, Port}],
+        spts_http_listener, ListenerCount, [{port, Port}],
         [{env, [{dispatch, Dispatch}]}]) of
     {ok, _} -> ok;
     {error, {already_started, _}} -> ok

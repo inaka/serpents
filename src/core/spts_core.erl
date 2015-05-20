@@ -1,10 +1,10 @@
 %%% @doc The core of the game
--module(serpents_core).
+-module(spts_core).
 -author('elbrujohalcon@inaka.net').
 
 -behavior(gen_fsm).
 
--record(state, {game :: serpents_games:game(), dispatcher :: pid()}).
+-record(state, {game :: spts_games:game(), dispatcher :: pid()}).
 
 -type state() :: #state{}.
 
@@ -47,61 +47,60 @@
 %% EXPORTED FUNCTIONS
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% @doc Registers a new player
--spec register_player(serpents_players:name()) -> serpents_players:player().
+-spec register_player(spts_players:name()) -> spts_players:player().
 register_player(Name) ->
-  serpents_players_repo:register(Name).
+  spts_players_repo:register(Name).
 
 %% @equiv create_game(#{}).
--spec create_game() -> serpents_games:game().
+-spec create_game() -> spts_games:game().
 create_game() -> create_game(#{}).
 
 %% @doc Creates a new game
--spec create_game(options()) -> serpents_games:game().
+-spec create_game(options()) -> spts_games:game().
 create_game(Options) ->
-  Game = serpents_games_repo:create(Options),
-  {ok, _Pid} = serpents_game_sup:start_child(Game),
+  Game = spts_games_repo:create(Options),
+  {ok, _Pid} = spts_game_sup:start_child(Game),
   Game.
 
 %% @doc PlayerId joins GameId
--spec join_game(serpents_games:id(), serpents_players:id()) ->
-  {serpents_games:position(), serpents_games:direction()}.
+-spec join_game(spts_games:id(), spts_players:id()) ->
+  {spts_games:position(), spts_games:direction()}.
 join_game(GameId, PlayerId) ->
   call(GameId, {join, PlayerId}).
 
 %% @doc Closes the joining period for the game and starts it
--spec start_game(serpents_games:id()) -> ok.
+-spec start_game(spts_games:id()) -> ok.
 start_game(GameId) ->
   cast(GameId, start).
 
 %% @doc a player changes direction
--spec turn(
-  serpents_games:id(), serpents_players:id(), serpents_games:direction()) -> ok.
+-spec turn(spts_games:id(), spts_players:id(), spts_games:direction()) -> ok.
 turn(GameId, PlayerId, Direction) ->
   cast(GameId, {turn, PlayerId, Direction}).
 
 %% @doc Retrieves the status of a game
--spec fetch_game(serpents_games:id()) -> serpents_games:game().
+-spec fetch_game(spts_games:id()) -> spts_games:game().
 fetch_game(GameId) ->
   call(GameId, fetch).
 
 %% @doc Retrieves the pid for the event dispatcher associated with a game.
 %%      It's a gen_event dispatcher.
--spec game_dispatcher(serpents_games:id()) -> pid().
+-spec game_dispatcher(spts_games:id()) -> pid().
 game_dispatcher(GameId) ->
   call(GameId, dispatcher).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% PRIVATELY EXPORTED FUNCTIONS
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
--spec start_link(serpents_games:game()) -> {ok, pid()} | {error, term()}.
+-spec start_link(spts_games:game()) -> {ok, pid()} | {error, term()}.
 start_link(Game) ->
-  Process = serpents_games:process_name(serpents_games:id(Game)),
+  Process = spts_games:process_name(spts_games:id(Game)),
   gen_fsm:start_link({local, Process}, ?MODULE, Game, [{debug, [trace, log]}]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% FSM CALLBACKS
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
--spec init(serpents_games:game()) -> {ok, created, state()}.
+-spec init(spts_games:game()) -> {ok, created, state()}.
 init(Game) ->
   {ok, Dispatcher} = gen_event:start_link(),
   {ok, created, #state{game = Game, dispatcher = Dispatcher}}.
@@ -112,7 +111,7 @@ handle_event(Event, _StateName, State) -> {stop, {unexpected, Event}, State}.
 
 -spec handle_sync_event
   (fetch, _From, atom(), state()) ->
-    {reply, {ok, serpents_games:game()}, atom(), state()};
+    {reply, {ok, spts_games:game()}, atom(), state()};
   (dispatcher, _From, atom(), state()) ->
     {reply, {ok, pid()}, atom(), state()}.
 handle_sync_event(fetch, _From, StateName, State) ->
@@ -124,9 +123,9 @@ handle_sync_event(dispatcher, _From, StateName, State) ->
   {next_state, atom(), state()}.
 handle_info(tick, started, State) ->
   #state{game = Game} = State,
-  NewGame = serpents_games_repo:advance(Game),
+  NewGame = spts_games_repo:advance(Game),
   NewState = State#state{game = NewGame},
-  case serpents_games:state(NewGame) of
+  case spts_games:state(NewGame) of
     finished ->
       {next_state, finished, NewState};
     started ->
@@ -147,9 +146,9 @@ terminate(Reason, StateName, State) ->
 code_change(_, StateName, State, _) -> {ok, StateName, State}.
 
 -type join_result() ::
-    {ok, {serpents_games:position(), serpents_games:direction()}}
+    {ok, {spts_games:position(), spts_games:direction()}}
   | {error, term()}.
--spec created({join, serpents_players:id()} | term(), _From, state()) ->
+-spec created({join, spts_players:id()} | term(), _From, state()) ->
                 {reply, join_result(), created, state()}.
 created({join, PlayerId}, From, State) ->
   ready_to_start({join, PlayerId}, From, State);
@@ -162,18 +161,18 @@ created(Request, State) ->
   lager:warning("Invalid Request: ~p", [Request]),
   {next_state, created, State}.
 
--spec ready_to_start({join, serpents_players:id()} | term(), _From, state()) ->
+-spec ready_to_start({join, spts_players:id()} | term(), _From, state()) ->
     {reply, join_result(), ready_to_start, state()}.
 ready_to_start({join, PlayerId}, _From, State) ->
   #state{game = Game} = State,
-  case serpents_players_repo:is_registered(PlayerId) of
+  case spts_players_repo:is_registered(PlayerId) of
     false -> {reply, {error, invalid_player}, ready_to_start, State};
     true ->
-      try serpents_games_repo:join(Game, PlayerId) of
+      try spts_games_repo:join(Game, PlayerId) of
         NewGame ->
-          Serpent = serpents_games:serpent(NewGame, PlayerId),
-          [Position|_] = serpents_serpents:body(Serpent),
-          Direction = serpents_serpents:direction(Serpent),
+          Serpent = spts_games:serpent(NewGame, PlayerId),
+          [Position|_] = spts_serpents:body(Serpent),
+          Direction = spts_serpents:direction(Serpent),
           Response = {ok, {Position, Direction}},
           {reply, Response, ready_to_start, State#state{game = NewGame}}
       catch
@@ -186,11 +185,11 @@ ready_to_start(Request, _From, State) ->
   {reply, {error, invalid_state}, ready_to_start, State}.
 
 -spec ready_to_start(
-  {turn, serpents_players:id(), serpents_games:direction()} | start | term(),
+  {turn, spts_players:id(), spts_games:direction()} | start | term(),
   state()) -> {next_state, started | ready_to_start, state()}.
 ready_to_start({turn, PlayerId, Direction}, State) ->
   #state{game = Game} = State,
-  try serpents_games_repo:turn(Game, PlayerId, Direction) of
+  try spts_games_repo:turn(Game, PlayerId, Direction) of
     NewGame ->
       {next_state, ready_to_start, State#state{game = NewGame}}
   catch
@@ -200,7 +199,7 @@ ready_to_start({turn, PlayerId, Direction}, State) ->
   end;
 ready_to_start(start, State) ->
   #state{game = Game} = State,
-  NewGame = serpents_games_repo:start(Game),
+  NewGame = spts_games_repo:start(Game),
   tick(Game),
   {next_state, started, State#state{game = NewGame}};
 ready_to_start(Request, State) ->
@@ -208,11 +207,11 @@ ready_to_start(Request, State) ->
   {next_state, ready_to_start, State}.
 
 -spec started(
-  {turn, serpents_players:id(), serpents_games:direction()} | term(),
+  {turn, spts_players:id(), spts_games:direction()} | term(),
   state()) -> {next_state, started | finished, state()}.
 started({turn, PlayerId, Direction}, State) ->
   #state{game = Game} = State,
-  try serpents_games_repo:turn(Game, PlayerId, Direction) of
+  try spts_games_repo:turn(Game, PlayerId, Direction) of
     NewGame ->
       {next_state, started, State#state{game = NewGame}}
   catch
@@ -245,7 +244,7 @@ finished(Request, _From, State) ->
 %% INTERNAL FUNCTIONS
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 call(GameId, Event) ->
-  Process = serpents_games:process_name(GameId),
+  Process = spts_games:process_name(GameId),
   try do_call(Process, Event) of
     ok -> ok;
     {ok, Result} -> Result;
@@ -266,6 +265,6 @@ do_call(Process, Event) ->
   gen_fsm:sync_send_event(Process, Event).
 
 cast(GameId, Event) ->
-  gen_fsm:send_event(serpents_games:process_name(GameId), Event).
+  gen_fsm:send_event(spts_games:process_name(GameId), Event).
 
-tick(Game) -> erlang:send_after(serpents_games:ticktime(Game), self(), tick).
+tick(Game) -> erlang:send_after(spts_games:ticktime(Game), self(), tick).

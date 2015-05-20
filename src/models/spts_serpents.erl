@@ -1,11 +1,11 @@
 %% @doc Serpent model
--module(serpents_serpents).
+-module(spts_serpents).
 -author('elbrujohalcon@inaka.net').
 
 -type status() :: alive | dead.
--opaque serpent() :: #{ owner     => serpents_players:id()
-                      , body      => [serpents_games:position()]
-                      , direction => serpents_games:direction()
+-opaque serpent() :: #{ owner     => spts_players:id()
+                      , body      => [spts_games:position()]
+                      , direction => spts_games:direction()
                       , food      => pos_integer()
                       , status    => status()
                       }.
@@ -23,9 +23,8 @@
         , feed/1
         ]).
 
--spec new(
-  serpents_players:id(), serpents_games:position(),
-  serpents_games:direction()) -> serpent().
+-spec new(spts_players:id(), spts_games:position(), spts_games:direction()) ->
+  serpent().
 new(Owner, Position, Direction) ->
   #{ owner      => Owner
    , direction  => Direction
@@ -34,20 +33,20 @@ new(Owner, Position, Direction) ->
    , status     => alive
    }.
 
--spec owner(serpent()) -> serpents_players:id().
+-spec owner(serpent()) -> spts_players:id().
 owner(#{owner := Owner}) -> Owner.
 
--spec direction(serpent()) -> serpents_games:direction().
+-spec direction(serpent()) -> spts_games:direction().
 direction(#{direction := Direction}) -> Direction.
 
--spec is_owner(serpent(), serpents_players:id()) -> boolean().
+-spec is_owner(serpent(), spts_players:id()) -> boolean().
 is_owner(#{owner := Owner}, Owner) -> true;
 is_owner(_, _) -> false.
 
--spec direction(serpent(), serpents_games:direction()) -> serpent().
+-spec direction(serpent(), spts_games:direction()) -> serpent().
 direction(Serpent, Direction) -> Serpent#{direction := Direction}.
 
--spec body(serpent()) -> [serpents_games:position()].
+-spec body(serpent()) -> [spts_games:position()].
 body(#{body := Body}) -> Body.
 
 -spec status(serpent()) -> status().
