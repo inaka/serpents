@@ -51,6 +51,7 @@
   | {game_updated, spts_games:game()}
   | {collision_detected, spts_players:id(), spts_game:position()}
   | {game_finished, spts_games:game()}.
+-export_type([event/0]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% EXPORTED FUNCTIONS
@@ -216,6 +217,7 @@ ready_to_start({turn, PlayerId, Direction}, State) ->
 ready_to_start(start, State) ->
   #state{game = Game} = State,
   NewGame = spts_games_repo:start(Game),
+  ok = notify({game_started, NewGame}, State),
   tick(Game),
   {next_state, started, State#state{game = NewGame}};
 ready_to_start(Request, State) ->

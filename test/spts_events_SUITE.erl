@@ -12,7 +12,9 @@
         , init_per_testcase/2
         , end_per_testcase/2
         ]).
--export([player_joined/1]).
+-export([ player_joined/1
+        , game_started/1
+        ]).
 
 -spec all() -> [atom()].
 all() -> spts_test_utils:all(?MODULE).
@@ -55,5 +57,25 @@ player_joined(Config) ->
   ct:comment("Another player joins, we receive another event"),
   {Position2, _} = spts_core:join_game(GameId, Player2Id),
   ok = spts_test_handler:wait_for({player_joined, Player2Id, Position2}),
+
+  {comment, ""}.
+
+-spec game_started(spts_test_utils:config()) -> {comment, []}.
+game_started(Config) ->
+  {game, GameId} = lists:keyfind(game, 1, Config),
+  {player1, Player1Id} = lists:keyfind(player1, 1, Config),
+
+  ct:comment("A player joins"),
+  {_, _} = spts_core:join_game(GameId, Player1Id),
+
+  ok = spts_test_handler:subscribe(GameId, self()),
+  ct:comment("The Game starts, we receive an event"),
+  ok = spts_core:start_game(GameId),
+  Game = spts_core:fetch_game(GameId),
+  ok = spts_test_handler:wait_for({game_started, Game}),
+
+  ct:comment("The Game doesn't start again, we don't receive an event"),
+  ok = spts_core:start_game(GameId),
+  ok = spts_test_handler:no_events(),
 
   {comment, ""}.
