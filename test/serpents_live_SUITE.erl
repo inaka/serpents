@@ -18,6 +18,8 @@
         , collision_detection_right_wall/1
         , collision_detection_up_wall/1
         , collision_detection_down_wall/1
+        , collision_with_serpent_body/1
+        , collision_with_serpent_head/1
         ]).
 
 -spec all() -> [atom()].
@@ -39,6 +41,15 @@ init_per_testcase(serpent_movement, Config) ->
   , {player2, Player2Id}
   , {player3, Player3Id}
   , {game, GameId}
+  | Config];
+init_per_testcase(Test, Config) when Test == collision_with_serpent_body;
+                                     Test == collision_with_serpent_head ->
+  Game = serpents_games_repo:create(#{cols => 5, rows => 5}),
+  Player1Id = serpents_players:id(serpents_core:register_player(<<"1">>)),
+  Player2Id = serpents_players:id(serpents_core:register_player(<<"2">>)),
+  [ {player1, Player1Id}
+  , {player2, Player2Id}
+  , {game, Game}
   | Config];
 init_per_testcase(_Test, Config) ->
   GameId =
@@ -135,3 +146,55 @@ collision_detection_wall(Direction, Config) ->
   Serpent = serpents_games:serpent(NewGame, Player1Id),
   dead = serpents_serpents:status(Serpent),
   serpents_serpents:body(Serpent).
+
+-spec collision_with_serpent_body(serpents_test_utils:config()) ->
+  {comment, []}.
+collision_with_serpent_body(Config) ->
+  {game, Game} = lists:keyfind(game, 1, Config),
+  {player1, Player1Id} = lists:keyfind(player1, 1, Config),
+  {player2, Player2Id} = lists:keyfind(player2, 1, Config),
+
+  ct:comment("Serpents are placed in proper positions"),
+  Serpent1 =
+    serpents_serpents:feed(serpents_serpents:new(Player1Id, {2, 2}, down)),
+  Serpent2 = serpents_serpents:new(Player2Id, {2, 3}, left),
+  GameWithSerpents =
+    serpents_games:add_serpent(
+      serpents_games:add_serpent(Game, Serpent1), Serpent2),
+
+  ct:comment("When serpent 2 moves to the left it should collide with S1"),
+  NewGame = serpents_games_repo:advance(GameWithSerpents),
+
+  ct:comment("S1 should be alive and its body should be 2 cells long"),
+  alive = serpents_serpents:status(serpents_games:serpent(NewGame, Player1Id)),
+
+  ct:comment("S2 should've died in ~p", [NewGame]),
+  dead = serpents_serpents:status(serpents_games:serpent(NewGame, Player2Id)),
+
+  {comment, ""}.
+
+-spec collision_with_serpent_head(serpents_test_utils:config()) ->
+  {comment, []}.
+collision_with_serpent_head(Config) ->
+  {game, Game} = lists:keyfind(game, 1, Config),
+  {player1, Player1Id} = lists:keyfind(player1, 1, Config),
+  {player2, Player2Id} = lists:keyfind(player2, 1, Config),
+
+  ct:comment("Serpents are placed in proper positions"),
+  Serpent1 = serpents_serpents:new(Player1Id, {2, 2}, right),
+  Serpent2 = serpents_serpents:new(Player2Id, {2, 4}, left),
+  GameWithSerpents =
+    serpents_games:add_serpent(
+      serpents_games:add_serpent(Game, Serpent1), Serpent2),
+
+  ct:comment("When serpents move they simultaenously collide"),
+  NewGame = serpents_games_repo:advance(GameWithSerpents),
+
+  ct:comment("Both serpents are dead"),
+  dead = serpents_serpents:status(serpents_games:serpent(NewGame, Player1Id)),
+  dead = serpents_serpents:status(serpents_games:serpent(NewGame, Player2Id)),
+
+  ct:comment("The game finished"),
+  finished = serpents_games:state(NewGame),
+
+  {comment, ""}.

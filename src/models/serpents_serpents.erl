@@ -59,13 +59,13 @@ status(Serpent, Status) -> Serpent#{status := Status}.
 -spec advance(serpent()) -> serpent().
 advance(Serpent = #{status := dead}) -> Serpent;
 advance(Serpent) ->
-  #{body := [Head|Tail], direction := Direction, food := Food} = Serpent,
+  #{body := Body, direction := Direction, food := Food} = Serpent,
+  [Head|_] = Body,
   NewHead = advance(Head, Direction),
   {NewFood, NewTail} =
-    case {Food, Tail} of
-      {0, []} -> {0, []};
-      {0, Tail} -> {0, [Head | lists:droplast(Tail)]};
-      {Food, Tail} -> {Food - 1, Tail}
+    case Food of
+      0 -> {0, lists:droplast(Body)};
+      Food -> {Food - 1, Body}
     end,
   Serpent#{body := [NewHead | NewTail], food := NewFood}.
 
