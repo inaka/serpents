@@ -16,7 +16,8 @@
   , start_game/1
   , turn/3
   , fetch_game/1
-  , game_dispatcher/1
+  , subscribe/3
+  , call_handler/3
   ]).
 
 -export([start_link/1]).
@@ -42,6 +43,14 @@
                     , ticktime => pos_integer()
                     }.
 -export_type([options/0]).
+
+-type event() ::
+    {player_joined, spts_players:id(), spts_game:position()}
+  | {game_countdown, CountDownNumber::pos_integer(), MillisToStart::pos_integer()}
+  | {game_started, spts_games:game()}
+  | {game_updated, spts_games:game()}
+  | {collision_detected, spts_players:id(), spts_game:position()}
+  | {game_finished, spts_games:game()}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% EXPORTED FUNCTIONS
@@ -83,11 +92,17 @@ turn(GameId, PlayerId, Direction) ->
 fetch_game(GameId) ->
   call(GameId, fetch).
 
-%% @doc Retrieves the pid for the event dispatcher associated with a game.
-%%      It's a gen_event dispatcher.
--spec game_dispatcher(spts_games:id()) -> pid().
-game_dispatcher(GameId) ->
-  call(GameId, dispatcher).
+%% @doc Subscribes to the game gen_event dispatcher.
+-spec subscribe(spts_games:id(), module() | {module(), term()}, term()) ->
+  ok.
+subscribe(GameId, Handler, Args) ->
+  gen_event:add_handler(call(GameId, dispatcher), Handler, Args).
+
+%% @doc Calls the game gen_event dispatcher.
+-spec call_handler(spts_games:id(), module() | {module(), term()}, term()) ->
+  term().
+call_handler(GameId, Handler, Request) ->
+  gen_event:call(call(GameId, dispatcher), Handler, Request).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% PRIVATELY EXPORTED FUNCTIONS
@@ -174,6 +189,7 @@ ready_to_start({join, PlayerId}, _From, State) ->
           [Position|_] = spts_serpents:body(Serpent),
           Direction = spts_serpents:direction(Serpent),
           Response = {ok, {Position, Direction}},
+          ok = notify({player_joined, PlayerId, Position}, State),
           {reply, Response, ready_to_start, State#state{game = NewGame}}
       catch
         _:Error ->
@@ -268,3 +284,7 @@ cast(GameId, Event) ->
   gen_fsm:send_event(spts_games:process_name(GameId), Event).
 
 tick(Game) -> erlang:send_after(spts_games:ticktime(Game), self(), tick).
+
+%% @todo consider using sync_notify
+notify(Event, State) ->
+  ok = gen_event:notify(State#state.dispatcher, Event).

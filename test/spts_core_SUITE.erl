@@ -25,7 +25,6 @@
         , start_game/1
         , turn_wrong/1
         , turn_ok/1
-        , game_dispatcher/1
         ]).
 
 -spec all() -> [atom()].
@@ -440,39 +439,5 @@ turn_ok(Config) ->
   ct:comment("After the game starts, players can turn"),
   spts_core:start_game(GameId),
   FullRound(),
-
-  {comment, ""}.
-
--spec game_dispatcher(spts_test_utils:config()) -> {comment, string()}.
-game_dispatcher(_Config) ->
-  ct:comment("A game is created"),
-  Game1 = spts_core:create_game(),
-  Game1Id = spts_games:id(Game1),
-
-  ct:comment("The dispatcher is a gen_event"),
-  Dispatcher1 = spts_core:game_dispatcher(Game1Id),
-  {status, Dispatcher1Pid, {module, gen_event}, _} =
-    sys:get_status(Dispatcher1),
-  [] = gen_event:which_handlers(Dispatcher1Pid),
-
-  ct:comment("Another game is created"),
-  Game2 = spts_core:create_game(),
-  Game2Id = spts_games:id(Game2),
-
-  ct:comment("The dispatcher is a gen_event"),
-  Dispatcher2 = spts_core:game_dispatcher(Game2Id),
-  {status, Dispatcher2Pid, {module, gen_event}, _} =
-    sys:get_status(Dispatcher2),
-  [] = gen_event:which_handlers(Dispatcher2Pid),
-
-  ct:comment("The dispatchers are different"),
-  case Dispatcher2 of
-    Dispatcher1 -> ct:fail("Duplicated dispatcher: ~p", [Dispatcher1]);
-    Dispatcher2 -> ok
-  end,
-  case Dispatcher2Pid of
-    Dispatcher1Pid -> ct:fail("Duplicated dispatcher: ~p", [Dispatcher1Pid]);
-    Dispatcher2Pid -> ok
-  end,
 
   {comment, ""}.
