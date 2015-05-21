@@ -14,6 +14,7 @@
         ]).
 -export([ player_joined/1
         , game_started/1
+        , game_finished/1
         ]).
 
 -spec all() -> [atom()].
@@ -77,5 +78,32 @@ game_started(Config) ->
   ct:comment("The Game doesn't start again, we don't receive an event"),
   ok = spts_core:start_game(GameId),
   ok = spts_test_handler:no_events(),
+
+  {comment, ""}.
+
+-spec game_finished(spts_test_utils:config()) -> {comment, []}.
+game_finished(Config) ->
+  {game, GameId} = lists:keyfind(game, 1, Config),
+  {player1, Player1Id} = lists:keyfind(player1, 1, Config),
+  {_, _} = spts_core:join_game(GameId, Player1Id),
+  ok = spts_core:start_game(GameId),
+
+  ok = spts_test_handler:subscribe(GameId, self()),
+  tested =
+    lists:foldl(
+      fun (_, started) ->
+            ct:comment("Game is on course, we keep moving"),
+            ok = spts_test_handler:flush(),
+            spts_games:process_name(GameId) ! tick,
+            Game = spts_core:fetch_game(GameId),
+            spts_games:state(Game);
+          (_, finished) ->
+            ct:comment("Game ended, we should get an event"),
+            Game = spts_core:fetch_game(GameId),
+            ok = spts_test_handler:wait_for({game_finished, Game}),
+            tested;
+          (_, tested) ->
+            tested
+      end, started, lists:seq(1, 7)),
 
   {comment, ""}.

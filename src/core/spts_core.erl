@@ -143,6 +143,7 @@ handle_info(tick, started, State) ->
   NewState = State#state{game = NewGame},
   case spts_games:state(NewGame) of
     finished ->
+      notify({game_finished, NewGame}, NewState),
       {next_state, finished, NewState};
     started ->
       tick(NewGame),

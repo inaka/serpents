@@ -2,7 +2,13 @@
 
 -behaviour(gen_event).
 
--export([subscribe/2, unsubscribe/2, wait_for/1, no_events/0]).
+-export(
+  [ subscribe/2
+  , unsubscribe/2
+  , wait_for/1
+  , no_events/0
+  , flush/0
+  ]).
 -export(
   [ init/1
   , handle_event/2
@@ -43,6 +49,13 @@ no_events() ->
     {info, Info} -> ct:fail("Unexpected Info: ~p", [Info]);
     Thing -> ct:fail("Unexpected Thing: ~p", [Thing])
   after 1000 -> ok
+  end.
+
+-spec flush() -> ok.
+flush() ->
+  receive
+    _ -> flush()
+  after 0 -> ok
   end.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
