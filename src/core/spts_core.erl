@@ -46,10 +46,10 @@
 
 -type event() ::
     {player_joined, spts_players:id(), spts_game:position()}
-  | {game_countdown, CountDownNumber::pos_integer(), MillisToStart::pos_integer()}
+  | {game_countdown, Number::pos_integer(), MillisToStart::pos_integer()}
   | {game_started, spts_games:game()}
   | {game_updated, spts_games:game()}
-  | {collision_detected, spts_players:id(), spts_game:position()}
+  | {collision_detected, spts_serpents:serpent()}
   | {game_finished, spts_games:game()}.
 -export_type([event/0]).
 
@@ -119,6 +119,7 @@ start_link(Game) ->
 -spec init(spts_games:game()) -> {ok, created, state()}.
 init(Game) ->
   {ok, Dispatcher} = gen_event:start_link(),
+  sys:trace(Dispatcher, true),
   {ok, created, #state{game = Game, dispatcher = Dispatcher}}.
 
 -spec handle_event(Event, atom(), state()) ->
@@ -141,6 +142,14 @@ handle_info(tick, started, State) ->
   #state{game = Game} = State,
   NewGame = spts_games_repo:advance(Game),
   NewState = State#state{game = NewGame},
+  OldDeadSerpents =
+    [S || S <- spts_games:serpents(Game), spts_serpents:status(S) == dead],
+  NewDeadSerpents =
+    [S || S <- spts_games:serpents(NewGame), spts_serpents:status(S) == dead],
+  lists:foreach(
+    fun(DeadSerpent) ->
+      notify({collision_detected, DeadSerpent}, NewState)
+    end, NewDeadSerpents -- OldDeadSerpents),
   case spts_games:state(NewGame) of
     finished ->
       notify({game_finished, NewGame}, NewState),

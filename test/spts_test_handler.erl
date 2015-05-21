@@ -6,6 +6,7 @@
   [ subscribe/2
   , unsubscribe/2
   , wait_for/1
+  , wait_for/2
   , no_events/0
   , flush/0
   ]).
@@ -33,9 +34,16 @@ unsubscribe(GameId, TestProcess) ->
   spts_core:call_handler(GameId, {?MODULE, TestProcess}, remove).
 
 -spec wait_for(spts_core:event()) -> ok.
-wait_for(Event) ->
+wait_for(Event) -> wait_for(Event, [ignore_others]).
+
+-spec wait_for(spts_core:event(), [ignore_others]) -> ok.
+wait_for(Event, Options) ->
+  IgnoreOthers = lists:member(ignore_others, Options),
   receive
     {event, Event} -> ok;
+    {event, OtherEvent} when IgnoreOthers ->
+      ct:pal("Ignored Event: ~p", [OtherEvent]),
+      wait_for(Event, Options);
     {event, OtherEvent} -> ct:fail("Unexpected Event: ~p", [OtherEvent]);
     {info, Info} -> ct:fail("Unexpected Info: ~p", [Info]);
     Thing -> ct:fail("Unexpected Thing: ~p", [Thing])

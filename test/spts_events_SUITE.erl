@@ -16,6 +16,7 @@
         , game_started/1
         , game_finished/1
         , game_updated/1
+        , collision_detected/1
         ]).
 
 -spec all() -> [atom()].
@@ -54,11 +55,11 @@ player_joined(Config) ->
   ok = spts_test_handler:subscribe(GameId, self()),
   ct:comment("A player joins, we receive an event"),
   {Position1, _} = spts_core:join_game(GameId, Player1Id),
-  ok = spts_test_handler:wait_for({player_joined, Player1Id, Position1}),
+  ok = spts_test_handler:wait_for({player_joined, Player1Id, Position1}, []),
 
   ct:comment("Another player joins, we receive another event"),
   {Position2, _} = spts_core:join_game(GameId, Player2Id),
-  ok = spts_test_handler:wait_for({player_joined, Player2Id, Position2}),
+  ok = spts_test_handler:wait_for({player_joined, Player2Id, Position2}, []),
 
   {comment, ""}.
 
@@ -131,5 +132,42 @@ game_updated(Config) ->
         end
       end, spts_core:fetch_game(GameId), lists:seq(1, 6)),
   finished = spts_games:state(FinishedGame),
+
+  {comment, ""}.
+
+-spec collision_detected(spts_test_utils:config()) -> {comment, []}.
+collision_detected(Config) ->
+  {game, GameId} = lists:keyfind(game, 1, Config),
+  {player1, Player1Id} = lists:keyfind(player1, 1, Config),
+  {player2, Player2Id} = lists:keyfind(player2, 1, Config),
+  {player3, Player3Id} = lists:keyfind(player3, 1, Config),
+  {_, _} = spts_core:join_game(GameId, Player1Id),
+  {_, _} = spts_core:join_game(GameId, Player2Id),
+  {_, _} = spts_core:join_game(GameId, Player3Id),
+  ok = spts_core:start_game(GameId),
+
+  ReceiveCollision =
+    fun(Serpent) ->
+      receive
+        {event, {collision_detected, Serpent}} -> ok;
+        {info, Info} -> ct:fail("Unexpected Info: ~p", [Info])
+      after 1000 ->
+        ct:fail("Collision not detected")
+      end
+    end,
+
+  ok = spts_test_handler:subscribe(GameId, self()),
+  [_, _, _] =
+    lists:foldl(
+      fun(_, DeadSerpents) ->
+        spts_games:process_name(GameId) ! tick,
+        NewDeadSerpents =
+          [S || S <- spts_games:serpents(spts_core:fetch_game(GameId))
+              , spts_serpents:status(S) == dead
+              , not lists:member(S, DeadSerpents)],
+        ct:comment("Should detect collisions for ~p", [NewDeadSerpents]),
+        lists:foreach(ReceiveCollision, NewDeadSerpents),
+        NewDeadSerpents ++ DeadSerpents
+      end, [], lists:seq(1, 7)),
 
   {comment, ""}.
