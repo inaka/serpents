@@ -43,7 +43,11 @@ start_phase(start_cowboy_listeners, _StartType, []) ->
 
   Routes =
     [{'_',
-      [ {"/status", spts_status_handler,  []}
+      [ {"/", cowboy_static, {file, "www/index.html"}}
+      , {"/favicon.ico", cowboy_static, {file, "www/assets/favicon.ico"}}
+      , {"/assets/[...]", cowboy_static, {dir, "www/assets"}}
+      , {"/game/:game_id", cowboy_static, {file, "www/game.html"}}
+      , {"/status", spts_status_handler,  []}
       ]
      }
     ],
