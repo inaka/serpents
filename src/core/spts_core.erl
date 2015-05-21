@@ -146,6 +146,7 @@ handle_info(tick, started, State) ->
       notify({game_finished, NewGame}, NewState),
       {next_state, finished, NewState};
     started ->
+      notify({game_updated, NewGame}, NewState),
       tick(NewGame),
       {next_state, started, NewState}
   end;

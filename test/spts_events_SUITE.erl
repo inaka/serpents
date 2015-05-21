@@ -15,6 +15,7 @@
 -export([ player_joined/1
         , game_started/1
         , game_finished/1
+        , game_updated/1
         ]).
 
 -spec all() -> [atom()].
@@ -95,8 +96,7 @@ game_finished(Config) ->
             ct:comment("Game is on course, we keep moving"),
             ok = spts_test_handler:flush(),
             spts_games:process_name(GameId) ! tick,
-            Game = spts_core:fetch_game(GameId),
-            spts_games:state(Game);
+            spts_games:state(spts_core:fetch_game(GameId));
           (_, finished) ->
             ct:comment("Game ended, we should get an event"),
             Game = spts_core:fetch_game(GameId),
@@ -105,5 +105,31 @@ game_finished(Config) ->
           (_, tested) ->
             tested
       end, started, lists:seq(1, 7)),
+
+  {comment, ""}.
+
+-spec game_updated(spts_test_utils:config()) -> {comment, []}.
+game_updated(Config) ->
+  {game, GameId} = lists:keyfind(game, 1, Config),
+  {player1, Player1Id} = lists:keyfind(player1, 1, Config),
+  {_, _} = spts_core:join_game(GameId, Player1Id),
+  ok = spts_core:start_game(GameId),
+
+  ok = spts_test_handler:subscribe(GameId, self()),
+  spts_games:process_name(GameId) ! tick,
+  FinishedGame =
+    lists:foldl(
+      fun(_, Game) ->
+        case spts_games:state(Game) of
+          started ->
+            ct:comment("Game is on course, we receive an update"),
+            ok = spts_test_handler:wait_for({game_updated, Game}),
+            spts_games:process_name(GameId) ! tick,
+            spts_core:fetch_game(GameId);
+          finished ->
+            Game
+        end
+      end, spts_core:fetch_game(GameId), lists:seq(1, 6)),
+  finished = spts_games:state(FinishedGame),
 
   {comment, ""}.
