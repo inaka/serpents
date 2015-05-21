@@ -19,6 +19,7 @@
         , game_creation_bad_rows/1
         , game_creation_bad_cols/1
         , game_creation_bad_ticktime/1
+        , game_creation_bad_countdown/1
         , join_game_ok/1
         , join_game_wrong/1
         , too_many_joins/1
@@ -48,7 +49,7 @@ init_per_testcase(JoinGameTest, Config)
      ; JoinGameTest == join_game_wrong
      ; JoinGameTest == start_game
      ; JoinGameTest == turn_wrong ->
-  Game = spts_core:create_game(#{cols => 10, rows => 10}),
+  Game = spts_core:create_game(#{cols => 10, rows => 10, countdown => 2}),
   Player1 = spts_core:register_player(<<"1">>),
   Player2 = spts_core:register_player(<<"2">>),
   Player3 = spts_core:register_player(<<"3">>),
@@ -66,6 +67,9 @@ end_per_testcase(JoinGameTest, Config)
      ; JoinGameTest == join_game_wrong
      ; JoinGameTest == start_game
      ; JoinGameTest == turn_wrong ->
+  {game, Game} = lists:keyfind(game, 1, Config),
+  GameId = spts_games:id(Game),
+  ok = spts_core:stop_game(GameId),
   lists:filter(
     fun ({K, _}) -> not lists:member(K, [game, player1, player2, player3]) end,
     Config);
@@ -104,6 +108,7 @@ game_creation_default(_Config) ->
   20 = spts_games:rows(Game),
   20 = spts_games:cols(Game),
   250 = spts_games:ticktime(Game),
+  10 = spts_games:countdown(Game),
   created = spts_games:state(Game),
   [] = spts_games:serpents(Game),
   {comment, ""}.
@@ -116,30 +121,49 @@ game_creation_with_options(_Config) ->
   40 = spts_games:rows(Game0),
   20 = spts_games:cols(Game0),
   250 = spts_games:ticktime(Game0),
+  10 = spts_games:countdown(Game0),
 
   ct:comment("Create a game with more cols"),
   Game1 = spts_core:create_game(#{cols => 30}),
   20 = spts_games:rows(Game1),
   30 = spts_games:cols(Game1),
   250 = spts_games:ticktime(Game1),
+  10 = spts_games:countdown(Game1),
 
   ct:comment("Create a game with more ticktime"),
   Game2 = spts_core:create_game(#{ticktime => 300}),
   20 = spts_games:rows(Game2),
   20 = spts_games:cols(Game2),
   300 = spts_games:ticktime(Game2),
+  10 = spts_games:countdown(Game2),
 
   ct:comment("Create a game with less cols and rows"),
   Game3 = spts_core:create_game(#{cols => 10, rows => 10}),
   10 = spts_games:rows(Game3),
   10 = spts_games:cols(Game3),
   250 = spts_games:ticktime(Game3),
+  10 = spts_games:countdown(Game3),
+
+  Game4 = spts_core:create_game(#{countdown => 25}),
+  20 = spts_games:rows(Game4),
+  20 = spts_games:cols(Game4),
+  250 = spts_games:ticktime(Game4),
+  25 = spts_games:countdown(Game4),
+
+  Game5 = spts_core:create_game(#{ticktime => 400, countdown => 25}),
+  20 = spts_games:rows(Game5),
+  20 = spts_games:cols(Game5),
+  400 = spts_games:ticktime(Game5),
+  25 = spts_games:countdown(Game5),
 
   ct:comment("Create a game with less cols, rows and ticktime"),
-  Game4 = spts_core:create_game(#{cols => 10, rows => 10, ticktime => 500}),
-  10 = spts_games:rows(Game4),
-  10 = spts_games:cols(Game4),
-  500 = spts_games:ticktime(Game4),
+  GameF =
+    spts_core:create_game(
+      #{cols => 10, rows => 10, ticktime => 500, countdown => 0}),
+  10 = spts_games:rows(GameF),
+  10 = spts_games:cols(GameF),
+  500 = spts_games:ticktime(GameF),
+  0 = spts_games:countdown(GameF),
 
   {comment, ""}.
 
@@ -208,6 +232,18 @@ game_creation_bad_ticktime(_Config) ->
 
   ct:comment("Less than 100 ticktime fails"),
   TryWith(4),
+
+  {comment, ""}.
+
+-spec game_creation_bad_countdown(spts_test_utils:config()) ->
+  {comment, string()}.
+game_creation_bad_countdown(_Config) ->
+  ct:comment("Negative countdown fails"),
+  try spts_core:create_game(#{countdown => -15}) of
+    G -> ct:fail("Unexpected game with negative countdown: ~p", [G])
+  catch
+    throw:invalid_countdown -> ok
+  end,
 
   {comment, ""}.
 
@@ -304,14 +340,26 @@ join_game_wrong(Config) ->
   end,
   [Serpent1] = spts_games:serpents(spts_core:fetch_game(GameId)),
 
-  ct:comment("Player2 can't join after game starts"),
+  ct:comment("Player2 can't join while on countdown"),
   ok = spts_core:start_game(GameId),
+  ktn_task:wait_for(
+    fun() ->
+      spts_games:state(spts_core:fetch_game(GameId))
+    end, countdown),
+  try spts_core:join_game(GameId, Player2Id) of
+    R4 -> ct:fail("Unexpected join in ~p: ~p", [GameId, R4])
+  catch
+    throw:invalid_state -> ok
+  end,
+  [Serpent1] = spts_games:serpents(spts_core:fetch_game(GameId)),
+
+  ct:comment("Player2 can't join after game starts"),
   ktn_task:wait_for(
     fun() ->
       spts_games:state(spts_core:fetch_game(GameId))
     end, started),
   try spts_core:join_game(GameId, Player2Id) of
-    R4 -> ct:fail("Unexpected join in ~p: ~p", [GameId, R4])
+    R5 -> ct:fail("Unexpected join in ~p: ~p", [GameId, R5])
   catch
     throw:invalid_state -> ok
   end,
@@ -368,7 +416,17 @@ start_game(Config) ->
   ct:comment("The game can start after the first join"),
   spts_core:join_game(GameId, Player1Id),
   ok = spts_core:start_game(GameId),
-  started = spts_games:state(spts_core:fetch_game(GameId)),
+  countdown = spts_games:state(spts_core:fetch_game(GameId)),
+
+  ct:comment("Trying to start the game again has no effect"),
+  ok = spts_core:start_game(GameId),
+  countdown = spts_games:state(spts_core:fetch_game(GameId)),
+
+  ct:comment("We wait for the game to actually start"),
+  ktn_task:wait_for(
+    fun() ->
+      spts_games:state(spts_core:fetch_game(GameId))
+    end, started),
 
   ct:comment("Trying to start the game again has no effect"),
   ok = spts_core:start_game(GameId),
@@ -385,7 +443,7 @@ turn_wrong(Config) ->
   Player1Id = spts_players:id(Player1),
   Player2Id = spts_players:id(Player2),
 
-  ct:comment("Turn is inconsequential if the game hasn't started"),
+  ct:comment("Turn is inconsequential if the player hasn't joined"),
   [] = spts_games:serpents(spts_core:fetch_game(GameId)),
   ok = spts_core:turn(GameId, Player1Id, right),
   [] = spts_games:serpents(spts_core:fetch_game(GameId)),

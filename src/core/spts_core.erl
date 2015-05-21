@@ -18,6 +18,7 @@
   , fetch_game/1
   , subscribe/3
   , call_handler/3
+  , stop_game/1
   ]).
 
 -export([start_link/1]).
@@ -26,6 +27,8 @@
   , created/2
   , ready_to_start/3
   , ready_to_start/2
+  , countdown/3
+  , countdown/2
   , started/3
   , started/2
   , finished/3
@@ -40,7 +43,8 @@
 
 -type options() :: #{ rows => pos_integer()
                     , cols => pos_integer()
-                    , ticktime => pos_integer()
+                    , ticktime => Milliseconds :: pos_integer()
+                    , countdown => Rounds :: pos_integer()
                     }.
 -export_type([options/0]).
 
@@ -83,6 +87,11 @@ join_game(GameId, PlayerId) ->
 start_game(GameId) ->
   cast(GameId, start).
 
+%% @doc Stops the game
+-spec stop_game(spts_games:id()) -> ok.
+stop_game(GameId) ->
+  cast(GameId, stop).
+
 %% @doc a player changes direction
 -spec turn(spts_games:id(), spts_players:id(), spts_games:direction()) -> ok.
 turn(GameId, PlayerId, Direction) ->
@@ -122,9 +131,8 @@ init(Game) ->
   sys:trace(Dispatcher, true),
   {ok, created, #state{game = Game, dispatcher = Dispatcher}}.
 
--spec handle_event(Event, atom(), state()) ->
-  {stop, {unexpected, Event}, state()}.
-handle_event(Event, _StateName, State) -> {stop, {unexpected, Event}, State}.
+-spec handle_event(stop, atom(), state()) -> {stop, normal, state()}.
+handle_event(stop, _StateName, State) -> {stop, normal, State}.
 
 -spec handle_sync_event
   (fetch, _From, atom(), state()) ->
@@ -138,6 +146,21 @@ handle_sync_event(dispatcher, _From, StateName, State) ->
 
 -spec handle_info(tick|term(), atom(), state()) ->
   {next_state, atom(), state()}.
+handle_info(tick, countdown, State) ->
+  #state{game = Game} = State,
+  NewGame = spts_games_repo:countdown_or_start(Game),
+  case spts_games:state(NewGame) of
+    started ->
+      ok = notify({game_started, NewGame}, State),
+      tick(Game),
+      {next_state, started, State#state{game = NewGame}};
+    countdown ->
+      RoundsToGo = spts_games:countdown(Game),
+      MillisToStart = spts_games:millis_to_start(Game),
+      ok = notify({game_countdown, RoundsToGo, MillisToStart}, State),
+      tick(NewGame),
+      {next_state, countdown, State#state{game = NewGame}}
+  end;
 handle_info(tick, started, State) ->
   #state{game = Game} = State,
   NewGame = spts_games_repo:advance(Game),
@@ -226,14 +249,33 @@ ready_to_start({turn, PlayerId, Direction}, State) ->
       {next_state, ready_to_start, State}
   end;
 ready_to_start(start, State) ->
-  #state{game = Game} = State,
-  NewGame = spts_games_repo:start(Game),
-  ok = notify({game_started, NewGame}, State),
-  tick(Game),
-  {next_state, started, State#state{game = NewGame}};
+  handle_info(tick, countdown, State);
 ready_to_start(Request, State) ->
   lager:warning("Invalid Request: ~p", [Request]),
   {next_state, ready_to_start, State}.
+
+-spec countdown(term(), _From, state()) ->
+    {reply, {error, invalid_state}, countdown, state()}.
+countdown(Request, _From, State) ->
+  lager:warning("Invalid Request: ~p", [Request]),
+  {reply, {error, invalid_state}, countdown, State}.
+
+-spec countdown(
+  {turn, spts_players:id(), spts_games:direction()} | term(),
+  state()) -> {next_state, countdown, state()}.
+countdown({turn, PlayerId, Direction}, State) ->
+  #state{game = Game} = State,
+  try spts_games_repo:turn(Game, PlayerId, Direction) of
+    NewGame ->
+      {next_state, countdown, State#state{game = NewGame}}
+  catch
+    throw:invalid_player ->
+      lager:warning("Invalid Turn: ~p / ~p", [PlayerId, Direction]),
+      {next_state, countdown, State}
+  end;
+countdown(Request, State) ->
+  lager:warning("Invalid Request: ~p", [Request]),
+  {next_state, countdown, State}.
 
 -spec started(
   {turn, spts_players:id(), spts_games:direction()} | term(),
@@ -293,6 +335,8 @@ do_call(Process, dispatcher) ->
 do_call(Process, Event) ->
   gen_fsm:sync_send_event(Process, Event).
 
+cast(GameId, stop) ->
+  gen_fsm:send_all_state_event(spts_games:process_name(GameId), stop);
 cast(GameId, Event) ->
   gen_fsm:send_event(spts_games:process_name(GameId), Event).
 

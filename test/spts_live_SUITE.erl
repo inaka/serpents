@@ -23,6 +23,8 @@
         , always_a_fruit/1
         , fruit_reapears/1
         , fruit_feeds/1
+        , countdown/1
+        , no_countdown/1
         ]).
 
 -spec all() -> [atom()].
@@ -33,7 +35,8 @@ all() -> spts_test_utils:all(?MODULE).
 init_per_testcase(serpent_movement, Config) ->
   GameId =
     spts_games:id(
-      spts_core:create_game(#{cols => 5, rows => 5, ticktime => 600000})),
+      spts_core:create_game(
+        #{cols => 5, rows => 5, ticktime => 600000, countdown => 0})),
   Player1Id = spts_players:id(spts_core:register_player(<<"1">>)),
   Player2Id = spts_players:id(spts_core:register_player(<<"2">>)),
   Player3Id = spts_players:id(spts_core:register_player(<<"3">>)),
@@ -56,10 +59,21 @@ init_per_testcase(Test, Config) when Test == collision_with_serpent_body;
   , {player2, Player2Id}
   , {game, Game}
   | Config];
+init_per_testcase(countdown, Config) ->
+  GameId =
+    spts_games:id(
+      spts_core:create_game(
+        #{cols => 5, rows => 5, ticktime => 600000, countdown => 5})),
+  Player1Id = spts_players:id(spts_core:register_player(<<"1">>)),
+  spts_core:join_game(GameId, Player1Id),
+  [ {player1, Player1Id}
+  , {game, GameId}
+  | Config];
 init_per_testcase(_Test, Config) ->
   GameId =
     spts_games:id(
-      spts_core:create_game(#{cols => 5, rows => 5, ticktime => 600000})),
+      spts_core:create_game(
+        #{cols => 5, rows => 5, ticktime => 600000, countdown => 0})),
   Player1Id = spts_players:id(spts_core:register_player(<<"1">>)),
   spts_core:join_game(GameId, Player1Id),
   [ {player1, Player1Id}
@@ -69,6 +83,11 @@ init_per_testcase(_Test, Config) ->
 -spec end_per_testcase(atom(), spts_test_utils:config()) ->
   spts_test_utils:config().
 end_per_testcase(_Test, Config) ->
+  case lists:keyfind(game, 1, Config) of
+    {game, GameId} when is_binary(GameId) ->
+      ok = spts_core:stop_game(GameId);
+    _ -> ok
+  end,
   lists:filter(
     fun ({K, _}) -> not lists:member(K, [game, player1, player2, player3]) end,
     Config).
@@ -299,8 +318,57 @@ fruit_feeds(Config) ->
   FinalGame =
     spts_games_repo:advance(
       spts_games_repo:turn(NewerGame, Player1Id, Direction)),
+
+  ct:comment(
+    "G: ~p / S: ~p / D: ~p / FH: ~p / FG: ~p",
+    [NewerGame, NewerSerpent1, Direction, FinalHead, FinalGame]),
+
   FinalSerpent1 = spts_games:serpent(FinalGame, Player1Id),
   alive = spts_serpents:status(FinalSerpent1),
   [FinalHead, {2, 4}] = spts_serpents:body(FinalSerpent1),
+
+  {comment, ""}.
+
+-spec countdown(spts_test_utils:config()) -> {comment, []}.
+countdown(Config) ->
+  {game, GameId} = lists:keyfind(game, 1, Config),
+
+  ct:comment("Before start, there are 5 rounds of countdown to go"),
+  Game = spts_core:fetch_game(GameId),
+  5 = spts_games:countdown(Game),
+  created = spts_games:state(Game),
+
+  ct:comment("Before really starting the game, we spend 5 rounds of countdown"),
+  ok = spts_core:start_game(GameId),
+  lists:foreach(
+    fun(Round) ->
+      G = spts_core:fetch_game(GameId),
+      Round = spts_games:countdown(G),
+      countdown = spts_games:state(G),
+      spts_games:process_name(GameId) ! tick
+    end, lists:seq(4, 1, -1)),
+
+  ct:comment("After the countdown the game should start"),
+  spts_games:process_name(GameId) ! tick,
+  FinalGame = spts_core:fetch_game(GameId),
+  0 = spts_games:countdown(FinalGame),
+  started = spts_games:state(FinalGame),
+
+  {comment, ""}.
+
+-spec no_countdown(spts_test_utils:config()) -> {comment, []}.
+no_countdown(Config) ->
+  {game, GameId} = lists:keyfind(game, 1, Config),
+
+  ct:comment("Before start, there are 0 rounds of countdown to go"),
+  Game = spts_core:fetch_game(GameId),
+  0 = spts_games:countdown(Game),
+  created = spts_games:state(Game),
+
+  ct:comment("After start, the game jumped straight to started"),
+  ok = spts_core:start_game(GameId),
+  FinalGame = spts_core:fetch_game(GameId),
+  0 = spts_games:countdown(FinalGame),
+  started = spts_games:state(FinalGame),
 
   {comment, ""}.

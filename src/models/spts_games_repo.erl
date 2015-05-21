@@ -4,7 +4,7 @@
 
 -export([ create/1
         , join/2
-        , start/1
+        , countdown_or_start/1
         , turn/3
         , advance/1
         ]).
@@ -18,8 +18,9 @@ create(Options) ->
   Rows = maps:get(rows, Options, 20),
   Cols = maps:get(cols, Options, 20),
   TickTime = maps:get(ticktime, Options, 250),
-  validate(Rows, Cols, TickTime),
-  spts_games:new(Rows, Cols, TickTime).
+  Countdown = maps:get(countdown, Options, 10),
+  validate(Rows, Cols, TickTime, Countdown),
+  spts_games:new(Rows, Cols, TickTime, Countdown).
 
 %% @doc Adds a player to a game
 -spec join(spts_games:game(), spts_players:id()) -> spts_games:game().
@@ -34,8 +35,12 @@ join(Game, PlayerId) ->
   end.
 
 %% @doc Starts a game
--spec start(spts_games:game()) -> spts_games:game().
-start(Game) -> spts_games:state(Game, started).
+-spec countdown_or_start(spts_games:game()) -> spts_games:game().
+countdown_or_start(Game) ->
+  case spts_games:countdown(Game) of
+    0 -> spts_games:state(Game, started);
+    C -> spts_games:state(spts_games:countdown(Game, C - 1), countdown)
+  end.
 
 %% @doc Registers a change in direction for a player
 -spec turn(spts_games:game(), spts_players:id(), spts_games:direction()) ->
@@ -115,10 +120,11 @@ random_direction(Game, {Row, Col}) ->
     lists:nth(random:uniform(length(Candidates)), Candidates),
   Direction.
 
-validate(Rows, _Cols, _TickTime) when Rows < 5 -> throw(invalid_rows);
-validate(_Rows, Cols, _TickTime) when Cols < 5 -> throw(invalid_cols);
-validate(_Rows, _Cols, TickTime) when TickTime < 100 -> throw(invalid_ticktime);
-validate(_Rows, _Cols, _TickTime) -> ok.
+validate(Rows, _Cols, _Tick, _Count) when Rows < 5 -> throw(invalid_rows);
+validate(_Rows, Cols, _Tick, _Count) when Cols < 5 -> throw(invalid_cols);
+validate(_Rows, _Cols, Tick, _Count) when Tick < 100 -> throw(invalid_ticktime);
+validate(_Rows, _Cols, _Tick, Count) when Count < 0 -> throw(invalid_countdown);
+validate(_Rows, _Cols, _Tick, _Count) -> ok.
 
 is_proper_starting_point(Game, {Row, Col}) ->
   SurroundingPositions =

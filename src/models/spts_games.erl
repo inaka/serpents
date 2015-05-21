@@ -12,7 +12,7 @@
   #{ position => position()
    , content => special_content()
    }.
--type state() :: created | started | finished.
+-type state() :: created | countdown | started | finished.
 -opaque id() :: binary().
 -opaque game() ::
   #{
@@ -21,7 +21,8 @@
     state => state(),
     rows => pos_integer(),
     cols => pos_integer(),
-    ticktime => pos_integer(),
+    ticktime => Millis :: pos_integer(),
+    countdown => Rounds :: non_neg_integer(),
     cells => [cell()],
     created_at => dcn_datetime:datetime(),
     updated_at => dcn_datetime:datetime()
@@ -29,11 +30,14 @@
 -export_type([game/0, state/0, id/0, content/0, position/0, direction/0]).
 
 -export(
-  [ new/3
+  [ new/4
   , id/1
   , rows/1
   , cols/1
   , ticktime/1
+  , countdown/1
+  , countdown/2
+  , millis_to_start/1
   , state/1
   , serpents/1
   , serpent/2
@@ -47,8 +51,8 @@
   ]).
 -export([process_name/1]).
 
--spec new(pos_integer(), pos_integer(), pos_integer()) -> game().
-new(Rows, Cols, TickTime) ->
+-spec new(pos_integer(), pos_integer(), pos_integer(), pos_integer()) -> game().
+new(Rows, Cols, TickTime, Countdown) ->
   Now = ktn_date:now_human_readable(),
   #{ id => uuid:uuid_to_string(uuid:get_v4(), binary_standard)
    , serpents => []
@@ -56,6 +60,7 @@ new(Rows, Cols, TickTime) ->
    , rows => Rows
    , cols => Cols
    , ticktime => TickTime
+   , countdown => Countdown
    , cells => []
    , created_at => Now
    , updated_at => Now
@@ -72,6 +77,16 @@ cols(#{cols := Cols}) -> Cols.
 
 -spec ticktime(game()) -> pos_integer().
 ticktime(#{ticktime := TickTime}) -> TickTime.
+
+-spec countdown(game()) -> pos_integer().
+countdown(#{countdown := Countdown}) -> Countdown.
+
+-spec countdown(game(), non_neg_integer()) -> game().
+countdown(Game, Countdown) -> Game#{countdown := Countdown}.
+
+-spec millis_to_start(game()) -> pos_integer().
+millis_to_start(#{ticktime := TickTime, countdown := Countdown}) ->
+  TickTime * Countdown.
 
 -spec state(game()) -> state().
 state(#{state := State}) -> State.

@@ -17,6 +17,7 @@
         , game_finished/1
         , game_updated/1
         , collision_detected/1
+        , game_countdown/1
         ]).
 
 -spec all() -> [atom()].
@@ -24,10 +25,16 @@ all() -> spts_test_utils:all(?MODULE).
 
 -spec init_per_testcase(atom(), spts_test_utils:config()) ->
   spts_test_utils:config().
-init_per_testcase(_Test, Config) ->
+init_per_testcase(Test, Config) ->
+  Countdown =
+    case Test of
+      game_countdown -> 5;
+      Test -> 0
+    end,
   GameId =
     spts_games:id(
-      spts_core:create_game(#{cols => 5, rows => 5, ticktime => 600000})),
+      spts_core:create_game(
+        #{cols => 5, rows => 5, ticktime => 1000000, countdown => Countdown})),
   Player1Id = spts_players:id(spts_core:register_player(<<"1">>)),
   Player2Id = spts_players:id(spts_core:register_player(<<"2">>)),
   Player3Id = spts_players:id(spts_core:register_player(<<"3">>)),
@@ -42,6 +49,7 @@ init_per_testcase(_Test, Config) ->
 end_per_testcase(_Test, Config) ->
   {game, GameId} = lists:keyfind(game, 1, Config),
   ok = spts_test_handler:unsubscribe(GameId, self()),
+  ok = spts_core:stop_game(GameId),
   lists:filter(
     fun ({K, _}) -> not lists:member(K, [game, player1, player2, player3]) end,
     Config).
@@ -169,5 +177,26 @@ collision_detected(Config) ->
         lists:foreach(ReceiveCollision, NewDeadSerpents),
         NewDeadSerpents ++ DeadSerpents
       end, [], lists:seq(1, 7)),
+
+  {comment, ""}.
+
+-spec game_countdown(spts_test_utils:config()) -> {comment, []}.
+game_countdown(Config) ->
+  {game, GameId} = lists:keyfind(game, 1, Config),
+  {player1, Player1Id} = lists:keyfind(player1, 1, Config),
+  {_, _} = spts_core:join_game(GameId, Player1Id),
+
+  ok = spts_test_handler:subscribe(GameId, self()),
+  ok = spts_core:start_game(GameId),
+
+  lists:foreach(
+    fun(Round) ->
+      ct:comment("Still missing ~p rounds of countdown...", [Round]),
+      ok = spts_test_handler:wait_for({game_countdown, Round, Round * 1000000}),
+      spts_games:process_name(GameId) ! tick
+    end, lists:seq(5, 1, -1)),
+
+  ct:comment("After the last countdown, the game should start normally"),
+  ok = spts_test_handler:wait_for({game_started, spts_core:fetch_game(GameId)}),
 
   {comment, ""}.
