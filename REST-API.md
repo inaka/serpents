@@ -8,10 +8,10 @@ To create games
 ##### Parameters
 All parameters are optional
 ```json
-{ "rows": [# OF ROWS]
-, "cols": [# OF COLS]
-, "ticktime": [# OF TICKTIME MILLISECONDS]
-, "countdown": [# OF COUNTDOWN TICKS]
+{ "rows": [#-OF-ROWS]
+, "cols": [#-OF-COLS]
+, "ticktime": [#-OF-TICKTIME-MILLISECONDS]
+, "countdown": [#-OF-COUNTDOWN-TICKS]
 }
 ```
 ##### Responses
@@ -19,17 +19,17 @@ All parameters are optional
 * **200 OK** with
 ```json
 { "id": [MATCH ID]
-, "rows": [# OF ROWS]
-, "cols": [# OF COLS]
-, "ticktime": [# OF TICKTIME MILLISECONDS]
-, "countdown": [# OF COUNTDOWN TICKS]
+, "rows": [#-OF-ROWS]
+, "cols": [#-OF-COLS]
+, "ticktime": [#-OF-TICKTIME-MILLISECONDS]
+, "countdown": [#-OF-COUNTDOWN-TICKS]
 , "serpents": {}
 , "state": "created"
-, "cells": [ {"row": [ROw #], "col": [COL #], "content": [CONTENT]}
-           , {"row": [ROw #], "col": [COL #], "content": [CONTENT]}
+, "cells": [ {"row": [ROW#], "col": [COL#], "content": [CONTENT]}
+           , {"row": [ROW#], "col": [COL#], "content": [CONTENT]}
            , …
            ] /* CONTENT can be "fruit" or "wall" */
-             /* ROW # and COL # are 1-based */
+             /* ROW# and COL# are 1-based */
 }
 ```
 
@@ -39,31 +39,31 @@ All parameters are optional
 ##### Responses
 * **200 OK** with
 ```json
-[ { "id": [MATCH ID]
-  , "rows": [# OF ROWS]
-  , "cols": [# OF COLS]
-  , "ticktime": [# OF TICKTIME MILLISECONDS]
-  , "countdown": [# OF COUNTDOWN TICKS]
+[ { "id": [ID]
+  , "rows": [#-OF-ROWS]
+  , "cols": [#-OF-COLS]
+  , "ticktime": [#-OF-TICKTIME-MILLISECONDS]
+  , "countdown": [#-OF-COUNTDOWN-TICKS]
   , "serpents": { "[PLAYER 1 ID]": {…}
                 , "[PLAYER 2 ID]": {…}
                 , …
                 }
   , "state": [STATE] /* "created", "started" or "finished" */
-  , "cells": [ {"row": [ROw #], "col": [COL #], "content": [CONTENT]}
-             , {"row": [ROw #], "col": [COL #], "content": [CONTENT]}
+  , "cells": [ {"row": [ROW#], "col": [COL#], "content": [CONTENT]}
+             , {"row": [ROW#], "col": [COL#], "content": [CONTENT]}
              , …
              ] /* CONTENT can be "fruit" or "wall" */
-               /* ROW # and COL # are 1-based */
+               /* ROW# and COL# are 1-based */
   }
 , { … }
 ]
 ```
 Each serpent will look like:
 ```json
-{ "owner": [PLAYER ID]
-, "body": [ [[HEAD ROW #],[HEAD COL #]]
-          , [[BODY ROW #],[BODY COL #]]
-          , [[BODY ROW #],[BODY COL #]]
+{ "owner": [PLAYER-ID]
+, "body": [ [[HEAD-ROW#],[HEAD-COL#]]
+          , [[ROW#],[COL#]]
+          , [[ROW#],[COL#]]
           , …
           ]
 , "status": [STATUS] /* "dead", "alive" */
@@ -76,29 +76,29 @@ Each serpent will look like:
 ##### Responses
 * **200 OK** with
 ```json
-{ "id": [MATCH ID]
-, "rows": [# OF ROWS]
-, "cols": [# OF COLS]
-, "ticktime": [# OF TICKTIME MILLISECONDS]
-, "countdown": [# OF COUNTDOWN TICKS]
+{ "id": [ID]
+, "rows": [#-OF-ROWS]
+, "cols": [#-OF-COLS]
+, "ticktime": [#-OF-TICKTIME-MILLISECONDS]
+, "countdown": [#-OF-COUNTDOWN-TICKS]
 , "serpents": { "[PLAYER 1 ID]": {…}
               , "[PLAYER 2 ID]": {…}
               , …
               }
 , "state": [STATE] /* "created", "started" or "finished" */
-, "cells": [ {"row": [ROw #], "col": [COL #], "content": [CONTENT]}
-           , {"row": [ROw #], "col": [COL #], "content": [CONTENT]}
+, "cells": [ {"row": [ROW#], "col": [COL#], "content": [CONTENT]}
+           , {"row": [ROW#], "col": [COL#], "content": [CONTENT]}
            , …
            ] /* CONTENT can be "fruit" or "wall" */
-             /* ROW # and COL # are 1-based */
+             /* ROW# and COL# are 1-based */
 }
 ```
 Each serpent will look like:
 ```json
-{ "owner": [PLAYER ID]
-, "body": [ [[HEAD ROW #],[HEAD COL #]]
-          , [[BODY ROW #],[BODY COL #]]
-          , [[BODY ROW #],[BODY COL #]]
+{ "owner": [PLAYER-ID]
+, "body": [ [[HEAD-ROW#],[HEAD-COL#]]
+          , [[ROW#],[COL#]]
+          , [[ROW#],[COL#]]
           , …
           ]
 , "status": [STATUS] /* "dead", "alive" */
@@ -148,7 +148,7 @@ The currently supported events are:
 
 ###### ``player_joined``
 ```json
-{"id": [PLAYER ID], "name": [PLAYER NAME], "position": [[ROW #], [COL #]]}
+{"id": [PLAYER-ID], "name": [PLAYER-NAME], "position": [[ROW#], [COL#]]}
 ```
 
 ###### ``game_countdown``
