@@ -49,7 +49,7 @@ All parameters are optional
                 , "[PLAYER 2 ID]": {…}
                 , …
                 }
-  , "state": [STATE] /* "created", "started" or "finished" */
+  , "state": [STATE]
   , "cells": [ {"row": [ROW#], "col": [COL#], "content": [CONTENT]}
              , {"row": [ROW#], "col": [COL#], "content": [CONTENT]}
              , …
@@ -58,7 +58,8 @@ All parameters are optional
 , { … }
 ]
 ```
-Each serpent will look like:
+* `[STATE]` can be `"created"`, `"started"` or `"finished"`
+* Each serpent will look like:
 ```json
 { "owner": [PLAYER-ID]
 , "body": [ [[HEAD-ROW#],[HEAD-COL#]]
