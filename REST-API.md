@@ -67,9 +67,10 @@ All parameters are optional
           , [[ROW#],[COL#]]
           , …
           ]
-, "status": [STATUS] /* "dead", "alive" */
+, "status": [STATUS]
 }
 ```
+* `[STATUS]` can be `"dead"` or `"alive"`
 
 ---
 
@@ -86,23 +87,11 @@ All parameters are optional
               , "[PLAYER 2 ID]": {…}
               , …
               }
-, "state": [STATE] /* "created", "started" or "finished" */
+, "state": [STATE]
 , "cells": [ {"row": [ROW#], "col": [COL#], "content": [CONTENT]}
            , {"row": [ROW#], "col": [COL#], "content": [CONTENT]}
            , …
-           ] /* CONTENT can be "fruit" or "wall" */
-             /* ROW# and COL# are 1-based */
-}
-```
-Each serpent will look like:
-```json
-{ "owner": [PLAYER-ID]
-, "body": [ [[HEAD-ROW#],[HEAD-COL#]]
-          , [[ROW#],[COL#]]
-          , [[ROW#],[COL#]]
-          , …
-          ]
-, "status": [STATUS] /* "dead", "alive" */
+           ]
 }
 ```
 
