@@ -18,7 +18,7 @@ All parameters are optional
 * **400 Bad Request** with a descriptive message
 * **200 OK** with
 ```json
-{ "id": [MATCH ID]
+{ "id": [MATCH-ID]
 , "rows": [#-OF-ROWS]
 , "cols": [#-OF-COLS]
 , "ticktime": [#-OF-TICKTIME-MILLISECONDS]
@@ -28,10 +28,11 @@ All parameters are optional
 , "cells": [ {"row": [ROW#], "col": [COL#], "content": [CONTENT]}
            , {"row": [ROW#], "col": [COL#], "content": [CONTENT]}
            , …
-           ] /* CONTENT can be "fruit" or "wall" */
-             /* ROW# and COL# are 1-based */
+           ]
 }
 ```
+* `[CONTENT]` can be `"fruit"` or `"wall"`
+* `[ROW#]` and `[COL#]` are 1-based
 
 ---
 
@@ -52,8 +53,7 @@ All parameters are optional
   , "cells": [ {"row": [ROW#], "col": [COL#], "content": [CONTENT]}
              , {"row": [ROW#], "col": [COL#], "content": [CONTENT]}
              , …
-             ] /* CONTENT can be "fruit" or "wall" */
-               /* ROW# and COL# are 1-based */
+             ]
   }
 , { … }
 ]
