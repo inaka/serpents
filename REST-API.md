@@ -58,10 +58,13 @@ All parameters are optional
 , { … }
 ]
 ```
-* `[STATE]` can be `"created"`, `"started"` or `"finished"`
+* `[STATE]` can be `"created"`, `"countdown"`, `"started"` or `"finished"`
+* `[CONTENT]` can be `"fruit"` or `"wall"`
 * Each serpent will look like:
 ```json
-{ "owner": [PLAYER-ID]
+{ "owner": { "id": [PLAYER-ID]
+           , "name": [PLAYER-NAME]
+           }
 , "body": [ [[HEAD-ROW#],[HEAD-COL#]]
           , [[ROW#],[COL#]]
           , [[ROW#],[COL#]]
