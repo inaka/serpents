@@ -126,3 +126,44 @@ To stop a game
 
 ##### Responses
 * **204 No Content**
+
+---
+
+#### ``GET /games/:game_id/news``
+This endpoint returns a general state of the game as a first event and, if the caller keeps the connection open, it will keep sending new events through it as they happen. This endpoint implements [Server Sent Events](http://dev.w3.org/html5/eventsource/#server-sent-events-intro) protocol for that purpose.
+
+##### Responses
+* **200 OK** with ``content-type: text/event-stream`` and the body of that response will be a stream of events, with the following format for each event:
+```http
+event: [EVENT-NAME]
+data: [EVENT-DATA]
+```
+In that structure:
+  * ``EVENT-NAME`` will be a one of the valid [Events](#events)
+  * ``EVENT-DATA`` will be a json structure like the ones you can see in the examples below
+
+##### Events
+
+The currently supported events are:
+
+###### ``player_joined``
+```json
+{"id": [PLAYER ID], "name": [PLAYER NAME], "position": [[ROW #], [COL #]]}
+```
+
+###### ``game_countdown``
+```json
+{"number": [NUMBER], "millis-to-start": [MILLISECONDS]}
+```
+
+###### ``game_started``
+The event data is a json representation of a game, like the result from `GET /games/:game_id`
+
+###### ``game_updated``
+The event data is a json representation of a game, like the result from `GET /games/:game_id`
+
+###### ``collision_detected``
+The event data is a json representation of a serpent, like the one described in the result from `GET /games/:game_id`
+
+###### ``game_finished``
+The event data is a json representation of a game, like the result from `GET /games/:game_id`
