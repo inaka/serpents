@@ -13,6 +13,7 @@
        ]).
 
 -export([ allowed_methods/2
+        , forbidden/2
         , handle_put/2
         , handle_get/2
         , delete_resource/2
@@ -33,7 +34,17 @@
 -spec allowed_methods(cowboy_req:req(), state()) ->
   {[binary()], cowboy_req:req(), state()}.
 allowed_methods(Req, State) ->
-  {[<<"POST">>, <<"GET">>], Req, State}.
+  {[<<"PUT">>, <<"GET">>, <<"DELETE">>], Req, State}.
+
+-spec forbidden(cowboy_req:req(), term()) ->
+  {boolean(), cowboy_req:req(), term()}.
+forbidden(Req, State) ->
+  {GameId, Req1} = cowboy_req:binding(game_id, Req),
+  {Method, Req2} = cowboy_req:method(Req1),
+  IsForbidden = Method == <<"PUT">>
+        andalso spts_core:is_game(GameId)
+        andalso not spts_core:can_start(GameId),
+  {IsForbidden, Req, State}.
 
 -spec resource_exists(cowboy_req:req(), term()) ->
   {boolean(), cowboy_req:req(), term()}.
@@ -47,10 +58,17 @@ resource_exists(Req, State) ->
 handle_put(Req, State) ->
   try
     {GameId, Req1} = cowboy_req:binding(game_id, Req),
+    case spts_core:is_game(GameId) of
+      false -> throw(not_found);
+      true -> ok
+    end,
     {ok, Body, Req2} = cowboy_req:body(Req1),
     ok = check_body(spts_json:decode(Body)),
     ok = spts_core:start_game(GameId),
-    {true, Req2, State}
+    Game = spts_core:fetch_game(GameId),
+    RespBody = spts_json:encode(spts_games:to_json(Game)),
+    Req3 = cowboy_req:set_resp_body(RespBody, Req2),
+    {true, Req3, State}
   catch
     _:Exception ->
       spts_web_utils:handle_exception(Exception, Req, State)
@@ -82,4 +100,5 @@ delete_resource(Req, State) ->
   end.
 
 check_body(#{<<"state">> := <<"started">>}) -> ok;
+check_body(#{<<"state">> := _}) -> throw(invalid_state);
 check_body(_) -> throw({missing_field, <<"state">>}).

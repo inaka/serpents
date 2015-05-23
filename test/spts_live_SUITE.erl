@@ -304,28 +304,24 @@ fruit_feeds(Config) ->
   [{2, 3}] = spts_serpents:body(NewSerpent1),
 
   ct:comment("Serpent advances again, it's body is extended"),
+  {Direction, NewerHead, FinalHead} =
+    case spts_games:find(NewGame, fruit) of
+      [{2, 4}] -> {down, {3, 3}, {4, 3}};
+      [_NewFruit] -> {right, {2, 4}, {2, 5}}
+    end,
   NewerGame = spts_games_repo:advance(NewGame),
   NewerSerpent1 = spts_games:serpent(NewerGame, Player1Id),
   alive = spts_serpents:status(NewerSerpent1),
-  [{2, 4}, {2, 3}] = spts_serpents:body(NewerSerpent1),
+  [NewerHead, {2, 3}] = spts_serpents:body(NewerSerpent1),
 
   ct:comment("Serpent advances yet again, it's body is not extended"),
-  {Direction, FinalHead} =
-    case spts_games:find(NewerGame, fruit) of
-      [{3, 4}] -> {up, {1, 4}};
-      [_NewFruit] -> {down, {3, 4}}
-    end,
   FinalGame =
     spts_games_repo:advance(
       spts_games_repo:turn(NewerGame, Player1Id, Direction)),
 
-  ct:comment(
-    "G: ~p / S: ~p / D: ~p / FH: ~p / FG: ~p",
-    [NewerGame, NewerSerpent1, Direction, FinalHead, FinalGame]),
-
   FinalSerpent1 = spts_games:serpent(FinalGame, Player1Id),
   alive = spts_serpents:status(FinalSerpent1),
-  [FinalHead, {2, 4}] = spts_serpents:body(FinalSerpent1),
+  [FinalHead, NewerHead] = spts_serpents:body(FinalSerpent1),
 
   {comment, ""}.
 

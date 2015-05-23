@@ -18,6 +18,7 @@
   , turn/3
   , is_game/1
   , fetch_game/1
+  , can_start/1
   , all_games/0
   , subscribe/3
   , call_handler/3
@@ -83,6 +84,11 @@ create_game(Options) ->
   {spts_games:position(), spts_games:direction()}.
 join_game(GameId, PlayerId) ->
   call(GameId, {join, PlayerId}).
+
+%% @doc Can we start the game?
+-spec can_start(spts_games:id()) -> boolean().
+can_start(GameId) ->
+  call(GameId, can_start).
 
 %% @doc Closes the joining period for the game and starts it
 -spec start_game(spts_games:id()) -> ok.
@@ -153,10 +159,14 @@ init(Game) ->
 handle_event(stop, _StateName, State) -> {stop, normal, State}.
 
 -spec handle_sync_event
+  (can_start, _From, atom(), state()) ->
+    {reply, {ok, boolean()}, atom(), state()};
   (fetch, _From, atom(), state()) ->
     {reply, {ok, spts_games:game()}, atom(), state()};
   (dispatcher, _From, atom(), state()) ->
     {reply, {ok, pid()}, atom(), state()}.
+handle_sync_event(can_start, _From, StateName, State) ->
+  {reply, {ok, StateName =/= created}, StateName, State};
 handle_sync_event(fetch, _From, StateName, State) ->
   {reply, {ok, State#state.game}, StateName, State};
 handle_sync_event(dispatcher, _From, StateName, State) ->
@@ -345,6 +355,8 @@ call(GameId, Event) ->
       throw(Exception)
   end.
 
+do_call(Process, can_start) ->
+  gen_fsm:sync_send_all_state_event(Process, can_start);
 do_call(Process, fetch) ->
   gen_fsm:sync_send_all_state_event(Process, fetch);
 do_call(Process, dispatcher) ->

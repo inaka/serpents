@@ -18,8 +18,8 @@
         , get_game_countdown/1
         , get_game_started/1
         , get_game_finished/1
-        % , put_games_wrong/1
-        % , put_games_ok/1
+        , put_game_wrong/1
+        , put_game_ok/1
         % , delete_games/1
         ]).
 
@@ -258,33 +258,122 @@ get_game_finished(_Config) ->
 
   ok = spts_core:start_game(GameId),
   lists:foreach(
-    fun(_) -> spts_games:process_name(GameId) ! tick end, lists:seq(1, 6)),
+    fun(_) ->
+      spts_games:process_name(GameId) ! tick,
+      #{status_code := 200,
+               body := Body} =
+        spts_test_utils:api_call(get, <<"/games/", GameId/binary>>),
+      case spts_json:decode(Body) of
+        #{<<"state">> := <<"finished">>} = DecodedBody ->
+          #{<<"serpents">> := Serpents} = DecodedBody,
+          #{ <<"owner">> := #{<<"id">> := Player1Id, <<"name">> := <<"ggf1">>}
+           , <<"status">> := <<"dead">>
+           } = maps:get(Player1Id, Serpents),
+          #{ <<"owner">> := #{<<"id">> := Player2Id, <<"name">> := <<"ggf2">>}
+           , <<"status">> := <<"dead">>
+           } = maps:get(Player2Id, Serpents);
+        #{<<"state">> := <<"started">>} = DecodedBody ->
+          #{ <<"serpents">> := Serpents
+           , <<"cells">> := Cells
+           } = DecodedBody,
+          [<<"alive">>, _] =
+            lists:sort(
+              [Status || #{<<"status">> := Status} <- maps:values(Serpents)]),
+          [ #{ <<"row">> := _
+           , <<"col">> := _
+           , <<"content">> := <<"fruit">>
+           }
+          ] = Cells;
+        #{<<"state">> := State} ->
+          ct:fail("Unexpected state: ~p", [State])
+      end
+    end, lists:seq(1, 7)),
 
-  ct:comment("The game should be finished"),
+  {comment, ""}.
+
+-spec put_game_wrong(spts_test_utils:config()) -> {comment, []}.
+put_game_wrong(_Config) ->
+  ct:comment("Create a game"),
+  Game = spts_core:create_game(#{ticktime => 60000}),
+  GameId = spts_games:id(Game),
+  Url = <<"/games/", GameId/binary>>,
+  Player = spts_core:register_player(<<"pgw">>),
+  PlayerId = spts_players:id(Player),
+
+  ct:comment("PUT without content-type fails"),
+  #{status_code := 415} = spts_test_utils:api_call(put, "/games/id"),
+
+  ct:comment("Something that's not json fails as well"),
+  BadHeaders = #{<<"content-type">> => <<"text/plain">>},
+  #{status_code := 415} = spts_test_utils:api_call(put, "/games/i", BadHeaders),
+
+  Headers = #{<<"content-type">> => <<"application/json">>},
+
+  ct:comment("PUT a game that doesn't exist, returns 404"),
+  #{status_code := 404} =
+    spts_test_utils:api_call(put, "/games/not-a-game", Headers, "{}"),
+
+  ct:comment("Before somebody joins fails"),
+  #{status_code := 403} =
+    spts_test_utils:api_call(put, Url, Headers, "{\"state\":\"started\"}"),
+
+  {_, _} = spts_core:join_game(GameId, PlayerId),
+
+  ct:comment("PUT without body fails"),
+  #{status_code := 400} = spts_test_utils:api_call(put, Url, Headers),
+
+  ct:comment("Broken json fails"),
+  #{status_code := 400,
+           body := Body0} =
+    spts_test_utils:api_call(put, Url, Headers, "{"),
+  #{<<"error">> := <<"bad_json">>} = spts_json:decode(Body0),
+
+  ct:comment("Without state fails"),
+  #{status_code := 400,
+           body := Body1} =
+    spts_test_utils:api_call(put, Url, Headers, "{\"rows\":-10}"),
+  #{<<"error">> := <<"missing field: state">>} = spts_json:decode(Body1),
+
+  ct:comment("With invalid state fails"),
+  #{status_code := 400,
+           body := Body2} =
+    spts_test_utils:api_call(put, Url, Headers, "{\"state\":\"countdown\"}"),
+  #{<<"error">> := <<"invalid_state">>} = spts_json:decode(Body2),
+
+  {comment, ""}.
+
+-spec put_game_ok(spts_test_utils:config()) -> {comment, []}.
+put_game_ok(_Config) ->
+  ct:comment("Create a game"),
+  Game = spts_core:create_game(#{ticktime => 60000, countdown => 0}),
+  GameId = spts_games:id(Game),
+  Url = <<"/games/", GameId/binary>>,
+  Player = spts_core:register_player(<<"pgo">>),
+  PlayerId = spts_players:id(Player),
+  {{Row, Col}, _} = spts_core:join_game(GameId, PlayerId),
+
+  Headers = #{<<"content-type">> => <<"application/json">>},
+
+  ct:comment("The game should be started"),
   #{status_code := 200,
            body := Body} =
-    spts_test_utils:api_call(get, <<"/games/", GameId/binary>>),
+    spts_test_utils:api_call(put, Url, Headers, "{\"state\":\"started\"}"),
 
   #{ <<"id">> := GameId
-   , <<"rows">> := 5
-   , <<"cols">> := 5
+   , <<"rows">> := 20
+   , <<"cols">> := 20
    , <<"ticktime">> := 60000
    , <<"countdown">> := 0
    , <<"serpents">> := Serpents
-   , <<"state">> := <<"finished">>
-   , <<"cells">> :=
-      [ #{ <<"row">> := _
-         , <<"col">> := _
-         , <<"content">> := <<"fruit">>
-         }
-      ]
+   , <<"state">> := <<"started">>
+   , <<"cells">> := []
    } = spts_json:decode(Body),
 
-  #{ <<"owner">> := #{<<"id">> := Player1Id, <<"name">> := <<"ggf1">>}
-   , <<"status">> := <<"dead">>
-   } = maps:get(Player1Id, Serpents),
-  #{ <<"owner">> := #{<<"id">> := Player2Id, <<"name">> := <<"ggf2">>}
-   , <<"status">> := <<"dead">>
-   } = maps:get(Player2Id, Serpents),
+  [{ PlayerId
+   , #{ <<"owner">> := #{<<"id">> := PlayerId, <<"name">> := <<"pgo">>}
+      , <<"body">> := [[Row, Col]]
+      , <<"status">> := <<"alive">>
+      }
+  }] = maps:to_list(Serpents),
 
   {comment, ""}.

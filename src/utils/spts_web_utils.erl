@@ -20,12 +20,12 @@ handle_exception({missing_field, Field}, Req, State) ->
   Response = spts_json:encode(#{error => <<"missing field: ", Field/binary>>}),
   {ok, Req1} = cowboy_req:reply(400, [], Response, Req),
   {halt, Req1, State};
+handle_exception(not_found, Req, State) ->
+  {ok, Req1} = cowboy_req:reply(404, Req),
+  {halt, Req1, State};
 handle_exception(Error, Req, State) when is_atom(Error) ->
   Response = spts_json:encode(#{error => Error}),
   {ok, Req1} = cowboy_req:reply(400, [], Response, Req),
-  {halt, Req1, State};
-handle_exception(not_found, Req, State) ->
-  {ok, Req1} = cowboy_req:reply(404, Req),
   {halt, Req1, State};
 handle_exception(Reason, Req, State) ->
   lager:error("~p. Stack Trace: ~p", [Reason, erlang:get_stacktrace()]),
