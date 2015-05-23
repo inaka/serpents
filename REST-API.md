@@ -2,7 +2,7 @@
 
 ### Endpoints
 
-#### ``POST /games``
+#### ``POST /api/games``
 To create games
 
 ##### Parameters
@@ -36,7 +36,7 @@ All parameters are optional
 
 ---
 
-#### ``GET /games``
+#### ``GET /api/games``
 ##### Responses
 * **200 OK** with
 ```json
@@ -77,7 +77,7 @@ All parameters are optional
 
 ---
 
-#### ``GET /games/:game_id``
+#### ``GET /api/games/:game_id``
 ##### Responses
 * **200 OK** with
 ```json
@@ -100,7 +100,7 @@ All parameters are optional
 
 ---
 
-#### ``PUT /games/:game_id``
+#### ``PUT /api/games/:game_id``
 To start a game
 
 ##### Parameters
@@ -114,7 +114,7 @@ All parameters are required
 
 ---
 
-#### ``DELETE /games/:game_id``
+#### ``DELETE /api/games/:game_id``
 To stop a game
 
 ##### Responses
@@ -122,7 +122,7 @@ To stop a game
 
 ---
 
-#### ``GET /games/:game_id/news``
+#### ``GET /api/games/:game_id/news``
 This endpoint returns a general state of the game as a first event and, if the caller keeps the connection open, it will keep sending new events through it as they happen. This endpoint implements [Server Sent Events](http://dev.w3.org/html5/eventsource/#server-sent-events-intro) protocol for that purpose.
 
 ##### Responses

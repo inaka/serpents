@@ -30,8 +30,14 @@ rest_init(Req, _Opts) ->
 -spec content_types_accepted(cowboy_req:req(), state()) ->
   {[{{binary(), binary(), '*'}, atom()}], cowboy_req:req(), state()}.
 content_types_accepted(Req, State) ->
-  ContentTypes = [{{<<"application">>, <<"json">>, '*'}, handle_post}],
-  {ContentTypes, Req, State}.
+  case cowboy_req:method(Req) of
+    {<<"POST">>, Req1} ->
+      ContentTypes = [{{<<"application">>, <<"json">>, '*'}, handle_post}],
+      {ContentTypes, Req1, State};
+    {<<"PUT">>, Req1} ->
+      ContentTypes = [{{<<"application">>, <<"json">>, '*'}, handle_put}],
+      {ContentTypes, Req1, State}
+  end.
 
 -spec content_types_provided(cowboy_req:req(), state()) ->
   {[term()], cowboy_req:req(), state()}.

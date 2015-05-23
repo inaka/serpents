@@ -13,11 +13,11 @@
 -export([ post_games_wrong/1
         , post_games_ok/1
         , get_games_ok/1
-        % , get_game_wrong/1
-        % , get_game_created/1
-        % , get_game_countdown/1
-        % , get_game_started/1
-        % , get_game_finished/1
+        , get_game_wrong/1
+        , get_game_created/1
+        , get_game_countdown/1
+        , get_game_started/1
+        , get_game_finished/1
         % , put_games_wrong/1
         % , put_games_ok/1
         % , delete_games/1
@@ -134,3 +134,157 @@ get_games_ok(_Config) ->
 
   {comment, ""}.
 
+-spec get_game_wrong(spts_test_utils:config()) -> {comment, []}.
+get_game_wrong(_Config) ->
+  ct:comment("GET a game that doesn't exist, returns 404"),
+  #{status_code := 404} = spts_test_utils:api_call(get, "/games/not-a-game"),
+
+  {comment, ""}.
+
+-spec get_game_created(spts_test_utils:config()) -> {comment, []}.
+get_game_created(_Config) ->
+  ct:comment("Create a game"),
+  Game = spts_core:create_game(),
+  GameId = spts_games:id(Game),
+
+  #{status_code := 200,
+           body := Body} =
+    spts_test_utils:api_call(get, <<"/games/", GameId/binary>>),
+
+  #{ <<"id">> := GameId
+   , <<"rows">> := 20
+   , <<"cols">> := 20
+   , <<"ticktime">> := 250
+   , <<"countdown">> := 10
+   , <<"serpents">> := #{}
+   , <<"state">> := <<"created">>
+   , <<"cells">> := []
+   } = spts_json:decode(Body),
+
+  {comment, ""}.
+
+-spec get_game_countdown(spts_test_utils:config()) -> {comment, []}.
+get_game_countdown(_Config) ->
+  ct:comment("Create a game and start it"),
+  Game = spts_core:create_game(#{ticktime => 60000}),
+  GameId = spts_games:id(Game),
+  Player = spts_core:register_player(<<"ggcd">>),
+  PlayerId = spts_players:id(Player),
+  {{Row, Col}, _} = spts_core:join_game(GameId, PlayerId),
+  ok = spts_core:start_game(GameId),
+
+  ct:comment("The game should be in countdown"),
+  #{status_code := 200,
+           body := Body} =
+    spts_test_utils:api_call(get, <<"/games/", GameId/binary>>),
+
+  #{ <<"id">> := GameId
+   , <<"rows">> := 20
+   , <<"cols">> := 20
+   , <<"ticktime">> := 60000
+   , <<"countdown">> := 9
+   , <<"serpents">> := Serpents
+   , <<"state">> := <<"countdown">>
+   , <<"cells">> := []
+   } = spts_json:decode(Body),
+
+  [{ PlayerId
+   , #{ <<"owner">> := #{<<"id">> := PlayerId, <<"name">> := <<"ggcd">>}
+      , <<"body">> := [[Row, Col]]
+      , <<"status">> := <<"alive">>
+      }
+  }] = maps:to_list(Serpents),
+
+  {comment, ""}.
+
+-spec get_game_started(spts_test_utils:config()) -> {comment, []}.
+get_game_started(_Config) ->
+  ct:comment("Create a game and start it"),
+  Game = spts_core:create_game(#{ticktime => 60000, countdown => 0}),
+  GameId = spts_games:id(Game),
+  Player = spts_core:register_player(<<"ggs">>),
+  PlayerId = spts_players:id(Player),
+  {{Row, Col}, _} = spts_core:join_game(GameId, PlayerId),
+  ok = spts_core:start_game(GameId),
+
+  ct:comment("The game should be started"),
+  #{status_code := 200,
+           body := Body} =
+    spts_test_utils:api_call(get, <<"/games/", GameId/binary>>),
+
+  #{ <<"id">> := GameId
+   , <<"rows">> := 20
+   , <<"cols">> := 20
+   , <<"ticktime">> := 60000
+   , <<"countdown">> := 0
+   , <<"serpents">> := Serpents
+   , <<"state">> := <<"started">>
+   , <<"cells">> := []
+   } = spts_json:decode(Body),
+
+  [{ PlayerId
+   , #{ <<"owner">> := #{<<"id">> := PlayerId, <<"name">> := <<"ggs">>}
+      , <<"body">> := [[Row, Col]]
+      , <<"status">> := <<"alive">>
+      }
+  }] = maps:to_list(Serpents),
+
+  {comment, ""}.
+
+-spec get_game_finished(spts_test_utils:config()) -> {comment, []}.
+get_game_finished(_Config) ->
+  ct:comment("Create a game and advance it till the end"),
+  Game =
+    spts_core:create_game(
+      #{ticktime => 60000, countdown => 0, rows => 5, cols => 5}),
+  GameId = spts_games:id(Game),
+
+  Player1 = spts_core:register_player(<<"ggf1">>),
+  Player1Id = spts_players:id(Player1),
+  {{_, Col1}, _} = spts_core:join_game(GameId, Player1Id),
+
+  Player2 = spts_core:register_player(<<"ggf2">>),
+  Player2Id = spts_players:id(Player2),
+  {{_, Col2}, _} = spts_core:join_game(GameId, Player2Id),
+
+  case Col1 of
+    Col1 when Col1 > Col2 ->
+      ok = spts_core:turn(GameId, Player1Id, right),
+      ok = spts_core:turn(GameId, Player2Id, left);
+    Col1 when Col1 =< Col2 ->
+      ok = spts_core:turn(GameId, Player1Id, left),
+      ok = spts_core:turn(GameId, Player2Id, right)
+  end,
+
+  ok = spts_core:start_game(GameId),
+  lists:foreach(
+    fun(_) -> spts_games:process_name(GameId) ! tick end, lists:seq(1, 6)),
+
+  ct:comment("The game should be finished"),
+  #{status_code := 200,
+           body := Body} =
+    spts_test_utils:api_call(get, <<"/games/", GameId/binary>>),
+
+  #{ <<"id">> := GameId
+   , <<"rows">> := 5
+   , <<"cols">> := 5
+   , <<"ticktime">> := 60000
+   , <<"countdown">> := 0
+   , <<"serpents">> := Serpents
+   , <<"state">> := <<"finished">>
+   , <<"cells">> :=
+      [ #{ <<"row">> := _
+         , <<"col">> := _
+         , <<"content">> := <<"fruit">>
+         }
+      ]
+   } = spts_json:decode(Body),
+
+  #{ <<"owner">> := #{<<"id">> := Player1Id, <<"name">> := <<"ggf1">>}
+   , <<"status">> := <<"dead">>
+   } = maps:get(Player1Id, Serpents),
+  #{ <<"owner">> := #{<<"id">> := Player2Id, <<"name">> := <<"ggf2">>}
+   , <<"status">> := <<"dead">>
+   } = maps:get(Player2Id, Serpents),
+
+  {comment, ""}.

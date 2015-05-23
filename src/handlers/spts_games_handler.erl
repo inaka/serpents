@@ -47,7 +47,7 @@ handle_post(Req, State) ->
     GameId = spts_games:id(Game),
     RespBody = spts_json:encode(spts_games:to_json(Game)),
     Req2 = cowboy_req:set_resp_body(RespBody, Req1),
-    {{true, <<"/games/", GameId/binary>>}, Req2, State}
+    {{true, <<"/api/games/", GameId/binary>>}, Req2, State}
   catch
     _:Exception ->
       spts_web_utils:handle_exception(Exception, Req, State)

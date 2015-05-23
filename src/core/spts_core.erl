@@ -14,12 +14,13 @@
   , create_game/1
   , join_game/2
   , start_game/1
+  , stop_game/1
   , turn/3
+  , is_game/1
   , fetch_game/1
+  , all_games/0
   , subscribe/3
   , call_handler/3
-  , stop_game/1
-  , all_games/0
   ]).
 
 -export([start_link/1]).
@@ -102,6 +103,11 @@ turn(GameId, PlayerId, Direction) ->
 -spec fetch_game(spts_games:id()) -> spts_games:game().
 fetch_game(GameId) ->
   call(GameId, fetch).
+
+%% @doc Is this game running?
+-spec is_game(spts_games:id()) -> boolean().
+is_game(GameId) ->
+  undefined =/= erlang:whereis(spts_games:process_name(GameId)).
 
 %% @doc Retrieves the list of all currently held games
 -spec all_games() -> [spts_games:game()].

@@ -47,8 +47,9 @@ start_phase(start_cowboy_listeners, _StartType, []) ->
       , {"/favicon.ico", cowboy_static, {file, "www/assets/favicon.ico"}}
       , {"/assets/[...]", cowboy_static, {dir, "www/assets"}}
       , {"/game/:game_id", cowboy_static, {file, "www/game.html"}}
-      , {"/status", spts_status_handler,  []}
-      , {"/games", spts_games_handler, []}
+      , {"/api/status", spts_status_handler,  []}
+      , {"/api/games", spts_games_handler, []}
+      , {"/api/games/:game_id", spts_single_game_handler, []}
       ]
      }
     ],

@@ -47,7 +47,8 @@ api_call(Method, Uri, Headers, Body) ->
   Port = application:get_env(serpents, http_port, 8585),
   {ok, Pid} = shotgun:open("localhost", Port),
   try
-    {ok, Response} = shotgun:request(Pid, Method, Uri, Headers, Body, #{}),
+    {ok, Response} =
+      shotgun:request(Pid, Method, "/api" ++ Uri, Headers, Body, #{}),
     Response
   after
     shotgun:close(Pid)
