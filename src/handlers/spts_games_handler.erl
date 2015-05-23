@@ -15,9 +15,22 @@
 
 -export([ allowed_methods/2
         , handle_post/2
+        , handle_get/2
         ]).
 
 -type state() :: spts_base_handler:state().
+
+-spec init({atom(), atom()}, cowboy_req:req(), state()) ->
+  {upgrade, protocol, cowboy_rest}.
+-spec rest_init(cowboy_req:req(), state()) ->
+  {ok, cowboy_req:req(), term()}.
+-spec content_types_accepted(cowboy_req:req(), state()) ->
+  {[term()], cowboy_req:req(), state()}.
+-spec content_types_provided(cowboy_req:req(), state()) ->
+  {[term()], cowboy_req:req(), state()}.
+-spec resource_exists(cowboy_req:req(), term()) ->
+  {boolean(), cowboy_req:req(), term()}.
+
 
 -spec allowed_methods(cowboy_req:req(), state()) ->
   {[binary()], cowboy_req:req(), state()}.
@@ -39,6 +52,13 @@ handle_post(Req, State) ->
     _:Exception ->
       spts_web_utils:handle_exception(Exception, Req, State)
   end.
+
+-spec handle_get(cowboy_req:req(), state()) ->
+  {iodata(), cowboy_req:req(), state()}.
+handle_get(Req, State) ->
+  Games = spts_core:all_games(),
+  RespBody = spts_json:encode([spts_games:to_json(Game) || Game <- Games]),
+  {RespBody, Req, State}.
 
 parse_body(Body) ->
   maps:from_list(

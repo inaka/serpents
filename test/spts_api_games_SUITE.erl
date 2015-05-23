@@ -12,7 +12,12 @@
 -export([all/0]).
 -export([ post_games_wrong/1
         , post_games_ok/1
-        % , get_games_ok/1
+        , get_games_ok/1
+        % , get_game_wrong/1
+        % , get_game_created/1
+        % , get_game_countdown/1
+        % , get_game_started/1
+        % , get_game_finished/1
         % , put_games_wrong/1
         % , put_games_ok/1
         % , delete_games/1
@@ -106,3 +111,26 @@ post_games_ok(_Config) ->
   end,
 
   {comment, ""}.
+
+-spec get_games_ok(spts_test_utils:config()) -> {comment, []}.
+get_games_ok(_Config) ->
+  ct:comment("Create a game"),
+  Game1 = spts_core:create_game(),
+  Game1Id = spts_games:id(Game1),
+
+  #{status_code := 200,
+           body := Body1} = spts_test_utils:api_call(get, "/games"),
+  Games1 = spts_json:decode(Body1),
+  [Game1Id] = [Id || #{<<"id">> := Id} <- Games1, Id == Game1Id],
+
+  ct:comment("Create another game"),
+  Game2 = spts_core:create_game(),
+  Game2Id = spts_games:id(Game2),
+
+  #{status_code := 200,
+           body := Body2} = spts_test_utils:api_call(get, "/games"),
+  Games2 = spts_json:decode(Body2),
+  [#{<<"id">> := Game2Id}] = Games2 -- Games1,
+
+  {comment, ""}.
+

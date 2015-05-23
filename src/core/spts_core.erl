@@ -19,6 +19,7 @@
   , subscribe/3
   , call_handler/3
   , stop_game/1
+  , all_games/0
   ]).
 
 -export([start_link/1]).
@@ -101,6 +102,17 @@ turn(GameId, PlayerId, Direction) ->
 -spec fetch_game(spts_games:id()) -> spts_games:game().
 fetch_game(GameId) ->
   call(GameId, fetch).
+
+%% @doc Retrieves the list of all currently held games
+-spec all_games() -> [spts_games:game()].
+all_games() ->
+  Children = supervisor:which_children(spts_game_sup),
+  Processes = [Pid || {undefined, Pid, worker, [?MODULE]} <- Children],
+  lists:map(
+    fun(Process) ->
+      {ok, Result} = do_call(Process, fetch),
+      Result
+    end, Processes).
 
 %% @doc Subscribes to the game gen_event dispatcher.
 -spec subscribe(spts_games:id(), module() | {module(), term()}, term()) ->
@@ -317,7 +329,6 @@ finished(Request, _From, State) ->
 call(GameId, Event) ->
   Process = spts_games:process_name(GameId),
   try do_call(Process, Event) of
-    ok -> ok;
     {ok, Result} -> Result;
     {error, Error} -> throw(Error)
   catch
