@@ -16,7 +16,7 @@ All parameters are optional
 ```
 ##### Responses
 * **400 Bad Request** with a descriptive message
-* **200 OK** with
+* **201 Created** with
 ```json
 { "id": [MATCH-ID]
 , "rows": [#-OF-ROWS]

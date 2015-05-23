@@ -16,21 +16,8 @@ announce_req(Req, Suffix) ->
 
 -spec handle_exception(atom(), cowboy_req:req(), term()) ->
     {halt, cowboy_req:req(), term()}.
-handle_exception({missing_field, Field}, Req, State) ->
-  Response =
-    spts_json:encode(#{error => <<"missing field: ", Field/binary>>}),
-  {ok, Req1} = cowboy_req:reply(400, [], Response, Req),
-  {halt, Req1, State};
-handle_exception({invalid_field, Field}, Req, State) ->
-  Response =
-    spts_json:encode(#{error => <<"invalid field: ", Field/binary>>}),
-  {ok, Req1} = cowboy_req:reply(400, [], Response, Req),
-  {halt, Req1, State};
-handle_exception(conflict, Req, State) ->
-  {ok, Req1} = cowboy_req:reply(409, Req),
-  {halt, Req1, State};
-handle_exception(bad_json, Req, State) ->
-  Response = spts_json:encode(#{error => <<"invalid json">>}),
+handle_exception(Error, Req, State) when is_atom(Error) ->
+  Response = spts_json:encode(#{error => Error}),
   {ok, Req1} = cowboy_req:reply(400, [], Response, Req),
   {halt, Req1, State};
 handle_exception(not_found, Req, State) ->

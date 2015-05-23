@@ -13,7 +13,6 @@
        ]).
 
 -export([ allowed_methods/2
-        , is_authorized/2
         , handle_get/2
         ]).
 
@@ -32,11 +31,6 @@
   {[binary()], cowboy_req:req(), state()}.
 allowed_methods(Req, State) ->
   {[<<"GET">>], Req, State}.
-
--spec is_authorized(cowboy_req:req(), state()) ->
-  {boolean(), cowboy_req:req(), state()}.
-is_authorized(Req, State) ->
-  {true, Req, State}.
 
 -spec handle_get(cowboy_req:req(), state()) ->
   {halt | binary(), cowboy_req:req(), state()}.

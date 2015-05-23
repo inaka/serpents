@@ -6,6 +6,7 @@
  , spts_game_sup
  , spts_sup
  , spts_base_handler
+ , spts_games_handler
  , spts_status_handler
  , spts_games
  , spts_games_repo

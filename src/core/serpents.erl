@@ -48,6 +48,7 @@ start_phase(start_cowboy_listeners, _StartType, []) ->
       , {"/assets/[...]", cowboy_static, {dir, "www/assets"}}
       , {"/game/:game_id", cowboy_static, {file, "www/game.html"}}
       , {"/status", spts_status_handler,  []}
+      , {"/games", spts_games_handler, []}
       ]
      }
     ],

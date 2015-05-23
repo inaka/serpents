@@ -21,6 +21,7 @@
         , status/1
         , advance/1
         , feed/1
+        , to_json/1
         ]).
 
 -spec new(spts_players:id(), spts_games:position(), spts_games:direction()) ->
@@ -70,6 +71,13 @@ advance(Serpent) ->
 
 -spec feed(serpent()) -> serpent().
 feed(Serpent = #{food := Food}) -> Serpent#{food := Food + 1}.
+
+-spec to_json(serpent()) -> map().
+to_json(Serpent) ->
+  #{ owner => spts_players:to_json(spts_players_repo:fetch(owner(Serpent)))
+   , body => [[Row, Col] || {Row, Col} <- body(Serpent)]
+   , status => status(Serpent)
+   }.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% INTERNAL FUNCTIONS

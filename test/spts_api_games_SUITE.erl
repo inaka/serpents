@@ -39,7 +39,7 @@ post_games_wrong(_Config) ->
   #{status_code := 400,
            body := Body0} =
     spts_test_utils:api_call(post, "/games", Headers, "{"),
-  #{<<"error">> := <<"invalid json">>} = spts_json:decode(Body0),
+  #{<<"error">> := <<"bad_json">>} = spts_json:decode(Body0),
 
   ct:comment("Invalid rows fails"),
   #{status_code := 400,
@@ -81,12 +81,8 @@ post_games_ok(_Config) ->
    , <<"ticktime">> := 250
    , <<"countdown">> := 10
    , <<"serpents">> := #{}
-   , <<"status">> := <<"created">>
-   , <<"cells">> := [#{ <<"row">> := _
-                      , <<"col">> := _
-                      , <<"content">> := <<"fruit">>
-                      }
-                    ]
+   , <<"state">> := <<"created">>
+   , <<"cells">> := []
    } = spts_json:decode(Body1),
 
   ct:comment("Start a game, no default values"),
@@ -97,15 +93,11 @@ post_games_ok(_Config) ->
   #{ <<"id">> := Id2
    , <<"rows">> := 5
    , <<"cols">> := 5
-   , <<"ticktime">> := 10000
+   , <<"ticktime">> := 1000
    , <<"countdown">> := 10
    , <<"serpents">> := #{}
-   , <<"status">> := <<"created">>
-   , <<"cells">> := [#{ <<"row">> := _
-                      , <<"col">> := _
-                      , <<"content">> := <<"fruit">>
-                      }
-                    ]
+   , <<"state">> := <<"created">>
+   , <<"cells">> := []
    } = spts_json:decode(Body2),
 
   case Id2 of

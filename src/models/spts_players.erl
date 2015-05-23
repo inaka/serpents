@@ -17,7 +17,7 @@
 
 -export([new/1]).
 -export([sumo_schema/0, sumo_wakeup/1, sumo_sleep/1]).
--export([id/1, name/1]).
+-export([id/1, name/1, to_json/1]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% BEHAVIOUR CALLBACKS
@@ -51,6 +51,13 @@ new(Name) ->
    , name           => Name
    , created_at     => Now
    , updated_at     => Now
+   }.
+
+%% @doc json representation
+-spec to_json(player()) -> map().
+to_json(Player) ->
+  #{ id => id(Player)
+   , name => name(Player)
    }.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

@@ -48,6 +48,7 @@
   , state/2
   , turn/3
   , advance_serpents/1
+  , to_json/1
   ]).
 -export([process_name/1]).
 
@@ -154,9 +155,28 @@ advance_serpents(Game) ->
     [_|_] -> FinalGame
   end.
 
+-spec to_json(game()) -> map().
+to_json(Game) ->
+  #{cells := Cells} = Game,
+  #{ id => id(Game)
+   , rows => rows(Game)
+   , cols => cols(Game)
+   , ticktime => ticktime(Game)
+   , countdown => countdown(Game)
+   , serpents =>
+      maps:from_list(
+        [ {spts_serpents:owner(Serpent), spts_serpents:to_json(Serpent)}
+        || Serpent <- serpents(Game)])
+   , state => state(Game)
+   , cells => [cell_to_json(Cell) || Cell <- Cells]
+   }.
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% INTERNAL FUNCTIONS
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+cell_to_json(#{position := {Row, Col}, content := Content}) ->
+  #{row => Row, col => Col, content => Content}.
 
 maybe_remove_fruit(Game) ->
   #{cells := Cells} = Game,
