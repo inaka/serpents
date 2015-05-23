@@ -20,7 +20,8 @@
         , get_game_finished/1
         , put_game_wrong/1
         , put_game_ok/1
-        % , delete_games/1
+        , delete_game_wrong/1
+        , delete_game_ok/1
         ]).
 
 -spec all() -> [atom()].
@@ -377,3 +378,25 @@ put_game_ok(_Config) ->
   }] = maps:to_list(Serpents),
 
   {comment, ""}.
+
+-spec delete_game_wrong(spts_test_utils:config()) -> {comment, []}.
+delete_game_wrong(_Config) ->
+  ct:comment("DELETE a game that doesn't exist, returns 404"),
+  #{status_code := 404} = spts_test_utils:api_call(delete, "/games/not-a-game"),
+
+  {comment, ""}.
+
+-spec delete_game_ok(spts_test_utils:config()) -> {comment, []}.
+delete_game_ok(_Config) ->
+  ct:comment("Create a game"),
+  Game = spts_core:create_game(#{ticktime => 60000, countdown => 0}),
+  GameId = spts_games:id(Game),
+  Url = <<"/games/", GameId/binary>>,
+
+  ct:comment("DELETE it and it should be no longer there"),
+  #{status_code := 204} = spts_test_utils:api_call(delete, Url),
+
+  #{status_code := 404} = spts_test_utils:api_call(get, Url),
+
+  {comment, ""}.
+
