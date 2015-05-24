@@ -10,7 +10,6 @@
     lager,
     cowboy,
     sumo_db,
-    uuid,
     katana
   ]},
   {modules, []},

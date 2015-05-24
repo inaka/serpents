@@ -2,7 +2,7 @@ PROJECT = serpents
 
 CONFIG ?= test/test.config
 
-DEPS = eper mixer lager cowboy jiffy sumo_db katana uuid
+DEPS = eper mixer lager cowboy jiffy sumo_db katana
 SELL_DEPS = sync
 TEST_DEPS = xref_runner shotgun
 
@@ -15,7 +15,6 @@ dep_mixer = git https://github.com/inaka/mixer.git 0.1.2
 dep_sync = git https://github.com/inaka/sync.git 0.1
 dep_shotgun = git https://github.com/inaka/shotgun.git 0.1.8
 dep_xref_runner = git https://github.com/inaka/xref_runner.git 0.2.2
-dep_uuid = git git://github.com/okeuday/uuid.git v1.4.0
 
 DIALYZER_DIRS := ebin/
 DIALYZER_OPTS := --verbose --statistics -Werror_handling \

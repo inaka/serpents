@@ -15,12 +15,13 @@
 %% @doc Creates a new game
 -spec create(spts_core:options()) -> spts_games:game().
 create(Options) ->
+  Name = random_name(),
   Rows = maps:get(rows, Options, 20),
   Cols = maps:get(cols, Options, 20),
   TickTime = maps:get(ticktime, Options, 250),
   Countdown = maps:get(countdown, Options, 10),
   validate(Rows, Cols, TickTime, Countdown),
-  spts_games:new(Rows, Cols, TickTime, Countdown).
+  spts_games:new(Name, Rows, Cols, TickTime, Countdown).
 
 %% @doc Adds a player to a game
 -spec join(spts_games:game(), spts_players:id()) -> spts_games:game().
@@ -112,7 +113,15 @@ try_walkthrough_fep(Game, Rows, Cols, Validator, Position, NextPosition) ->
   end.
 
 %% @todo wait for ktn_random:uniform/1 and replace random:uniform here
+random_name() ->
+  random:seed(erlang:now()),
+  {ok, Names} =
+    file:consult(filename:join(code:priv_dir(serpents), "game-names")),
+  lists:nth(random:uniform(length(Names)), Names).
+
+%% @todo wait for ktn_random:uniform/1 and replace random:uniform here
 random_direction(Game, {Row, Col}) ->
+  random:seed(erlang:now()),
   Candidates =
     surrounding_positions(
       Row, Col, spts_games:rows(Game), spts_games:cols(Game)),

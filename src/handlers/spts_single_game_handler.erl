@@ -44,14 +44,14 @@ forbidden(Req, State) ->
   IsForbidden = Method == <<"PUT">>
         andalso spts_core:is_game(GameId)
         andalso not spts_core:can_start(GameId),
-  {IsForbidden, Req, State}.
+  {IsForbidden, Req2, State}.
 
 -spec resource_exists(cowboy_req:req(), term()) ->
   {boolean(), cowboy_req:req(), term()}.
 resource_exists(Req, State) ->
   {GameId, Req1} = cowboy_req:binding(game_id, Req),
   Response = spts_core:is_game(GameId),
-  {Response, Req, State}.
+  {Response, Req1, State}.
 
 -spec handle_put(cowboy_req:req(), state()) ->
   {halt | boolean(), cowboy_req:req(), state()}.

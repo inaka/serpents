@@ -30,7 +30,7 @@
 -export_type([game/0, state/0, id/0, content/0, position/0, direction/0]).
 
 -export(
-  [ new/4
+  [ new/5
   , id/1
   , rows/1
   , cols/1
@@ -52,10 +52,12 @@
   ]).
 -export([process_name/1]).
 
--spec new(pos_integer(), pos_integer(), pos_integer(), pos_integer()) -> game().
-new(Rows, Cols, TickTime, Countdown) ->
+-spec new(
+  binary(), pos_integer(), pos_integer(), pos_integer(), pos_integer()) ->
+  game().
+new(Id, Rows, Cols, TickTime, Countdown) ->
   Now = ktn_date:now_human_readable(),
-  #{ id => uuid:uuid_to_string(uuid:get_v4(), binary_standard)
+  #{ id => Id
    , serpents => []
    , state => created
    , rows => Rows
