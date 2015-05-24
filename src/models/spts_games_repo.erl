@@ -3,7 +3,7 @@
 -author('elbrujohalcon@inaka.net').
 
 -export([ create/1
-        , join/2
+        , add_serpent/2
         , countdown_or_start/1
         , turn/3
         , advance/1
@@ -23,16 +23,16 @@ create(Options) ->
   validate(Rows, Cols, TickTime, Countdown),
   spts_games:new(Name, Rows, Cols, TickTime, Countdown).
 
-%% @doc Adds a player to a game
--spec join(spts_games:game(), spts_players:id()) -> spts_games:game().
-join(Game, PlayerId) ->
-  case spts_games:serpent(Game, PlayerId) of
+%% @doc Adds a serpent to a game
+-spec add_serpent(spts_games:game(), spts_serpents:name()) -> spts_games:game().
+add_serpent(Game, SerpentName) ->
+  case spts_games:serpent(Game, SerpentName) of
     notfound ->
       Position = find_empty_position(Game, fun is_proper_starting_point/2),
       Direction = random_direction(Game, Position),
-      Serpent = spts_serpents:new(PlayerId, Position, Direction),
+      Serpent = spts_serpents:new(SerpentName, Position, Direction),
       spts_games:add_serpent(Game, Serpent);
-    _ -> throw(already_joined)
+    _ -> throw(already_in)
   end.
 
 %% @doc Starts a game
@@ -43,13 +43,13 @@ countdown_or_start(Game) ->
     C -> spts_games:state(spts_games:countdown(Game, C - 1), countdown)
   end.
 
-%% @doc Registers a change in direction for a player
--spec turn(spts_games:game(), spts_players:id(), spts_games:direction()) ->
+%% @doc Registers a change in direction for a serpent
+-spec turn(spts_games:game(), spts_serpents:name(), spts_games:direction()) ->
   spts_games:game().
-turn(Game, PlayerId, Direction) ->
-  case spts_games:serpent(Game, PlayerId) of
-    notfound -> throw(invalid_player);
-    _Serpent -> spts_games:turn(Game, PlayerId, Direction)
+turn(Game, SerpentName, Direction) ->
+  case spts_games:serpent(Game, SerpentName) of
+    notfound -> throw(invalid_serpent);
+    _Serpent -> spts_games:turn(Game, SerpentName, Direction)
   end.
 
 %% @doc moves the game

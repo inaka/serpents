@@ -2,12 +2,11 @@ PROJECT = serpents
 
 CONFIG ?= test/test.config
 
-DEPS = eper mixer lager cowboy jiffy uuid katana
+DEPS = eper mixer lager cowboy jiffy katana
 SELL_DEPS = sync
 TEST_DEPS = xref_runner shotgun
 
 dep_katana = git https://github.com/inaka/erlang-katana.git 0.2.5
-dep_uuid = git git://github.com/okeuday/uuid.git v1.4.0
 dep_cowboy = git https://github.com/extend/cowboy.git 1.0.1
 dep_jiffy = git https://github.com/davisp/jiffy.git 0.13.3
 dep_eper = git https://github.com/massemanet/eper.git 0.90.0

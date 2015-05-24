@@ -32,8 +32,6 @@ start(_StartType, _Args) ->
 
 %% @private
 -spec start_phase(atom(), application:start_type(), []) -> ok | {error, _}.
-start_phase(create_schema, _StartType, []) ->
-  spts_players_repo:create_schema();
 start_phase(start_cowboy_listeners, _StartType, []) ->
   Port = application:get_env(?MODULE, http_port, 8383),
   ListenerCount = application:get_env(?MODULE, http_listener_count, 10),

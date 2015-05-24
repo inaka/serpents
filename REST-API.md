@@ -45,10 +45,7 @@ All parameters are optional
   , "cols": [#-OF-COLS]
   , "ticktime": [#-OF-TICKTIME-MILLISECONDS]
   , "countdown": [#-OF-COUNTDOWN-TICKS]
-  , "serpents": { "[PLAYER 1 ID]": {…}
-                , "[PLAYER 2 ID]": {…}
-                , …
-                }
+  , "serpents": [{…}, {…}]
   , "state": [STATE]
   , "cells": [ {"row": [ROW#], "col": [COL#], "content": [CONTENT]}
              , {"row": [ROW#], "col": [COL#], "content": [CONTENT]}
@@ -62,9 +59,7 @@ All parameters are optional
 * `[CONTENT]` can be `"fruit"` or `"wall"`
 * Each serpent will look like:
 ```json
-{ "owner": { "id": [PLAYER-ID]
-           , "name": [PLAYER-NAME]
-           }
+{ "name": [NAME]
 , "body": [ [[HEAD-ROW#],[HEAD-COL#]]
           , [[ROW#],[COL#]]
           , [[ROW#],[COL#]]
@@ -86,10 +81,7 @@ All parameters are optional
 , "cols": [#-OF-COLS]
 , "ticktime": [#-OF-TICKTIME-MILLISECONDS]
 , "countdown": [#-OF-COUNTDOWN-TICKS]
-, "serpents": { "[PLAYER 1 ID]": {…}
-              , "[PLAYER 2 ID]": {…}
-              , …
-              }
+, "serpents": [{…}, {…}]
 , "state": [STATE]
 , "cells": [ {"row": [ROW#], "col": [COL#], "content": [CONTENT]}
            , {"row": [ROW#], "col": [COL#], "content": [CONTENT]}
@@ -139,15 +131,11 @@ In that structure:
 
 The currently supported events are:
 
-###### ``player_joined``
-```json
-{"id": [PLAYER-ID], "name": [PLAYER-NAME], "position": [[ROW#], [COL#]]}
-```
+###### ``serpent_added``
+The event data is a json representation of a serpent, like the one described in the result from `GET /games/:game_id`
 
 ###### ``game_countdown``
-```json
-{"number": [NUMBER], "millis-to-start": [MILLISECONDS]}
-```
+The event data is a json representation of a game, like the result from `GET /games/:game_id`
 
 ###### ``game_started``
 The event data is a json representation of a game, like the result from `GET /games/:game_id`

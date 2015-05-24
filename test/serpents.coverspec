@@ -11,8 +11,6 @@
  , spts_status_handler
  , spts_games
  , spts_games_repo
- , spts_players
- , spts_players_repo
  , spts_serpents
  , spts_json
  , spts_web_utils

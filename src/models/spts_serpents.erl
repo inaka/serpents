@@ -3,17 +3,17 @@
 -author('elbrujohalcon@inaka.net').
 
 -type status() :: alive | dead.
--opaque serpent() :: #{ owner     => spts_players:id()
+-type name() :: binary().
+-opaque serpent() :: #{ name      => name()
                       , body      => [spts_games:position()]
                       , direction => spts_games:direction()
                       , food      => pos_integer()
                       , status    => status()
                       }.
--export_type([serpent/0, status/0]).
+-export_type([serpent/0, status/0, name/0]).
 
 -export([new/3]).
--export([ owner/1
-        , is_owner/2
+-export([ name/1
         , direction/1
         , direction/2
         , body/1
@@ -24,25 +24,20 @@
         , to_json/1
         ]).
 
--spec new(spts_players:id(), spts_games:position(), spts_games:direction()) ->
-  serpent().
-new(Owner, Position, Direction) ->
-  #{ owner      => Owner
+-spec new(name(), spts_games:position(), spts_games:direction()) -> serpent().
+new(Name, Position, Direction) ->
+  #{ name       => Name
    , direction  => Direction
    , body       => [Position]
    , food       => 0
    , status     => alive
    }.
 
--spec owner(serpent()) -> spts_players:id().
-owner(#{owner := Owner}) -> Owner.
+-spec name(serpent()) -> name().
+name(#{name := Name}) -> Name.
 
 -spec direction(serpent()) -> spts_games:direction().
 direction(#{direction := Direction}) -> Direction.
-
--spec is_owner(serpent(), spts_players:id()) -> boolean().
-is_owner(#{owner := Owner}, Owner) -> true;
-is_owner(_, _) -> false.
 
 -spec direction(serpent(), spts_games:direction()) -> serpent().
 direction(Serpent, Direction) -> Serpent#{direction := Direction}.
@@ -74,7 +69,7 @@ feed(Serpent = #{food := Food}) -> Serpent#{food := Food + 1}.
 
 -spec to_json(serpent()) -> map().
 to_json(Serpent) ->
-  #{ owner => spts_players:to_json(spts_players_repo:fetch(owner(Serpent)))
+  #{ name => name(Serpent)
    , body => [[Row, Col] || {Row, Col} <- body(Serpent)]
    , status => status(Serpent)
    }.
