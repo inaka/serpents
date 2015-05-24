@@ -117,7 +117,14 @@ random_name() ->
   random:seed(erlang:now()),
   {ok, Names} =
     file:consult(filename:join(code:priv_dir(serpents), "game-names")),
-  lists:nth(random:uniform(length(Names)), Names).
+  try_random_name(Names).
+
+try_random_name(Names) ->
+  Name = lists:nth(random:uniform(length(Names)), Names),
+  case spts_core:is_game(Name) of
+    false -> Name;
+    true -> try_random_name(Names -- [Name])
+  end.
 
 %% @todo wait for ktn_random:uniform/1 and replace random:uniform here
 random_direction(Game, {Row, Col}) ->
