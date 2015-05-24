@@ -309,15 +309,15 @@ fruit_feeds(Config) ->
       [{2, 4}] -> {down, {3, 3}, {4, 3}};
       [_NewFruit] -> {right, {2, 4}, {2, 5}}
     end,
-  NewerGame = spts_games_repo:advance(NewGame),
+  NewerGame =
+    spts_games_repo:advance(
+      spts_games_repo:turn(NewGame, Player1Id, Direction)),
   NewerSerpent1 = spts_games:serpent(NewerGame, Player1Id),
   alive = spts_serpents:status(NewerSerpent1),
   [NewerHead, {2, 3}] = spts_serpents:body(NewerSerpent1),
 
   ct:comment("Serpent advances yet again, it's body is not extended"),
-  FinalGame =
-    spts_games_repo:advance(
-      spts_games_repo:turn(NewerGame, Player1Id, Direction)),
+  FinalGame = spts_games_repo:advance(NewerGame),
 
   FinalSerpent1 = spts_games:serpent(FinalGame, Player1Id),
   alive = spts_serpents:status(FinalSerpent1),

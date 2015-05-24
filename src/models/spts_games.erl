@@ -23,9 +23,7 @@
     cols => pos_integer(),
     ticktime => Millis :: pos_integer(),
     countdown => Rounds :: non_neg_integer(),
-    cells => [cell()],
-    created_at => dcn_datetime:datetime(),
-    updated_at => dcn_datetime:datetime()
+    cells => [cell()]
   }.
 -export_type([game/0, state/0, id/0, content/0, position/0, direction/0]).
 
@@ -56,7 +54,6 @@
   id(), pos_integer(), pos_integer(), pos_integer(), pos_integer()) ->
   game().
 new(Id, Rows, Cols, TickTime, Countdown) ->
-  Now = ktn_date:now_human_readable(),
   #{ id => Id
    , serpents => []
    , state => created
@@ -65,8 +62,6 @@ new(Id, Rows, Cols, TickTime, Countdown) ->
    , ticktime => TickTime
    , countdown => Countdown
    , cells => []
-   , created_at => Now
-   , updated_at => Now
    }.
 
 -spec id(game()) -> id().
