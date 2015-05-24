@@ -13,10 +13,10 @@
    , content => special_content()
    }.
 -type state() :: created | countdown | started | finished.
--opaque id() :: binary().
+-type id() :: binary().
 -opaque game() ::
   #{
-    id => binary(),
+    id => id(),
     serpents => [spts_serpents:serpent()],
     state => state(),
     rows => pos_integer(),
@@ -53,7 +53,7 @@
 -export([process_name/1]).
 
 -spec new(
-  binary(), pos_integer(), pos_integer(), pos_integer(), pos_integer()) ->
+  id(), pos_integer(), pos_integer(), pos_integer(), pos_integer()) ->
   game().
 new(Id, Rows, Cols, TickTime, Countdown) ->
   Now = ktn_date:now_human_readable(),
@@ -81,7 +81,7 @@ cols(#{cols := Cols}) -> Cols.
 -spec ticktime(game()) -> pos_integer().
 ticktime(#{ticktime := TickTime}) -> TickTime.
 
--spec countdown(game()) -> pos_integer().
+-spec countdown(game()) -> non_neg_integer().
 countdown(#{countdown := Countdown}) -> Countdown.
 
 -spec countdown(game(), non_neg_integer()) -> game().

@@ -7,7 +7,7 @@ SELL_DEPS = sync
 TEST_DEPS = xref_runner shotgun
 
 dep_katana = git https://github.com/inaka/erlang-katana.git 0.2.5
-dep_sumo_db = git https://github.com/inaka/sumo_db.git 0b4f706
+dep_sumo_db = git https://github.com/inaka/sumo_db.git 0.3.7
 dep_cowboy = git https://github.com/extend/cowboy.git 1.0.1
 dep_jiffy = git https://github.com/davisp/jiffy.git 0.13.3
 dep_eper = git https://github.com/massemanet/eper.git 0.90.0
@@ -16,6 +16,7 @@ dep_sync = git https://github.com/inaka/sync.git 0.1
 dep_shotgun = git https://github.com/inaka/shotgun.git 0.1.8
 dep_xref_runner = git https://github.com/inaka/xref_runner.git 0.2.2
 
+PLT_APPS += mnesia
 DIALYZER_DIRS := ebin/
 DIALYZER_OPTS := --verbose --statistics -Werror_handling \
                  -Wrace_conditions #-Wunmatched_returns
