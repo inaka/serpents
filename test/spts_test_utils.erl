@@ -1,5 +1,6 @@
 %% @doc General Test Utils
 -module(spts_test_utils).
+-author('elbrujohalcon@inaka.net').
 
 -type config() :: proplists:proplist().
 -export_type([config/0]).
@@ -11,6 +12,8 @@
 -export([ api_call/2
         , api_call/3
         , api_call/4
+        ]).
+-export([ get_events/1
         ]).
 -export([ move/2
         , check_bounds/2
@@ -50,6 +53,18 @@ api_call(Method, Uri, Headers, Body) ->
     {ok, Response} =
       shotgun:request(Pid, Method, "/api" ++ Uri, Headers, Body, #{}),
     Response
+  after
+    shotgun:close(Pid)
+  end.
+
+-spec get_events(iodata()) -> [{nofin | fin, reference(), binary()}].
+get_events(Uri) ->
+  Port = application:get_env(serpents, http_port, 8585),
+  {ok, Pid} = shotgun:open("localhost", Port),
+  try
+    {ok, _} =
+      shotgun:get(Pid, "/api" ++ Uri, #{}, #{async => true, async_mode => sse}),
+    ktn_task:wait_for_success(fun() -> [_|_] = shotgun:events(Pid) end)
   after
     shotgun:close(Pid)
   end.

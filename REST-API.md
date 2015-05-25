@@ -131,6 +131,9 @@ In that structure:
 
 The currently supported events are:
 
+###### ``game_status``
+The event data is a json representation of a game, like the result from `GET /games/:game_id`
+
 ###### ``serpent_added``
 The event data is a json representation of a serpent, like the one described in the result from `GET /games/:game_id`
 

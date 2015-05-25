@@ -45,6 +45,7 @@ start_phase(start_cowboy_listeners, _StartType, []) ->
       , {"/api/status", spts_status_handler,  []}
       , {"/api/games", spts_games_handler, []}
       , {"/api/games/:game_id", spts_single_game_handler, []}
+      , {"/api/games/:game_id/news", lasse_handler, [spts_news_handler]}
       ]
      }
     ],
