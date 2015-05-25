@@ -14,6 +14,7 @@
         , api_call/4
         ]).
 -export([ get_events/1
+        , get_events_after/2
         ]).
 -export([ move/2
         , check_bounds/2
@@ -59,12 +60,27 @@ api_call(Method, Uri, Headers, Body) ->
 
 -spec get_events(iodata()) -> [{nofin | fin, reference(), binary()}].
 get_events(Uri) ->
+  {ok, Events} = get_events_after(Uri, fun() -> ok end),
+  Events.
+
+-spec get_events_after(iodata(), fun(() -> _)) ->
+  [{nofin | fin, reference(), binary()}].
+get_events_after(Uri, Task) ->
   Port = application:get_env(serpents, http_port, 8585),
   {ok, Pid} = shotgun:open("localhost", Port),
   try
+    ct:comment("Client connects"),
     {ok, _} =
       shotgun:get(Pid, "/api" ++ Uri, #{}, #{async => true, async_mode => sse}),
-    ktn_task:wait_for_success(fun() -> [_|_] = shotgun:events(Pid) end)
+
+    ct:comment("Task is performed: ~p", [Task]),
+    TaskResult = Task(),
+
+    ct:comment("Events are collected"),
+    Events =
+      ktn_task:wait_for_success(fun() -> [_|_] = shotgun:events(Pid) end),
+
+    {TaskResult, Events}
   after
     shotgun:close(Pid)
   end.
