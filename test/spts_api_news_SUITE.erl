@@ -37,15 +37,15 @@ game_status(_Config) ->
   #{<<"id">> := GameId} = Game = spts_json:decode(Body),
 
   ct:comment("A client connects, the first event is game_status"),
-  [{_, _, EventBin1}] =
-    spts_test_utils:get_events(<<"/games/", GameId/binary, "/news">>),
-  #{data := DataBin1} = shotgun:parse_event(EventBin1),
+  [#{data := DataBin1}] =
+    spts_test_utils:get_events(
+      <<"/games/", GameId/binary, "/news">>, <<"game_status">>),
   Game = spts_json:decode(DataBin1),
 
   ct:comment("Another client connects, the first event is still game_status"),
-  [{_, _, EventBin2}] =
-    spts_test_utils:get_events(<<"/games/", GameId/binary, "/news">>),
-  #{data := DataBin2} = shotgun:parse_event(EventBin2),
+  [#{data := DataBin2}] =
+    spts_test_utils:get_events(
+      <<"/games/", GameId/binary, "/news">>, <<"game_status">>),
   Game = spts_json:decode(DataBin2),
 
   {comment, ""}.
@@ -58,16 +58,13 @@ serpent_added(_Config) ->
   #{status_code := 201,
            body := Body} =
     spts_test_utils:api_call(post, "/games", Headers, ReqBody),
-  #{<<"id">> := GameId} = Game = spts_json:decode(Body),
+  #{<<"id">> := GameId} = spts_json:decode(Body),
 
   ct:comment("A serpent is added and the client receives an event"),
   Task = fun() -> spts_core:add_serpent(GameId, <<"sa">>) end,
-  {Serpent, [{_, _, _}, {_, _, EventBin}]} =
+  {Serpent, [#{data := Data}]} =
     spts_test_utils:get_events_after(
-      <<"/games/", GameId/binary, "/news">>, Task),
-
-  #{event := <<"serpent_added">>, data := Data} =
-    shotgun:parse_event(EventBin),
+      <<"/games/", GameId/binary, "/news">>, <<"serpent_added">>, Task),
 
   [{Row, Col}] = spts_serpents:body(Serpent),
   #{ <<"name">> := <<"sa">>
