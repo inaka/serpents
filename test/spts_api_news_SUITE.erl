@@ -15,6 +15,7 @@
         , serpent_added/1
         , game_countdown/1
         , game_started/1
+        , game_updated/1
         ]).
 
 -spec all() -> [atom()].
@@ -101,13 +102,39 @@ game_started(_Config) ->
   GameId = spts_games:id(spts_core:create_game(#{countdown => 0})),
 
   ct:comment("A serpent is added"),
-  spts_core:add_serpent(GameId, <<"gc">>),
+  spts_core:add_serpent(GameId, <<"gs">>),
 
   ct:comment("The game is started and the client receives an event"),
   Task = fun() -> spts_core:start_game(GameId) end,
   {ok, [#{data := Data}]} =
     spts_test_utils:get_events_after(
       <<"/games/", GameId/binary, "/news">>, <<"game_started">>, Task),
+
+  #{status_code := 200,
+           body := Body} =
+    spts_test_utils:api_call(get, <<"/games/", GameId/binary>>),
+  Game = spts_json:decode(Body),
+
+  ct:comment("The event body should reflect the current state of the game"),
+  Game = spts_json:decode(Data),
+
+  {comment, ""}.
+
+-spec game_updated(spts_test_utils:config()) -> {comment, []}.
+game_updated(_Config) ->
+  ct:comment("A game is created"),
+  GameId =
+    spts_games:id(spts_core:create_game(#{countdown => 0, ticktime => 60000})),
+
+  ct:comment("A serpent is added and the game is started"),
+  spts_core:add_serpent(GameId, <<"gu">>),
+  spts_core:start_game(GameId),
+
+  ct:comment("The game ticks and the client receives an event"),
+  Task = fun() -> spts_games:process_name(GameId) ! tick end,
+  {tick, [#{data := Data}]} =
+    spts_test_utils:get_events_after(
+      <<"/games/", GameId/binary, "/news">>, <<"game_updated">>, Task),
 
   #{status_code := 200,
            body := Body} =
