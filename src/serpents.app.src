@@ -9,7 +9,8 @@
     sasl,
     lager,
     cowboy,
-    sumo_db
+    sumo_db,
+    katana
   ]},
   {modules, []},
   {mod, {serpents, []}},

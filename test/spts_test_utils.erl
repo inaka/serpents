@@ -1,5 +1,5 @@
 %% @doc General Test Utils
--module(serpents_test_utils).
+-module(spts_test_utils).
 
 -type config() :: proplists:proplist().
 -export_type([config/0]).
@@ -47,22 +47,23 @@ api_call(Method, Uri, Headers, Body) ->
   Port = application:get_env(serpents, http_port, 8585),
   {ok, Pid} = shotgun:open("localhost", Port),
   try
-    {ok, Response} = shotgun:request(Pid, Method, Uri, Headers, Body, #{}),
+    {ok, Response} =
+      shotgun:request(Pid, Method, "/api" ++ Uri, Headers, Body, #{}),
     Response
   after
     shotgun:close(Pid)
   end.
 
--spec move(serpents_games:position(), serpents_serpents:direction()) ->
-  serpents_games:position().
+-spec move(spts_games:position(), spts_games:direction()) ->
+  spts_games:position().
 move({Row, Col}, up) -> {Row-1, Col};
 move({Row, Col}, down) -> {Row+1, Col};
 move({Row, Col}, left) -> {Row, Col-1};
 move({Row, Col}, right) -> {Row, Col+1}.
 
--spec check_bounds(serpents_games:game(), serpents_games:position()) -> in|out.
+-spec check_bounds(spts_games:game(), spts_games:position()) -> in | out.
 check_bounds(Game, Position) ->
-  check_bounds(Position, serpents_games:rows(Game), serpents_games:cols(Game)).
+  check_bounds(Position, spts_games:rows(Game), spts_games:cols(Game)).
 
 check_bounds({0, _}, _, _) -> out;
 check_bounds({_, 0}, _, _) -> out;

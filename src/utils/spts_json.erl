@@ -1,5 +1,5 @@
 %% @doc Json abstraction library
--module(serpents_json).
+-module(spts_json).
 
 -export([encode/1, decode/1]).
 
