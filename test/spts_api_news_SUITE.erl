@@ -13,6 +13,7 @@
 -export([ get_news_wrong/1
         , game_status/1
         , serpent_added/1
+        , game_countdown/1
         ]).
 
 -spec all() -> [atom()].
@@ -53,12 +54,7 @@ game_status(_Config) ->
 -spec serpent_added(spts_test_utils:config()) -> {comment, []}.
 serpent_added(_Config) ->
   ct:comment("A game is created"),
-  Headers = #{<<"content-type">> => <<"application/json">>},
-  ReqBody = spts_json:encode(#{}),
-  #{status_code := 201,
-           body := Body} =
-    spts_test_utils:api_call(post, "/games", Headers, ReqBody),
-  #{<<"id">> := GameId} = spts_json:decode(Body),
+  GameId = spts_games:id(spts_core:create_game()),
 
   ct:comment("A serpent is added and the client receives an event"),
   Task = fun() -> spts_core:add_serpent(GameId, <<"sa">>) end,
@@ -71,5 +67,29 @@ serpent_added(_Config) ->
    , <<"body">> := [[Row, Col]]
    , <<"status">> := <<"alive">>
    } = spts_json:decode(Data),
+
+  {comment, ""}.
+
+-spec game_countdown(spts_test_utils:config()) -> {comment, []}.
+game_countdown(_Config) ->
+  ct:comment("A game is created"),
+  GameId = spts_games:id(spts_core:create_game()),
+
+  ct:comment("A serpent is added"),
+  spts_core:add_serpent(GameId, <<"gc">>),
+
+  ct:comment("The game is started and the client receives an event"),
+  Task = fun() -> spts_core:start_game(GameId) end,
+  {ok, [#{data := Data}]} =
+    spts_test_utils:get_events_after(
+      <<"/games/", GameId/binary, "/news">>, <<"game_countdown">>, Task),
+
+  #{status_code := 200,
+           body := Body} =
+    spts_test_utils:api_call(get, <<"/games/", GameId/binary>>),
+  Game = spts_json:decode(Body),
+
+  ct:comment("The event body should reflect the current state of the game"),
+  Game = spts_json:decode(Data),
 
   {comment, ""}.

@@ -47,7 +47,7 @@ handle_notify({Type, Serpent}, State) when Type == serpent_added;
     , {data, spts_json:encode(spts_serpents:to_json(Serpent))}
     ],
   {send, Event, State};
-handle_notify({Type, Game}, State) when Type == game_countodwn;
+handle_notify({Type, Game}, State) when Type == game_countdown;
                                         Type == game_started;
                                         Type == game_updated;
                                         Type == game_finished ->

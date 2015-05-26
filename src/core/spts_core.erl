@@ -52,7 +52,7 @@
 
 -type event() ::
     {serpent_added, spts_serpents:serpent()}
-  | {game_countdown, Number::pos_integer(), MillisToStart::pos_integer()}
+  | {game_countdown, spts_games:game()}
   | {game_started, spts_games:game()}
   | {game_updated, spts_games:game()}
   | {collision_detected, spts_serpents:serpent()}
@@ -177,9 +177,7 @@ handle_info(tick, countdown, State) ->
       tick(Game),
       {next_state, started, State#state{game = NewGame}};
     countdown ->
-      RoundsToGo = spts_games:countdown(Game),
-      MillisToStart = spts_games:millis_to_start(Game),
-      ok = notify({game_countdown, RoundsToGo, MillisToStart}, State),
+      ok = notify({game_countdown, NewGame}, State),
       tick(NewGame),
       {next_state, countdown, State#state{game = NewGame}}
   end;

@@ -176,14 +176,17 @@ game_countdown(Config) ->
   ok = spts_test_handler:subscribe(GameId, self()),
   ok = spts_core:start_game(GameId),
 
-  lists:foreach(
-    fun(Round) ->
-      ct:comment("Still missing ~p rounds of countdown...", [Round]),
-      ok = spts_test_handler:wait_for({game_countdown, Round, Round * 1000000}),
-      spts_games:process_name(GameId) ! tick
-    end, lists:seq(5, 1, -1)),
+  StartedGame =
+    lists:foldl(
+      fun(Round, Game) ->
+        ct:comment("Still missing ~p rounds of countdown...", [Round]),
+        ok = spts_test_handler:wait_for({game_countdown, Game}),
+        spts_games:process_name(GameId) ! tick,
+        spts_core:fetch_game(GameId)
+      end, spts_core:fetch_game(GameId), lists:seq(5, 1, -1)),
+  started = spts_games:state(StartedGame),
 
   ct:comment("After the last countdown, the game should start normally"),
-  ok = spts_test_handler:wait_for({game_started, spts_core:fetch_game(GameId)}),
+  ok = spts_test_handler:wait_for({game_started, StartedGame}),
 
   {comment, ""}.
