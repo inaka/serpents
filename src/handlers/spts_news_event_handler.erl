@@ -39,7 +39,7 @@ init(Process) -> {ok, #state{process = Process}}.
 
 -spec handle_event(spts_core:event(), state()) -> {ok, state()}.
 handle_event(Event, State) ->
-  lasse_handler:notify(State#state.process, Event),
+  spts_news_handler:notify(State#state.process, Event),
   {ok, State}.
 
 -spec handle_call(remove, state()) -> {remove_handler, ok}.
