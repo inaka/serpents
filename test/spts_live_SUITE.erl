@@ -37,48 +37,30 @@ init_per_testcase(serpent_movement, Config) ->
     spts_games:id(
       spts_core:create_game(
         #{cols => 5, rows => 5, ticktime => 600000, countdown => 0})),
-  Player1Id = spts_players:id(spts_core:register_player(<<"1">>)),
-  Player2Id = spts_players:id(spts_core:register_player(<<"2">>)),
-  Player3Id = spts_players:id(spts_core:register_player(<<"3">>)),
-  spts_core:join_game(GameId, Player1Id),
-  spts_core:join_game(GameId, Player2Id),
-  spts_core:join_game(GameId, Player3Id),
-  [ {player1, Player1Id}
-  , {player2, Player2Id}
-  , {player3, Player3Id}
-  , {game, GameId}
-  | Config];
+  spts_core:add_serpent(GameId, <<"serp1">>),
+  spts_core:add_serpent(GameId, <<"serp2">>),
+  spts_core:add_serpent(GameId, <<"serp3">>),
+  [{game, GameId} | Config];
 init_per_testcase(Test, Config) when Test == collision_with_serpent_body;
                                      Test == collision_with_serpent_head;
                                      Test == fruit_reapears;
                                      Test == fruit_feeds ->
   Game = spts_games_repo:create(#{cols => 5, rows => 5}),
-  Player1Id = spts_players:id(spts_core:register_player(<<"1">>)),
-  Player2Id = spts_players:id(spts_core:register_player(<<"2">>)),
-  [ {player1, Player1Id}
-  , {player2, Player2Id}
-  , {game, Game}
-  | Config];
+  [{game, Game} | Config];
 init_per_testcase(countdown, Config) ->
   GameId =
     spts_games:id(
       spts_core:create_game(
         #{cols => 5, rows => 5, ticktime => 600000, countdown => 5})),
-  Player1Id = spts_players:id(spts_core:register_player(<<"1">>)),
-  spts_core:join_game(GameId, Player1Id),
-  [ {player1, Player1Id}
-  , {game, GameId}
-  | Config];
+  spts_core:add_serpent(GameId, <<"serp1">>),
+  [{game, GameId} | Config];
 init_per_testcase(_Test, Config) ->
   GameId =
     spts_games:id(
       spts_core:create_game(
         #{cols => 5, rows => 5, ticktime => 600000, countdown => 0})),
-  Player1Id = spts_players:id(spts_core:register_player(<<"1">>)),
-  spts_core:join_game(GameId, Player1Id),
-  [ {player1, Player1Id}
-  , {game, GameId}
-  | Config].
+  spts_core:add_serpent(GameId, <<"serp1">>),
+  [{game, GameId} | Config].
 
 -spec end_per_testcase(atom(), spts_test_utils:config()) ->
   spts_test_utils:config().
@@ -88,9 +70,7 @@ end_per_testcase(_Test, Config) ->
       ok = spts_core:stop_game(GameId);
     _ -> ok
   end,
-  lists:filter(
-    fun ({K, _}) -> not lists:member(K, [game, player1, player2, player3]) end,
-    Config).
+  lists:keydelete(game, 1, Config).
 
 -spec serpent_movement(spts_test_utils:config()) -> {comment, []}.
 serpent_movement(Config) ->
@@ -109,7 +89,7 @@ serpent_movement(Config) ->
     lists:map(
       fun(Serpent) ->
         NewSerpent =
-          spts_games:serpent(NewGame, spts_serpents:owner(Serpent)),
+          spts_games:serpent(NewGame, spts_serpents:name(Serpent)),
 
         ExpectedDirection = spts_serpents:direction(Serpent),
         ExpectedDirection = spts_serpents:direction(NewSerpent),
@@ -153,10 +133,9 @@ collision_detection_down_wall(Config) ->
 
 collision_detection_wall(Direction, Config) ->
   {game, GameId} = lists:keyfind(game, 1, Config),
-  {player1, Player1Id} = lists:keyfind(player1, 1, Config),
 
   ct:comment("Pick the first serpent and get it to move ~p", [Direction]),
-  ok = spts_core:turn(GameId, Player1Id, Direction),
+  ok = spts_core:turn(GameId, <<"serp1">>, Direction),
   spts_core:start_game(GameId),
 
   ct:comment(
@@ -167,7 +146,7 @@ collision_detection_wall(Direction, Config) ->
 
   NewGame = spts_core:fetch_game(GameId),
   finished = spts_games:state(NewGame),
-  Serpent = spts_games:serpent(NewGame, Player1Id),
+  Serpent = spts_games:serpent(NewGame, <<"serp1">>),
   dead = spts_serpents:status(Serpent),
   spts_serpents:body(Serpent).
 
@@ -175,12 +154,10 @@ collision_detection_wall(Direction, Config) ->
   {comment, []}.
 collision_with_serpent_body(Config) ->
   {game, Game} = lists:keyfind(game, 1, Config),
-  {player1, Player1Id} = lists:keyfind(player1, 1, Config),
-  {player2, Player2Id} = lists:keyfind(player2, 1, Config),
 
   ct:comment("Serpents are placed in proper positions"),
-  Serpent1 = spts_serpents:feed(spts_serpents:new(Player1Id, {2, 2}, down)),
-  Serpent2 = spts_serpents:new(Player2Id, {2, 3}, left),
+  Serpent1 = spts_serpents:feed(spts_serpents:new(<<"serp1">>, {2, 2}, down)),
+  Serpent2 = spts_serpents:new(<<"serp2">>, {2, 3}, left),
   GameWithSerpents =
     spts_games:add_serpent(spts_games:add_serpent(Game, Serpent1), Serpent2),
 
@@ -188,10 +165,10 @@ collision_with_serpent_body(Config) ->
   NewGame = spts_games_repo:advance(GameWithSerpents),
 
   ct:comment("S1 should be alive and its body should be 2 cells long"),
-  alive = spts_serpents:status(spts_games:serpent(NewGame, Player1Id)),
+  alive = spts_serpents:status(spts_games:serpent(NewGame, <<"serp1">>)),
 
   ct:comment("S2 should've died in ~p", [NewGame]),
-  dead = spts_serpents:status(spts_games:serpent(NewGame, Player2Id)),
+  dead = spts_serpents:status(spts_games:serpent(NewGame, <<"serp2">>)),
 
   {comment, ""}.
 
@@ -199,12 +176,10 @@ collision_with_serpent_body(Config) ->
   {comment, []}.
 collision_with_serpent_head(Config) ->
   {game, Game} = lists:keyfind(game, 1, Config),
-  {player1, Player1Id} = lists:keyfind(player1, 1, Config),
-  {player2, Player2Id} = lists:keyfind(player2, 1, Config),
 
   ct:comment("Serpents are placed in proper positions"),
-  Serpent1 = spts_serpents:new(Player1Id, {2, 2}, right),
-  Serpent2 = spts_serpents:new(Player2Id, {2, 4}, left),
+  Serpent1 = spts_serpents:new(<<"serp1">>, {2, 2}, right),
+  Serpent2 = spts_serpents:new(<<"serp2">>, {2, 4}, left),
   GameWithSerpents =
     spts_games:add_serpent(
       spts_games:add_serpent(Game, Serpent1), Serpent2),
@@ -213,8 +188,8 @@ collision_with_serpent_head(Config) ->
   NewGame = spts_games_repo:advance(GameWithSerpents),
 
   ct:comment("Both serpents are dead"),
-  dead = spts_serpents:status(spts_games:serpent(NewGame, Player1Id)),
-  dead = spts_serpents:status(spts_games:serpent(NewGame, Player2Id)),
+  dead = spts_serpents:status(spts_games:serpent(NewGame, <<"serp1">>)),
+  dead = spts_serpents:status(spts_games:serpent(NewGame, <<"serp2">>)),
 
   ct:comment("The game finished"),
   finished = spts_games:state(NewGame),
@@ -225,12 +200,11 @@ collision_with_serpent_head(Config) ->
   {comment, []}.
 always_a_fruit(Config) ->
   {game, GameId} = lists:keyfind(game, 1, Config),
-  {player1, Player1Id} = lists:keyfind(player1, 1, Config),
 
   Cycle =
     case spts_serpents:body(
           spts_games:serpent(
-            spts_core:fetch_game(GameId), Player1Id)) of
+            spts_core:fetch_game(GameId), <<"serp1">>)) of
       [{1, 1} | _] -> [right, down, left, up];
       [{1, _} | _] -> [down, left, up, right];
       [{5, 5} | _] -> [left, up, right, down];
@@ -243,7 +217,7 @@ always_a_fruit(Config) ->
   Advance =
     fun(Direction) ->
       ct:comment("Pick the serpent and get it to move ~p", [Direction]),
-      ok = spts_core:turn(GameId, Player1Id, Direction),
+      ok = spts_core:turn(GameId, <<"serp1">>, Direction),
       spts_games:process_name(GameId) ! tick,
       NewGame = spts_core:fetch_game(GameId),
       ct:comment("Fruit is still there: ~p / ~p", [NewGame, Cycle]),
@@ -258,10 +232,9 @@ always_a_fruit(Config) ->
   {comment, []}.
 fruit_reapears(Config) ->
   {game, Game} = lists:keyfind(game, 1, Config),
-  {player1, Player1Id} = lists:keyfind(player1, 1, Config),
 
   ct:comment("Serpent and fruit are placed in proper positions"),
-  Serpent1 = spts_serpents:new(Player1Id, {2, 2}, right),
+  Serpent1 = spts_serpents:new(<<"serp1">>, {2, 2}, right),
   GameWithSerpentAndFruit =
     spts_games:add_serpent(
       spts_games:content(Game, {2, 3}, fruit), Serpent1),
@@ -270,7 +243,7 @@ fruit_reapears(Config) ->
   NewGame = spts_games_repo:advance(GameWithSerpentAndFruit),
 
   ct:comment("Serpent is alive and its head is where the fruit was"),
-  NewSerpent1 = spts_games:serpent(NewGame, Player1Id),
+  NewSerpent1 = spts_games:serpent(NewGame, <<"serp1">>),
   alive = spts_serpents:status(NewSerpent1),
   [{2, 3}] = spts_serpents:body(NewSerpent1),
 
@@ -286,10 +259,9 @@ fruit_reapears(Config) ->
   {comment, []}.
 fruit_feeds(Config) ->
   {game, Game} = lists:keyfind(game, 1, Config),
-  {player1, Player1Id} = lists:keyfind(player1, 1, Config),
 
   ct:comment("Serpent and fruit are placed in proper positions"),
-  Serpent1 = spts_serpents:new(Player1Id, {2, 2}, right),
+  Serpent1 = spts_serpents:new(<<"serp1">>, {2, 2}, right),
   [{2, 2}] = spts_serpents:body(Serpent1),
   GameWithSerpentAndFruit =
     spts_games:add_serpent(
@@ -299,7 +271,7 @@ fruit_feeds(Config) ->
   NewGame = spts_games_repo:advance(GameWithSerpentAndFruit),
 
   ct:comment("Serpent is alive and its head is where the fruit was"),
-  NewSerpent1 = spts_games:serpent(NewGame, Player1Id),
+  NewSerpent1 = spts_games:serpent(NewGame, <<"serp1">>),
   alive = spts_serpents:status(NewSerpent1),
   [{2, 3}] = spts_serpents:body(NewSerpent1),
 
@@ -309,17 +281,17 @@ fruit_feeds(Config) ->
       [{2, 4}] -> {down, {3, 3}, {4, 3}};
       [_NewFruit] -> {right, {2, 4}, {2, 5}}
     end,
-  NewerGame = spts_games_repo:advance(NewGame),
-  NewerSerpent1 = spts_games:serpent(NewerGame, Player1Id),
+  NewerGame =
+    spts_games_repo:advance(
+      spts_games_repo:turn(NewGame, <<"serp1">>, Direction)),
+  NewerSerpent1 = spts_games:serpent(NewerGame, <<"serp1">>),
   alive = spts_serpents:status(NewerSerpent1),
   [NewerHead, {2, 3}] = spts_serpents:body(NewerSerpent1),
 
   ct:comment("Serpent advances yet again, it's body is not extended"),
-  FinalGame =
-    spts_games_repo:advance(
-      spts_games_repo:turn(NewerGame, Player1Id, Direction)),
+  FinalGame = spts_games_repo:advance(NewerGame),
 
-  FinalSerpent1 = spts_games:serpent(FinalGame, Player1Id),
+  FinalSerpent1 = spts_games:serpent(FinalGame, <<"serp1">>),
   alive = spts_serpents:status(FinalSerpent1),
   [FinalHead, NewerHead] = spts_serpents:body(FinalSerpent1),
 

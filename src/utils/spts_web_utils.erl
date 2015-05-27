@@ -2,9 +2,6 @@
 -module(spts_web_utils).
 -author('elbrujohalcon@inaka.net').
 
--type authorization_mechanism() :: none | player | session.
--export_type([authorization_mechanism/0]).
-
 -export([announce_req/2, handle_exception/3]).
 
 -spec announce_req(cowboy_req:req(), iodata()) -> cowboy_req:req().

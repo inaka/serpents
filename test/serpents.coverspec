@@ -7,12 +7,12 @@
  , spts_sup
  , spts_base_handler
  , spts_games_handler
+ , spts_news_event_handler
+ , spts_news_handler
  , spts_single_game_handler
  , spts_status_handler
  , spts_games
  , spts_games_repo
- , spts_players
- , spts_players_repo
  , spts_serpents
  , spts_json
  , spts_web_utils

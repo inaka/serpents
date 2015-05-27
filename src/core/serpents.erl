@@ -32,11 +32,6 @@ start(_StartType, _Args) ->
 
 %% @private
 -spec start_phase(atom(), application:start_type(), []) -> ok | {error, _}.
-start_phase(create_schema, _StartType, []) ->
-  application:stop(mnesia),
-  mnesia:create_schema([node()]),
-  {ok, _} = application:ensure_all_started(mnesia),
-  sumo:create_schema();
 start_phase(start_cowboy_listeners, _StartType, []) ->
   Port = application:get_env(?MODULE, http_port, 8383),
   ListenerCount = application:get_env(?MODULE, http_listener_count, 10),
@@ -50,6 +45,7 @@ start_phase(start_cowboy_listeners, _StartType, []) ->
       , {"/api/status", spts_status_handler,  []}
       , {"/api/games", spts_games_handler, []}
       , {"/api/games/:game_id", spts_single_game_handler, []}
+      , {"/api/games/:game_id/news", lasse_handler, [spts_news_handler]}
       ]
      }
     ],

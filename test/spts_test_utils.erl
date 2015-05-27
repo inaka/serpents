@@ -1,5 +1,6 @@
 %% @doc General Test Utils
 -module(spts_test_utils).
+-author('elbrujohalcon@inaka.net').
 
 -type config() :: proplists:proplist().
 -export_type([config/0]).
@@ -11,6 +12,9 @@
 -export([ api_call/2
         , api_call/3
         , api_call/4
+        ]).
+-export([ get_events/2
+        , get_events_after/3
         ]).
 -export([ move/2
         , check_bounds/2
@@ -50,6 +54,38 @@ api_call(Method, Uri, Headers, Body) ->
     {ok, Response} =
       shotgun:request(Pid, Method, "/api" ++ Uri, Headers, Body, #{}),
     Response
+  after
+    shotgun:close(Pid)
+  end.
+
+-spec get_events(iodata(), binary()) -> [{nofin | fin, reference(), binary()}].
+get_events(Uri, EventType) ->
+  {ok, Events} = get_events_after(Uri, EventType, fun() -> ok end),
+  Events.
+
+-spec get_events_after(iodata(), binary(), fun(() -> _)) -> [map()].
+get_events_after(Uri, EventType, Task) ->
+  Port = application:get_env(serpents, http_port, 8585),
+  {ok, Pid} = shotgun:open("localhost", Port),
+  try
+    ct:comment("Client connects"),
+    {ok, Ref} =
+      shotgun:get(Pid, "/api" ++ Uri, #{}, #{async => true, async_mode => sse}),
+
+    ct:comment("Task is performed: ~p", [Task]),
+    TaskResult = Task(),
+
+    ct:comment("Events are collected"),
+    Events =
+      ktn_task:wait_for_success(
+        fun() ->
+          Events =
+            [shotgun:parse_event(Bin) || {_, _, Bin} <- shotgun:events(Pid)],
+          ct:pal("Events: ~p / EventType: ~p", [Events, EventType]),
+          [_|_] = [Event || Event = #{event := ET} <- Events, ET == EventType]
+        end),
+
+    {TaskResult, Events}
   after
     shotgun:close(Pid)
   end.

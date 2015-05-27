@@ -6,26 +6,23 @@
 -type col() :: pos_integer().
 -type position() :: {row(), col()}.
 -type direction() :: left | right | up | down.
--type content() :: special_content() | {serpent, spts_players:id()}.
--type special_content() :: wall | fruit.
+-type content() :: wall | fruit.
 -type cell() ::
   #{ position => position()
-   , content => special_content()
+   , content => content()
    }.
 -type state() :: created | countdown | started | finished.
--opaque id() :: binary().
+-type id() :: binary().
 -opaque game() ::
   #{
-    id => binary(),
+    id => id(),
     serpents => [spts_serpents:serpent()],
     state => state(),
     rows => pos_integer(),
     cols => pos_integer(),
     ticktime => Millis :: pos_integer(),
     countdown => Rounds :: non_neg_integer(),
-    cells => [cell()],
-    created_at => dcn_datetime:datetime(),
-    updated_at => dcn_datetime:datetime()
+    cells => [cell()]
   }.
 -export_type([game/0, state/0, id/0, content/0, position/0, direction/0]).
 
@@ -53,10 +50,9 @@
 -export([process_name/1]).
 
 -spec new(
-  binary(), pos_integer(), pos_integer(), pos_integer(), pos_integer()) ->
+  id(), pos_integer(), pos_integer(), pos_integer(), pos_integer()) ->
   game().
 new(Id, Rows, Cols, TickTime, Countdown) ->
-  Now = ktn_date:now_human_readable(),
   #{ id => Id
    , serpents => []
    , state => created
@@ -65,8 +61,6 @@ new(Id, Rows, Cols, TickTime, Countdown) ->
    , ticktime => TickTime
    , countdown => Countdown
    , cells => []
-   , created_at => Now
-   , updated_at => Now
    }.
 
 -spec id(game()) -> id().
@@ -81,7 +75,7 @@ cols(#{cols := Cols}) -> Cols.
 -spec ticktime(game()) -> pos_integer().
 ticktime(#{ticktime := TickTime}) -> TickTime.
 
--spec countdown(game()) -> pos_integer().
+-spec countdown(game()) -> non_neg_integer().
 countdown(#{countdown := Countdown}) -> Countdown.
 
 -spec countdown(game(), non_neg_integer()) -> game().
@@ -97,10 +91,11 @@ state(#{state := State}) -> State.
 -spec serpents(game()) -> [spts_serpents:serpent()].
 serpents(#{serpents := Serpents}) -> Serpents.
 
--spec serpent(game(), spts_players:id()) -> spts_serpents:serpent() | notfound.
-serpent(#{serpents := Serpents}, PlayerId) ->
+-spec serpent(game(), spts_serpents:name()) ->
+  spts_serpents:serpent() | notfound.
+serpent(#{serpents := Serpents}, SerpentName) ->
   case [Serpent || Serpent <- Serpents
-                 , spts_serpents:is_owner(Serpent, PlayerId)] of
+                 , SerpentName == spts_serpents:name(Serpent)] of
     [] -> notfound;
     [Serpent|_] -> Serpent
   end.
@@ -110,19 +105,19 @@ serpent(#{serpents := Serpents}, PlayerId) ->
 is_empty(Game, Position) -> [] == contents(Game, Position).
 
 %% @doc adds a content in a position
--spec content(game(), position(), special_content()) -> game().
+-spec content(game(), position(), content()) -> game().
 content(Game, Position, Content) ->
   #{cells := Cells} = Game,
   Cell = #{position => Position, content => Content},
   Game#{cells := [Cell | Cells]}.
 
 %% @doc finds the position for a content
--spec find(game(), special_content()) -> [position()].
+-spec find(game(), content()) -> [position()].
 find(Game, Content) ->
   #{cells := Cells} = Game,
   [P || #{position := P, content := C} <- Cells, C == Content].
 
-%% @doc adds a new player to the game
+%% @doc adds a new serpent to the game
 -spec add_serpent(game(), spts_serpents:serpent()) -> game().
 add_serpent(Game, Serpent) ->
   #{serpents := Serpents} = Game,
@@ -131,14 +126,14 @@ add_serpent(Game, Serpent) ->
 -spec state(game(), state()) -> game().
 state(Game, State) -> Game#{state => State}.
 
--spec turn(game(), spts_players:id(), direction()) -> game().
-turn(Game, PlayerId, Direction) ->
+-spec turn(game(), spts_serpents:name(), direction()) -> game().
+turn(Game, SerpentName, Direction) ->
   #{serpents := Serpents} = Game,
-  {[PlayerSerpent], OtherSerpents} =
+  {[ThisSerpent], OtherSerpents} =
     lists:partition(
-      fun(Serpent) -> spts_serpents:is_owner(Serpent, PlayerId) end,
+      fun(Serpent) -> SerpentName == spts_serpents:name(Serpent) end,
       Serpents),
-  NewSerpent = spts_serpents:direction(PlayerSerpent, Direction),
+  NewSerpent = spts_serpents:direction(ThisSerpent, Direction),
   Game#{serpents := [NewSerpent|OtherSerpents]}.
 
 -spec process_name(id()) -> atom().
@@ -165,10 +160,7 @@ to_json(Game) ->
    , cols => cols(Game)
    , ticktime => ticktime(Game)
    , countdown => countdown(Game)
-   , serpents =>
-      maps:from_list(
-        [ {spts_serpents:owner(Serpent), spts_serpents:to_json(Serpent)}
-        || Serpent <- serpents(Game)])
+   , serpents => [ spts_serpents:to_json(Serpent) || Serpent <- serpents(Game)]
    , state => state(Game)
    , cells => [cell_to_json(Cell) || Cell <- Cells]
    }.
@@ -198,17 +190,17 @@ kill_or_feed(Game, Serpents) ->
 
 do_kill_or_feed(Game, Serpent) ->
   [Head | _] = spts_serpents:body(Serpent),
-  Owner = spts_serpents:owner(Serpent),
+  Name = spts_serpents:name(Serpent),
   case lists:sort(contents(Game, Head)) of
-    [{serpent, Owner}] -> Serpent;
-    [fruit, {serpent, Owner}] -> spts_serpents:feed(Serpent);
+    [{serpent, Name}] -> Serpent;
+    [fruit, {serpent, Name}] -> spts_serpents:feed(Serpent);
     [_, _| _] -> spts_serpents:status(Serpent, dead)
   end.
 
 contents(Game, Position) ->
   #{serpents := Serpents} = Game,
   SerpentsInPos =
-    [ {serpent, spts_serpents:owner(Serpent)}
+    [ {serpent, spts_serpents:name(Serpent)}
     || Serpent <- Serpents
      , P <- spts_serpents:body(Serpent)
      , P == Position],

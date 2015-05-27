@@ -12,7 +12,7 @@
         , init_per_testcase/2
         , end_per_testcase/2
         ]).
--export([ player_joined/1
+-export([ serpent_added/1
         , game_started/1
         , game_finished/1
         , game_updated/1
@@ -35,14 +35,7 @@ init_per_testcase(Test, Config) ->
     spts_games:id(
       spts_core:create_game(
         #{cols => 5, rows => 5, ticktime => 1000000, countdown => Countdown})),
-  Player1Id = spts_players:id(spts_core:register_player(<<"1">>)),
-  Player2Id = spts_players:id(spts_core:register_player(<<"2">>)),
-  Player3Id = spts_players:id(spts_core:register_player(<<"3">>)),
-  [ {player1, Player1Id}
-  , {player2, Player2Id}
-  , {player3, Player3Id}
-  , {game, GameId}
-  | Config].
+  [{game, GameId} | Config].
 
 -spec end_per_testcase(atom(), spts_test_utils:config()) ->
   spts_test_utils:config().
@@ -50,34 +43,34 @@ end_per_testcase(_Test, Config) ->
   {game, GameId} = lists:keyfind(game, 1, Config),
   ok = spts_test_handler:unsubscribe(GameId, self()),
   ok = spts_core:stop_game(GameId),
-  lists:filter(
-    fun ({K, _}) -> not lists:member(K, [game, player1, player2, player3]) end,
-    Config).
+  lists:keydelete(game, 1, Config).
 
--spec player_joined(spts_test_utils:config()) -> {comment, []}.
-player_joined(Config) ->
+-spec serpent_added(spts_test_utils:config()) -> {comment, []}.
+serpent_added(Config) ->
   {game, GameId} = lists:keyfind(game, 1, Config),
-  {player1, Player1Id} = lists:keyfind(player1, 1, Config),
-  {player2, Player2Id} = lists:keyfind(player2, 1, Config),
 
   ok = spts_test_handler:subscribe(GameId, self()),
-  ct:comment("A player joins, we receive an event"),
-  {Position1, _} = spts_core:join_game(GameId, Player1Id),
-  ok = spts_test_handler:wait_for({player_joined, Player1Id, Position1}, []),
+  ct:comment("A serpent is added, we receive an event"),
+  Serpent1 = spts_core:add_serpent(GameId, <<"serp1">>),
+  ok = spts_test_handler:wait_for({serpent_added, Serpent1}, []),
 
-  ct:comment("Another player joins, we receive another event"),
-  {Position2, _} = spts_core:join_game(GameId, Player2Id),
-  ok = spts_test_handler:wait_for({player_joined, Player2Id, Position2}, []),
+  ct:comment("Another serpent is added, we receive another event"),
+  Serpent2 = spts_core:add_serpent(GameId, <<"serp2">>),
+  ok = spts_test_handler:wait_for({serpent_added, Serpent2}, []),
+
+  case Serpent2 of
+    Serpent1 -> ct:fail("Duplicated serpent ~p", [Serpent1]);
+    Serpent2 -> ok
+  end,
 
   {comment, ""}.
 
 -spec game_started(spts_test_utils:config()) -> {comment, []}.
 game_started(Config) ->
   {game, GameId} = lists:keyfind(game, 1, Config),
-  {player1, Player1Id} = lists:keyfind(player1, 1, Config),
 
-  ct:comment("A player joins"),
-  {_, _} = spts_core:join_game(GameId, Player1Id),
+  ct:comment("A serpent is added"),
+  spts_core:add_serpent(GameId, <<"serp1">>),
 
   ok = spts_test_handler:subscribe(GameId, self()),
   ct:comment("The Game starts, we receive an event"),
@@ -94,8 +87,7 @@ game_started(Config) ->
 -spec game_finished(spts_test_utils:config()) -> {comment, []}.
 game_finished(Config) ->
   {game, GameId} = lists:keyfind(game, 1, Config),
-  {player1, Player1Id} = lists:keyfind(player1, 1, Config),
-  {_, _} = spts_core:join_game(GameId, Player1Id),
+  spts_core:add_serpent(GameId, <<"serp1">>),
   ok = spts_core:start_game(GameId),
 
   ok = spts_test_handler:subscribe(GameId, self()),
@@ -120,8 +112,7 @@ game_finished(Config) ->
 -spec game_updated(spts_test_utils:config()) -> {comment, []}.
 game_updated(Config) ->
   {game, GameId} = lists:keyfind(game, 1, Config),
-  {player1, Player1Id} = lists:keyfind(player1, 1, Config),
-  {_, _} = spts_core:join_game(GameId, Player1Id),
+  spts_core:add_serpent(GameId, <<"serp1">>),
   ok = spts_core:start_game(GameId),
 
   ok = spts_test_handler:subscribe(GameId, self()),
@@ -146,12 +137,9 @@ game_updated(Config) ->
 -spec collision_detected(spts_test_utils:config()) -> {comment, []}.
 collision_detected(Config) ->
   {game, GameId} = lists:keyfind(game, 1, Config),
-  {player1, Player1Id} = lists:keyfind(player1, 1, Config),
-  {player2, Player2Id} = lists:keyfind(player2, 1, Config),
-  {player3, Player3Id} = lists:keyfind(player3, 1, Config),
-  {_, _} = spts_core:join_game(GameId, Player1Id),
-  {_, _} = spts_core:join_game(GameId, Player2Id),
-  {_, _} = spts_core:join_game(GameId, Player3Id),
+  spts_core:add_serpent(GameId, <<"serp1">>),
+  spts_core:add_serpent(GameId, <<"serp2">>),
+  spts_core:add_serpent(GameId, <<"serp3">>),
   ok = spts_core:start_game(GameId),
 
   ReceiveCollision =
@@ -183,20 +171,22 @@ collision_detected(Config) ->
 -spec game_countdown(spts_test_utils:config()) -> {comment, []}.
 game_countdown(Config) ->
   {game, GameId} = lists:keyfind(game, 1, Config),
-  {player1, Player1Id} = lists:keyfind(player1, 1, Config),
-  {_, _} = spts_core:join_game(GameId, Player1Id),
+  spts_core:add_serpent(GameId, <<"serp1">>),
 
   ok = spts_test_handler:subscribe(GameId, self()),
   ok = spts_core:start_game(GameId),
 
-  lists:foreach(
-    fun(Round) ->
-      ct:comment("Still missing ~p rounds of countdown...", [Round]),
-      ok = spts_test_handler:wait_for({game_countdown, Round, Round * 1000000}),
-      spts_games:process_name(GameId) ! tick
-    end, lists:seq(5, 1, -1)),
+  StartedGame =
+    lists:foldl(
+      fun(Round, Game) ->
+        ct:comment("Still missing ~p rounds of countdown...", [Round]),
+        ok = spts_test_handler:wait_for({game_countdown, Game}),
+        spts_games:process_name(GameId) ! tick,
+        spts_core:fetch_game(GameId)
+      end, spts_core:fetch_game(GameId), lists:seq(5, 1, -1)),
+  started = spts_games:state(StartedGame),
 
   ct:comment("After the last countdown, the game should start normally"),
-  ok = spts_test_handler:wait_for({game_started, spts_core:fetch_game(GameId)}),
+  ok = spts_test_handler:wait_for({game_started, StartedGame}),
 
   {comment, ""}.

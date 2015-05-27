@@ -9,11 +9,10 @@
     sasl,
     lager,
     cowboy,
-    sumo_db,
     katana
   ]},
   {modules, []},
   {mod, {serpents, []}},
   {env, []},
-  {start_phases, [{create_schema, []}, {start_cowboy_listeners, []}]}
+  {start_phases, [{start_cowboy_listeners, []}]}
  ]}.
