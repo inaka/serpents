@@ -12,6 +12,7 @@ All parameters are optional
 , "cols": [#-OF-COLS]
 , "ticktime": [#-OF-TICKTIME-MILLISECONDS]
 , "countdown": [#-OF-COUNTDOWN-TICKS]
+, "timeout": [#-OF-MILLISECONDS-FOR-TIMEOUT]
 }
 ```
 ##### Responses
@@ -23,6 +24,7 @@ All parameters are optional
 , "cols": [#-OF-COLS]
 , "ticktime": [#-OF-TICKTIME-MILLISECONDS]
 , "countdown": [#-OF-COUNTDOWN-TICKS]
+, "timeout": [#-OF-MILLISECONDS-FOR-TIMEOUT]
 , "serpents": {}
 , "state": "created"
 , "cells": [ {"row": [ROW#], "col": [COL#], "content": [CONTENT]}
@@ -45,6 +47,7 @@ All parameters are optional
   , "cols": [#-OF-COLS]
   , "ticktime": [#-OF-TICKTIME-MILLISECONDS]
   , "countdown": [#-OF-COUNTDOWN-TICKS]
+  , "timeout": [#-OF-MILLISECONDS-FOR-TIMEOUT]
   , "serpents": [{…}, {…}]
   , "state": [STATE]
   , "cells": [ {"row": [ROW#], "col": [COL#], "content": [CONTENT]}
@@ -81,6 +84,7 @@ All parameters are optional
 , "cols": [#-OF-COLS]
 , "ticktime": [#-OF-TICKTIME-MILLISECONDS]
 , "countdown": [#-OF-COUNTDOWN-TICKS]
+, "timeout": [#-OF-MILLISECONDS-FOR-TIMEOUT]
 , "serpents": [{…}, {…}]
 , "state": [STATE]
 , "cells": [ {"row": [ROW#], "col": [COL#], "content": [CONTENT]}

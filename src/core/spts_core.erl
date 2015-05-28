@@ -47,6 +47,7 @@
                     , cols => pos_integer()
                     , ticktime => Milliseconds :: pos_integer()
                     , countdown => Rounds :: pos_integer()
+                    , timeout => Milliseconds :: pos_integer()
                     }.
 -export_type([options/0]).
 

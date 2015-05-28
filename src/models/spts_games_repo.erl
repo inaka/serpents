@@ -20,8 +20,9 @@ create(Options) ->
   Cols = maps:get(cols, Options, 20),
   TickTime = maps:get(ticktime, Options, 250),
   Countdown = maps:get(countdown, Options, 10),
-  validate(Rows, Cols, TickTime, Countdown),
-  spts_games:new(Name, Rows, Cols, TickTime, Countdown).
+  Timeout = maps:get(timeout, Options, infinity),
+  validate(Rows, Cols, TickTime, Countdown, Timeout),
+  spts_games:new(Name, Rows, Cols, TickTime, Countdown, Timeout).
 
 %% @doc Adds a serpent to a game
 -spec add_serpent(spts_games:game(), spts_serpents:name()) -> spts_games:game().
@@ -56,10 +57,20 @@ turn(Game, SerpentName, Direction) ->
 -spec advance(spts_games:game()) -> spts_games:game().
 advance(Game) ->
   NewGame = spts_games:advance_serpents(Game),
-  case [Serpent || Serpent <- spts_games:serpents(NewGame)
-                 , alive == spts_serpents:status(Serpent)] of
-    [] -> spts_games:state(NewGame, finished);
-    [_|_] -> ensure_fruit(NewGame)
+  LiveSerpents = [Serpent || Serpent <- spts_games:serpents(NewGame)
+                           , alive == spts_serpents:status(Serpent)],
+  TickTime = spts_games:ticktime(Game),
+  NewTimeout =
+    case spts_games:timeout(Game) of
+      infinity -> infinity;
+      Timeout when Timeout < TickTime -> 0;
+      Timeout -> Timeout - TickTime
+    end,
+  NewerGame = spts_games:timeout(NewGame, NewTimeout),
+  case {NewTimeout, LiveSerpents} of
+    {0, _} -> spts_games:state(NewerGame, finished);
+    {_, []} -> spts_games:state(NewerGame, finished);
+    {_, [_|_]} -> ensure_fruit(NewerGame)
   end.
 
 
@@ -136,11 +147,13 @@ random_direction(Game, {Row, Col}) ->
     lists:nth(random:uniform(length(Candidates)), Candidates),
   Direction.
 
-validate(Rows, _Cols, _Tick, _Count) when Rows < 5 -> throw(invalid_rows);
-validate(_Rows, Cols, _Tick, _Count) when Cols < 5 -> throw(invalid_cols);
-validate(_Rows, _Cols, Tick, _Count) when Tick < 100 -> throw(invalid_ticktime);
-validate(_Rows, _Cols, _Tick, Count) when Count < 0 -> throw(invalid_countdown);
-validate(_Rows, _Cols, _Tick, _Count) -> ok.
+validate(Rows, _, _, _, _) when Rows < 5 ->throw(invalid_rows);
+validate(_, Cols, _, _, _) when Cols < 5 -> throw(invalid_cols);
+validate(_, _, Tick, _, _) when Tick < 100 -> throw(invalid_ticktime);
+validate(_, _, _, Count, _) when Count < 0 -> throw(invalid_countdown);
+validate(_, _, _, _, Time) when Time /= undefined
+                              , Time < 10000 -> throw(invalid_timeout);
+validate(_, _, _, _, _) -> ok.
 
 is_proper_starting_point(Game, {Row, Col}) ->
   SurroundingPositions =

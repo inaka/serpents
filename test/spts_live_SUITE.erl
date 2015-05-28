@@ -25,6 +25,7 @@
         , fruit_feeds/1
         , countdown/1
         , no_countdown/1
+        , timeout/1
         ]).
 
 -spec all() -> [atom()].
@@ -32,6 +33,24 @@ all() -> spts_test_utils:all(?MODULE).
 
 -spec init_per_testcase(atom(), spts_test_utils:config()) ->
   spts_test_utils:config().
+init_per_testcase(timeout, Config) ->
+  GameId =
+    spts_games:id(
+      spts_core:create_game(
+        #{ cols => 50
+         , rows => 50
+         , ticktime => 1000
+         , countdown => 2
+         , timeout => 10000
+         })),
+  Serpent = spts_core:add_serpent(GameId, <<"serp1">>),
+  Direction =
+    case spts_serpents:body(Serpent) of
+      [{Row, _Col}] when Row < 25 -> down;
+      [{Row, _Col}] when Row >= 25 -> up
+    end,
+  ok = spts_core:turn(GameId, <<"serp1">>, Direction),
+  [{game, GameId} | Config];
 init_per_testcase(serpent_movement, Config) ->
   GameId =
     spts_games:id(
@@ -338,5 +357,27 @@ no_countdown(Config) ->
   FinalGame = spts_core:fetch_game(GameId),
   0 = spts_games:countdown(FinalGame),
   started = spts_games:state(FinalGame),
+
+  {comment, ""}.
+
+-spec timeout(spts_test_utils:config()) -> {comment, []}.
+timeout(Config) ->
+  {game, GameId} = lists:keyfind(game, 1, Config),
+  ok = spts_core:start_game(GameId),
+
+  Tick = fun(_) -> spts_games:process_name(GameId) ! tick end,
+  ct:comment("2 rounds of countdown"),
+  lists:foreach(Tick, [1, 2]),
+
+  ct:comment("after 9 game rounds, the game should still be started"),
+  lists:foreach(Tick, lists:seq(1, 9)),
+  started = spts_games:state(spts_core:fetch_game(GameId)),
+
+  ct:comment("after the 10th round, the game should finish due to timeout"),
+  spts_games:process_name(GameId) ! tick,
+  FinalGame = spts_core:fetch_game(GameId),
+  ct:comment("~p", [FinalGame]),
+  finished = spts_games:state(FinalGame),
+  alive = spts_serpents:status(spts_games:serpent(FinalGame, <<"serp1">>)),
 
   {comment, ""}.
