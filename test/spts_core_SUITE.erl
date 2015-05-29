@@ -19,7 +19,7 @@
         , game_creation_bad_cols/1
         , game_creation_bad_ticktime/1
         , game_creation_bad_countdown/1
-        , game_creation_bad_timeout/1
+        , game_creation_bad_rounds/1
         , add_serpent_ok/1
         , add_serpent_wrong/1
         , too_many_serpents/1
@@ -71,7 +71,7 @@ game_creation_default(_Config) ->
   20 = spts_games:cols(Game),
   250 = spts_games:ticktime(Game),
   10 = spts_games:countdown(Game),
-  infinity = spts_games:timeout(Game),
+  infinity = spts_games:rounds(Game),
   created = spts_games:state(Game),
   [] = spts_games:serpents(Game),
   {comment, ""}.
@@ -85,7 +85,7 @@ game_creation_with_options(_Config) ->
   20 = spts_games:cols(Game0),
   250 = spts_games:ticktime(Game0),
   10 = spts_games:countdown(Game0),
-  infinity = spts_games:timeout(Game0),
+  infinity = spts_games:rounds(Game0),
 
   ct:comment("Create a game with more cols"),
   Game1 = spts_core:create_game(#{cols => 30}),
@@ -93,7 +93,7 @@ game_creation_with_options(_Config) ->
   30 = spts_games:cols(Game1),
   250 = spts_games:ticktime(Game1),
   10 = spts_games:countdown(Game1),
-  infinity = spts_games:timeout(Game1),
+  infinity = spts_games:rounds(Game1),
 
   ct:comment("Create a game with more ticktime"),
   Game2 = spts_core:create_game(#{ticktime => 300}),
@@ -101,7 +101,7 @@ game_creation_with_options(_Config) ->
   20 = spts_games:cols(Game2),
   300 = spts_games:ticktime(Game2),
   10 = spts_games:countdown(Game2),
-  infinity = spts_games:timeout(Game2),
+  infinity = spts_games:rounds(Game2),
 
   ct:comment("Create a game with less cols and rows"),
   Game3 = spts_core:create_game(#{cols => 10, rows => 10}),
@@ -109,35 +109,35 @@ game_creation_with_options(_Config) ->
   10 = spts_games:cols(Game3),
   250 = spts_games:ticktime(Game3),
   10 = spts_games:countdown(Game3),
-  infinity = spts_games:timeout(Game3),
+  infinity = spts_games:rounds(Game3),
 
   Game4 = spts_core:create_game(#{countdown => 25}),
   20 = spts_games:rows(Game4),
   20 = spts_games:cols(Game4),
   250 = spts_games:ticktime(Game4),
   25 = spts_games:countdown(Game4),
-  infinity = spts_games:timeout(Game4),
+  infinity = spts_games:rounds(Game4),
 
   Game5 = spts_core:create_game(#{ticktime => 400, countdown => 25}),
   20 = spts_games:rows(Game5),
   20 = spts_games:cols(Game5),
   400 = spts_games:ticktime(Game5),
   25 = spts_games:countdown(Game5),
-  infinity = spts_games:timeout(Game5),
+  infinity = spts_games:rounds(Game5),
 
-  Game6 = spts_core:create_game(#{ticktime => 500, timeout => 250000}),
+  Game6 = spts_core:create_game(#{ticktime => 500, rounds => 100}),
   20 = spts_games:rows(Game5),
   20 = spts_games:cols(Game5),
   500 = spts_games:ticktime(Game6),
   10 = spts_games:countdown(Game6),
-  250000 = spts_games:timeout(Game6),
+  100 = spts_games:rounds(Game6),
 
-  Game7 = spts_core:create_game(#{timeout => 100000, countdown => 25}),
+  Game7 = spts_core:create_game(#{rounds => 1000, countdown => 25}),
   20 = spts_games:rows(Game7),
   20 = spts_games:cols(Game7),
   250 = spts_games:ticktime(Game7),
   25 = spts_games:countdown(Game7),
-  100000 = spts_games:timeout(Game7),
+  1000 = spts_games:rounds(Game7),
 
   ct:comment("Create a game with non default values"),
   GameF =
@@ -146,13 +146,13 @@ game_creation_with_options(_Config) ->
        , rows => 10
        , ticktime => 500
        , countdown => 0
-       , timeout => 50000
+       , rounds => 100
        }),
   10 = spts_games:rows(GameF),
   10 = spts_games:cols(GameF),
   500 = spts_games:ticktime(GameF),
   0 = spts_games:countdown(GameF),
-  50000 = spts_games:timeout(GameF),
+  100 = spts_games:rounds(GameF),
 
   {comment, ""}.
 
@@ -236,26 +236,26 @@ game_creation_bad_countdown(_Config) ->
 
   {comment, ""}.
 
--spec game_creation_bad_timeout(spts_test_utils:config()) ->
+-spec game_creation_bad_rounds(spts_test_utils:config()) ->
   {comment, string()}.
-game_creation_bad_timeout(_Config) ->
+game_creation_bad_rounds(_Config) ->
   TryWith =
-    fun(T) ->
-      try spts_core:create_game(#{timeout => T}) of
-        G -> ct:fail("Unexpected game with timeout == ~p: ~p", [T, G])
+    fun(R) ->
+      try spts_core:create_game(#{rounds => R}) of
+        G -> ct:fail("Unexpected game with rounds == ~p: ~p", [R, G])
       catch
-        throw:invalid_timeout -> ok
+        throw:invalid_rounds -> ok
       end
     end,
 
-  ct:comment("Negative timeout fails"),
+  ct:comment("Negative rounds fails"),
   TryWith(-10),
 
-  ct:comment("0 timeout fails"),
+  ct:comment("0 rounds fails"),
   TryWith(0),
 
-  ct:comment("Less than 10000 timeout fails"),
-  TryWith(4000),
+  ct:comment("Less than 100 rounds fails"),
+  TryWith(99),
 
   {comment, ""}.
 

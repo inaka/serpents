@@ -20,9 +20,9 @@ create(Options) ->
   Cols = maps:get(cols, Options, 20),
   TickTime = maps:get(ticktime, Options, 250),
   Countdown = maps:get(countdown, Options, 10),
-  Timeout = maps:get(timeout, Options, infinity),
-  validate(Rows, Cols, TickTime, Countdown, Timeout),
-  spts_games:new(Name, Rows, Cols, TickTime, Countdown, Timeout).
+  Rounds = maps:get(rounds, Options, infinity),
+  validate(Rows, Cols, TickTime, Countdown, Rounds),
+  spts_games:new(Name, Rows, Cols, TickTime, Countdown, Rounds).
 
 %% @doc Adds a serpent to a game
 -spec add_serpent(spts_games:game(), spts_serpents:name()) -> spts_games:game().
@@ -60,14 +60,13 @@ advance(Game) ->
   LiveSerpents = [Serpent || Serpent <- spts_games:serpents(NewGame)
                            , alive == spts_serpents:status(Serpent)],
   TickTime = spts_games:ticktime(Game),
-  NewTimeout =
-    case spts_games:timeout(Game) of
+  NewRounds =
+    case spts_games:rounds(Game) of
       infinity -> infinity;
-      Timeout when Timeout < TickTime -> 0;
-      Timeout -> Timeout - TickTime
+      Rounds -> Rounds - 1
     end,
-  NewerGame = spts_games:timeout(NewGame, NewTimeout),
-  case {NewTimeout, LiveSerpents} of
+  NewerGame = spts_games:rounds(NewGame, NewRounds),
+  case {NewRounds, LiveSerpents} of
     {0, _} -> spts_games:state(NewerGame, finished);
     {_, []} -> spts_games:state(NewerGame, finished);
     {_, [_|_]} -> ensure_fruit(NewerGame)
@@ -151,8 +150,8 @@ validate(Rows, _, _, _, _) when Rows < 5 ->throw(invalid_rows);
 validate(_, Cols, _, _, _) when Cols < 5 -> throw(invalid_cols);
 validate(_, _, Tick, _, _) when Tick < 100 -> throw(invalid_ticktime);
 validate(_, _, _, Count, _) when Count < 0 -> throw(invalid_countdown);
-validate(_, _, _, _, Time) when Time /= undefined
-                              , Time < 10000 -> throw(invalid_timeout);
+validate(_, _, _, _, Rounds) when Rounds /= undefined
+                                , Rounds < 100 -> throw(invalid_rounds);
 validate(_, _, _, _, _) -> ok.
 
 is_proper_starting_point(Game, {Row, Col}) ->

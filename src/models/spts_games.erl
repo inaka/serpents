@@ -21,12 +21,11 @@
     rows => pos_integer(),
     cols => pos_integer(),
     ticktime => Millis :: pos_integer(),
-    countdown => Rounds :: non_neg_integer(),
-    timeout => Millis :: pos_integer(),
+    countdown => CountdownRounds :: non_neg_integer(),
+    rounds => GameRounds :: infinity | pos_integer(),
     cells => [cell()]
   }.
--export_type(
-  [game/0, state/0, id/0, content/0, position/0, direction/0, timeout/0]).
+-export_type([game/0, state/0, id/0, content/0, position/0, direction/0]).
 
 -export(
   [ new/6
@@ -36,8 +35,8 @@
   , ticktime/1
   , countdown/1
   , countdown/2
-  , timeout/1
-  , timeout/2
+  , rounds/1
+  , rounds/2
   , state/1
   , serpents/1
   , serpent/2
@@ -53,9 +52,9 @@
 -export([process_name/1]).
 
 -spec new(
-  id(), pos_integer(), pos_integer(), pos_integer(), timeout(),
+  id(), pos_integer(), pos_integer(), pos_integer(), infinity | pos_integer(),
   undefined | pos_integer()) -> game().
-new(Id, Rows, Cols, TickTime, Countdown, Timeout) ->
+new(Id, Rows, Cols, TickTime, Countdown, Rounds) ->
   #{ id => Id
    , serpents => []
    , state => created
@@ -63,7 +62,7 @@ new(Id, Rows, Cols, TickTime, Countdown, Timeout) ->
    , cols => Cols
    , ticktime => TickTime
    , countdown => Countdown
-   , timeout => Timeout
+   , rounds => Rounds
    , cells => []
    }.
 
@@ -85,11 +84,11 @@ countdown(#{countdown := Countdown}) -> Countdown.
 -spec countdown(game(), non_neg_integer()) -> game().
 countdown(Game, Countdown) -> Game#{countdown := Countdown}.
 
--spec timeout(game()) -> timeout().
-timeout(#{timeout := Timeout}) -> Timeout.
+-spec rounds(game()) -> infinity | pos_integer().
+rounds(#{rounds := Rounds}) -> Rounds.
 
--spec timeout(game(), timeout()) -> game().
-timeout(Game, Timeout) -> Game#{timeout := Timeout}.
+-spec rounds(game(), infinity | pos_integer()) -> game().
+rounds(Game, Rounds) -> Game#{rounds := Rounds}.
 
 -spec state(game()) -> state().
 state(#{state := State}) -> State.
@@ -166,9 +165,9 @@ to_json(Game) ->
    , cols => cols(Game)
    , ticktime => ticktime(Game)
    , countdown => countdown(Game)
-   , timeout => case timeout(Game) of
+   , rounds => case rounds(Game) of
                   infinity -> null;
-                  Timeout -> Timeout
+                  Rounds -> Rounds
                 end
    , serpents => [ spts_serpents:to_json(Serpent) || Serpent <- serpents(Game)]
    , state => state(Game)
