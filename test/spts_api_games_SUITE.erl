@@ -99,7 +99,7 @@ post_games_ok(_Config) ->
    , <<"ticktime">> := 250
    , <<"countdown">> := 10
    , <<"rounds">> := null
-   , <<"initial_food">> := 0
+   , <<"initial_food">> := 1
    , <<"serpents">> := []
    , <<"state">> := <<"created">>
    , <<"cells">> := []
@@ -181,7 +181,7 @@ get_game_created(_Config) ->
    , <<"ticktime">> := 250
    , <<"countdown">> := 10
    , <<"rounds">> := null
-   , <<"initial_food">> := 0
+   , <<"initial_food">> := 1
    , <<"serpents">> := []
    , <<"state">> := <<"created">>
    , <<"cells">> := []
@@ -209,7 +209,7 @@ get_game_countdown(_Config) ->
    , <<"ticktime">> := 60000
    , <<"countdown">> := 9
    , <<"rounds">> := null
-   , <<"initial_food">> := 0
+   , <<"initial_food">> := 1
    , <<"serpents">> := Serpents
    , <<"state">> := <<"countdown">>
    , <<"cells">> := []
@@ -242,7 +242,7 @@ get_game_started(_Config) ->
    , <<"ticktime">> := 60000
    , <<"countdown">> := 0
    , <<"rounds">> := null
-   , <<"initial_food">> := 0
+   , <<"initial_food">> := 1
    , <<"serpents">> := Serpents
    , <<"state">> := <<"started">>
    , <<"cells">> := []
@@ -380,7 +380,7 @@ put_game_ok(_Config) ->
    , <<"ticktime">> := 60000
    , <<"countdown">> := 0
    , <<"rounds">> := null
-   , <<"initial_food">> := 0
+   , <<"initial_food">> := 1
    , <<"serpents">> := Serpents
    , <<"state">> := <<"started">>
    , <<"cells">> := []

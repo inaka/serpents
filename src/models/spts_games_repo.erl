@@ -21,7 +21,7 @@ create(Options) ->
   TickTime = maps:get(ticktime, Options, 250),
   Countdown = maps:get(countdown, Options, 10),
   Rounds = maps:get(rounds, Options, infinity),
-  InitialFood = maps:get(initial_food, Options, 0),
+  InitialFood = maps:get(initial_food, Options, 1),
   validate(Rows, Cols, TickTime, Countdown, Rounds, InitialFood),
   spts_games:new(Name, Rows, Cols, TickTime, Countdown, Rounds, InitialFood).
 
