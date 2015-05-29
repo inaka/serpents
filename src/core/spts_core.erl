@@ -48,6 +48,7 @@
                     , ticktime => Milliseconds :: pos_integer()
                     , countdown => CountdownRounds :: non_neg_integer()
                     , rounds => GameRounds :: pos_integer()
+                    , initial_food => non_neg_integer()
                     }.
 -export_type([options/0]).
 

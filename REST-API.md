@@ -13,6 +13,7 @@ All parameters are optional
 , "ticktime": [#-OF-TICKTIME-MILLISECONDS]
 , "countdown": [#-OF-COUNTDOWN-TICKS]
 , "rounds": [MAX-#-OF-GAME-TICKS]
+, "initial_food": [INITIAL-FOOD-COUNT]
 }
 ```
 ##### Responses
@@ -25,6 +26,7 @@ All parameters are optional
 , "ticktime": [#-OF-TICKTIME-MILLISECONDS]
 , "countdown": [#-OF-COUNTDOWN-TICKS]
 , "rounds": [MAX-#-OF-GAME-TICKS]
+, "initial_food": [INITIAL-FOOD-COUNT]
 , "serpents": {}
 , "state": "created"
 , "cells": [ {"row": [ROW#], "col": [COL#], "content": [CONTENT]}
@@ -48,6 +50,7 @@ All parameters are optional
   , "ticktime": [#-OF-TICKTIME-MILLISECONDS]
   , "countdown": [#-OF-COUNTDOWN-TICKS]
   , "rounds": [MAX-#-OF-GAME-TICKS]
+  , "initial_food": [INITIAL-FOOD-COUNT]
   , "serpents": [{…}, {…}]
   , "state": [STATE]
   , "cells": [ {"row": [ROW#], "col": [COL#], "content": [CONTENT]}
@@ -85,6 +88,7 @@ All parameters are optional
 , "ticktime": [#-OF-TICKTIME-MILLISECONDS]
 , "countdown": [#-OF-COUNTDOWN-TICKS]
 , "rounds": [MAX-#-OF-GAME-TICKS]
+, "initial_food": [INITIAL-FOOD-COUNT]
 , "serpents": [{…}, {…}]
 , "state": [STATE]
 , "cells": [ {"row": [ROW#], "col": [COL#], "content": [CONTENT]}

@@ -12,7 +12,7 @@
                       }.
 -export_type([serpent/0, status/0, name/0]).
 
--export([new/3]).
+-export([new/4]).
 -export([ name/1
         , direction/1
         , direction/2
@@ -24,12 +24,14 @@
         , to_json/1
         ]).
 
--spec new(name(), spts_games:position(), spts_games:direction()) -> serpent().
-new(Name, Position, Direction) ->
+-spec new(
+  name(), spts_games:position(), spts_games:direction(), non_neg_integer()) ->
+  serpent().
+new(Name, Position, Direction, Food) ->
   #{ name       => Name
    , direction  => Direction
    , body       => [Position]
-   , food       => 0
+   , food       => Food
    , status     => alive
    }.
 

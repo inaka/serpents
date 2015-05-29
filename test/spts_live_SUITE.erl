@@ -26,6 +26,7 @@
         , countdown/1
         , no_countdown/1
         , rounds/1
+        , initial_food/1
         ]).
 
 -spec all() -> [atom()].
@@ -33,6 +34,24 @@ all() -> spts_test_utils:all(?MODULE).
 
 -spec init_per_testcase(atom(), spts_test_utils:config()) ->
   spts_test_utils:config().
+init_per_testcase(initial_food, Config) ->
+  GameId =
+    spts_games:id(
+      spts_core:create_game(
+        #{ cols => 50
+         , rows => 50
+         , ticktime => 600000
+         , countdown => 0
+         , initial_food => 2
+         })),
+  Serpent = spts_core:add_serpent(GameId, <<"serp1">>),
+  Direction =
+    case spts_serpents:body(Serpent) of
+      [{Row, _Col}] when Row < 25 -> down;
+      [{Row, _Col}] when Row >= 25 -> up
+    end,
+  ok = spts_core:turn(GameId, <<"serp1">>, Direction),
+  [{game, GameId} | Config];
 init_per_testcase(rounds, Config) ->
   GameId =
     spts_games:id(
@@ -379,5 +398,34 @@ rounds(Config) ->
   ct:comment("~p", [FinalGame]),
   finished = spts_games:state(FinalGame),
   alive = spts_serpents:status(spts_games:serpent(FinalGame, <<"serp1">>)),
+
+  {comment, ""}.
+
+%% @todo avoid fruits and test that, after the third turn, the serpent stopped
+%%       growing
+-spec initial_food(spts_test_utils:config()) -> {comment, []}.
+initial_food(Config) ->
+  {game, GameId} = lists:keyfind(game, 1, Config),
+  ok = spts_core:start_game(GameId),
+
+  ct:comment("When the game starts the serpent body length is 1"),
+  [_] =
+    spts_serpents:body(
+      spts_games:serpent(
+        spts_core:fetch_game(GameId), <<"serp1">>)),
+
+  Tick =
+    fun() ->
+      spts_games:process_name(GameId) ! tick,
+      spts_serpents:body(
+        spts_games:serpent(
+          spts_core:fetch_game(GameId), <<"serp1">>))
+    end,
+
+  ct:comment("After the first tick, the length should be 2"),
+  [_, _] = Tick(),
+
+  ct:comment("After the second tick, the length should be 3"),
+  [_, _, _] = Tick(),
 
   {comment, ""}.

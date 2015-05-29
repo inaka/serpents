@@ -21,8 +21,9 @@ create(Options) ->
   TickTime = maps:get(ticktime, Options, 250),
   Countdown = maps:get(countdown, Options, 10),
   Rounds = maps:get(rounds, Options, infinity),
-  validate(Rows, Cols, TickTime, Countdown, Rounds),
-  spts_games:new(Name, Rows, Cols, TickTime, Countdown, Rounds).
+  InitialFood = maps:get(initial_food, Options, 0),
+  validate(Rows, Cols, TickTime, Countdown, Rounds, InitialFood),
+  spts_games:new(Name, Rows, Cols, TickTime, Countdown, Rounds, InitialFood).
 
 %% @doc Adds a serpent to a game
 -spec add_serpent(spts_games:game(), spts_serpents:name()) -> spts_games:game().
@@ -31,7 +32,9 @@ add_serpent(Game, SerpentName) ->
     notfound ->
       Position = find_empty_position(Game, fun is_proper_starting_point/2),
       Direction = random_direction(Game, Position),
-      Serpent = spts_serpents:new(SerpentName, Position, Direction),
+      InitialFood = spts_games:initial_food(Game),
+      Serpent =
+        spts_serpents:new(SerpentName, Position, Direction, InitialFood),
       spts_games:add_serpent(Game, Serpent);
     _ -> throw(already_in)
   end.
@@ -146,13 +149,14 @@ random_direction(Game, {Row, Col}) ->
     lists:nth(random:uniform(length(Candidates)), Candidates),
   Direction.
 
-validate(Rows, _, _, _, _) when Rows < 5 -> throw(invalid_rows);
-validate(_, Cols, _, _, _) when Cols < 5 -> throw(invalid_cols);
-validate(_, _, Tick, _, _) when Tick < 100 -> throw(invalid_ticktime);
-validate(_, _, _, Count, _) when Count < 0 -> throw(invalid_countdown);
-validate(_, _, _, _, Rounds) when Rounds /= undefined
-                                , Rounds < 100 -> throw(invalid_rounds);
-validate(_, _, _, _, _) -> ok.
+validate(Rows, _, _, _, _, _) when Rows < 5 -> throw(invalid_rows);
+validate(_, Cols, _, _, _, _) when Cols < 5 -> throw(invalid_cols);
+validate(_, _, Tick, _, _, _) when Tick < 100 -> throw(invalid_ticktime);
+validate(_, _, _, Count, _, _) when Count < 0 -> throw(invalid_countdown);
+validate(_, _, _, _, Rounds, _) when Rounds /= undefined
+                                   , Rounds < 100 -> throw(invalid_rounds);
+validate(_, _, _, _, _, Food) when Food < 0 -> throw(invalid_food);
+validate(_, _, _, _, _, _) -> ok.
 
 is_proper_starting_point(Game, {Row, Col}) ->
   SurroundingPositions =
