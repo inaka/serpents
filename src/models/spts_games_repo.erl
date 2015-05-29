@@ -153,8 +153,7 @@ validate(Rows, _, _, _, _, _) when Rows < 5 -> throw(invalid_rows);
 validate(_, Cols, _, _, _, _) when Cols < 5 -> throw(invalid_cols);
 validate(_, _, Tick, _, _, _) when Tick < 100 -> throw(invalid_ticktime);
 validate(_, _, _, Count, _, _) when Count < 0 -> throw(invalid_countdown);
-validate(_, _, _, _, Rounds, _) when Rounds /= undefined
-                                   , Rounds < 100 -> throw(invalid_rounds);
+validate(_, _, _, _, Rounds, _) when Rounds < 100 -> throw(invalid_rounds);
 validate(_, _, _, _, _, Food) when Food < 0 -> throw(invalid_food);
 validate(_, _, _, _, _, _) -> ok.
 
