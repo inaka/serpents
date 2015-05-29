@@ -46,7 +46,8 @@
 -type options() :: #{ rows => pos_integer()
                     , cols => pos_integer()
                     , ticktime => Milliseconds :: pos_integer()
-                    , countdown => Rounds :: pos_integer()
+                    , countdown => CountdownRounds :: non_neg_integer()
+                    , rounds => GameRounds :: pos_integer()
                     }.
 -export_type([options/0]).
 
