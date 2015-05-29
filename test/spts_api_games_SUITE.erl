@@ -83,6 +83,12 @@ post_games_wrong(_Config) ->
     spts_test_utils:api_call(post, "/games", Headers, "{\"initial_food\":-10}"),
   #{<<"error">> := <<"invalid_food">>} = spts_json:decode(Body6),
 
+  ct:comment("Invalid flag fails"),
+  #{status_code := 400,
+           body := Body7} =
+    spts_test_utils:api_call(post, "/games", Headers, "{\"flags\":[\"bad\"]}"),
+  #{<<"error">> := <<"invalid_flag">>} = spts_json:decode(Body7),
+
   {comment, ""}.
 
 -spec post_games_ok(spts_test_utils:config()) -> {comment, []}.
@@ -100,6 +106,7 @@ post_games_ok(_Config) ->
    , <<"countdown">> := 10
    , <<"rounds">> := null
    , <<"initial_food">> := 1
+   , <<"flags">> := []
    , <<"serpents">> := []
    , <<"state">> := <<"created">>
    , <<"cells">> := []
@@ -113,6 +120,7 @@ post_games_ok(_Config) ->
        , ticktime => 1000
        , rounds => 160
        , initial_food => 5
+       , flags => [<<"walls">>]
        }),
   #{status_code := 201,
            body := Body2} =
@@ -124,10 +132,18 @@ post_games_ok(_Config) ->
    , <<"countdown">> := 10
    , <<"rounds">> := 160
    , <<"initial_food">> := 5
+   , <<"flags">> := [<<"walls">>]
    , <<"serpents">> := []
    , <<"state">> := <<"created">>
-   , <<"cells">> := []
+   , <<"cells">> := Cells2
    } = spts_json:decode(Body2),
+
+  [<<"wall">>] =
+    lists:usort(
+      [Content || #{ <<"row">> := _
+                   , <<"col">> := _
+                   , <<"content">> := Content
+                   } <- Cells2]),
 
   case Id2 of
     Id1 -> ct:fail("Duplicated game");
@@ -182,6 +198,7 @@ get_game_created(_Config) ->
    , <<"countdown">> := 10
    , <<"rounds">> := null
    , <<"initial_food">> := 1
+   , <<"flags">> := []
    , <<"serpents">> := []
    , <<"state">> := <<"created">>
    , <<"cells">> := []
@@ -210,6 +227,7 @@ get_game_countdown(_Config) ->
    , <<"countdown">> := 9
    , <<"rounds">> := null
    , <<"initial_food">> := 1
+   , <<"flags">> := []
    , <<"serpents">> := Serpents
    , <<"state">> := <<"countdown">>
    , <<"cells">> := []
@@ -243,6 +261,7 @@ get_game_started(_Config) ->
    , <<"countdown">> := 0
    , <<"rounds">> := null
    , <<"initial_food">> := 1
+   , <<"flags">> := []
    , <<"serpents">> := Serpents
    , <<"state">> := <<"started">>
    , <<"cells">> := []
@@ -297,9 +316,9 @@ get_game_finished(_Config) ->
           [<<"alive">>, _] =
             lists:sort([Status || #{<<"status">> := Status} <- Serpents]),
           [ #{ <<"row">> := _
-           , <<"col">> := _
-           , <<"content">> := <<"fruit">>
-           }
+             , <<"col">> := _
+             , <<"content">> := <<"fruit">>
+             }
           ] = Cells;
         #{<<"state">> := State} ->
           ct:fail("Unexpected state: ~p", [State])
@@ -381,6 +400,7 @@ put_game_ok(_Config) ->
    , <<"countdown">> := 0
    , <<"rounds">> := null
    , <<"initial_food">> := 1
+   , <<"flags">> := []
    , <<"serpents">> := Serpents
    , <<"state">> := <<"started">>
    , <<"cells">> := []

@@ -20,7 +20,7 @@
         , status/2
         , status/1
         , advance/1
-        , feed/1
+        , feed/2
         , to_json/1
         ]).
 
@@ -66,8 +66,8 @@ advance(Serpent) ->
     end,
   Serpent#{body := [NewHead | NewTail], food := NewFood}.
 
--spec feed(serpent()) -> serpent().
-feed(Serpent = #{food := Food}) -> Serpent#{food := Food + 1}.
+-spec feed(serpent(), pos_integer()) -> serpent().
+feed(Serpent = #{food := Food}, MoreFood) -> Serpent#{food := Food + MoreFood}.
 
 -spec to_json(serpent()) -> map().
 to_json(Serpent) ->

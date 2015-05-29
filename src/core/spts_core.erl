@@ -49,6 +49,7 @@
                     , countdown => CountdownRounds :: non_neg_integer()
                     , rounds => GameRounds :: pos_integer()
                     , initial_food => non_neg_integer()
+                    , flags => [spts_games:flag()]
                     }.
 -export_type([options/0]).
 

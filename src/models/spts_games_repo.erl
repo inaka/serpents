@@ -22,8 +22,12 @@ create(Options) ->
   Countdown = maps:get(countdown, Options, 10),
   Rounds = maps:get(rounds, Options, infinity),
   InitialFood = maps:get(initial_food, Options, 1),
-  validate(Rows, Cols, TickTime, Countdown, Rounds, InitialFood),
-  spts_games:new(Name, Rows, Cols, TickTime, Countdown, Rounds, InitialFood).
+  Flags = maps:get(flags, Options, []),
+  validate(Rows, Cols, TickTime, Countdown, Rounds, InitialFood, Flags),
+  Game0 =
+    spts_games:new(
+      Name, Rows, Cols, TickTime, Countdown, Rounds, InitialFood, Flags),
+  add_initial_cells(Game0).
 
 %% @doc Adds a serpent to a game
 -spec add_serpent(spts_games:game(), spts_serpents:name()) -> spts_games:game().
@@ -62,7 +66,6 @@ advance(Game) ->
   NewGame = spts_games:advance_serpents(Game),
   LiveSerpents = [Serpent || Serpent <- spts_games:serpents(NewGame)
                            , alive == spts_serpents:status(Serpent)],
-  TickTime = spts_games:ticktime(Game),
   NewRounds =
     case spts_games:rounds(Game) of
       infinity -> infinity;
@@ -72,19 +75,35 @@ advance(Game) ->
   case {NewRounds, LiveSerpents} of
     {0, _} -> spts_games:state(NewerGame, finished);
     {_, []} -> spts_games:state(NewerGame, finished);
-    {_, [_|_]} -> ensure_fruit(NewerGame)
+    {_, [_|_]} -> ensure_fruit(Game, NewerGame)
   end.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% INTERNAL FUNCTIONS
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-ensure_fruit(Game) ->
-  case spts_games:find(Game, fruit) of
-    [] ->
+%% @todo wait for ktn_random:uniform/1 and remove the seeding
+ensure_fruit(OldGame, Game) ->
+  random:seed(erlang:now()),
+  case spts_games:fruit(Game) of
+    notfound ->
+      OldFruitValue =
+        case spts_games:fruit(OldGame) of
+          notfound -> 0;
+          {_, V} -> V
+        end,
       Position = find_empty_position(Game, fun spts_games:is_empty/2),
-      spts_games:content(Game, Position, fruit);
-    [_|_] ->
+      Food =
+        case { spts_games:is_flag_on(Game, random_food)
+             , spts_games:is_flag_on(Game, increasing_food)
+             } of
+          {false, false} -> 1;
+          {false, true} -> OldFruitValue + 1;
+          {true, false} -> random:uniform(10);
+          {true, true} -> OldFruitValue + random:uniform(5)
+        end,
+      spts_games:content(Game, Position, {fruit, Food});
+    _ ->
       Game
   end.
 
@@ -149,13 +168,18 @@ random_direction(Game, {Row, Col}) ->
     lists:nth(random:uniform(length(Candidates)), Candidates),
   Direction.
 
-validate(Rows, _, _, _, _, _) when Rows < 5 -> throw(invalid_rows);
-validate(_, Cols, _, _, _, _) when Cols < 5 -> throw(invalid_cols);
-validate(_, _, Tick, _, _, _) when Tick < 100 -> throw(invalid_ticktime);
-validate(_, _, _, Count, _, _) when Count < 0 -> throw(invalid_countdown);
-validate(_, _, _, _, Rounds, _) when Rounds < 100 -> throw(invalid_rounds);
-validate(_, _, _, _, _, Food) when Food < 0 -> throw(invalid_food);
-validate(_, _, _, _, _, _) -> ok.
+validate(Rows, _, _, _, _, _, _) when Rows < 5 -> throw(invalid_rows);
+validate(_, Cols, _, _, _, _, _) when Cols < 5 -> throw(invalid_cols);
+validate(_, _, Tick, _, _, _, _) when Tick < 100 -> throw(invalid_ticktime);
+validate(_, _, _, Count, _, _, _) when Count < 0 -> throw(invalid_countdown);
+validate(_, _, _, _, Rounds, _, _) when Rounds < 100 -> throw(invalid_rounds);
+validate(_, _, _, _, _, Food, _) when Food < 0 -> throw(invalid_food);
+validate(_, _, _, _, _, _, Flags) -> lists:foreach(fun validate_flag/1, Flags).
+
+validate_flag(walls) -> ok;
+validate_flag(random_food) -> ok;
+validate_flag(increasing_food) -> ok;
+validate_flag(_) -> throw(invalid_flag).
 
 is_proper_starting_point(Game, {Row, Col}) ->
   SurroundingPositions =
@@ -173,3 +197,18 @@ surrounding_positions(Row, Col, Rows, Cols) ->
     , {Row, Col+1, right}
     ],
   [{{R, C}, D} || {R, C, D} <- Candidates, R > 0, C > 0, R =< Rows, C =< Cols].
+
+%% @todo wait for ktn_random:uniform/1 and replace random:uniform here
+add_initial_cells(Game) ->
+  random:seed(erlang:now()),
+  case spts_games:is_flag_on(Game, walls) of
+    false -> Game;
+    true ->
+      CellCount = spts_games:rows(Game) * spts_games:cols(Game),
+      WallCount = 1 + random:uniform(trunc(CellCount / 10)),
+      lists:foldl(
+        fun(_, AccGame) ->
+          Position = find_empty_position(AccGame, fun spts_games:is_empty/2),
+          spts_games:content(AccGame, Position, wall)
+        end, Game, lists:seq(1, WallCount))
+  end.

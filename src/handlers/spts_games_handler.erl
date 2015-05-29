@@ -61,5 +61,7 @@ handle_get(Req, State) ->
   {RespBody, Req, State}.
 
 parse_body(Body) ->
-  maps:from_list(
-    [{binary_to_atom(K, utf8), V} || {K, V} <- maps:to_list(Body)]).
+  maps:from_list([parse(K, V) || {K, V} <- maps:to_list(Body)]).
+
+parse(<<"flags">>, Flags) -> {flags, [binary_to_atom(F, utf8) || F <- Flags]};
+parse(K, V) -> {binary_to_atom(K, utf8), V}.
