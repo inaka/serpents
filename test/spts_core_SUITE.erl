@@ -20,6 +20,7 @@
         , game_creation_bad_ticktime/1
         , game_creation_bad_countdown/1
         , game_creation_bad_rounds/1
+        , game_creation_bad_food/1
         , add_serpent_ok/1
         , add_serpent_wrong/1
         , too_many_serpents/1
@@ -72,6 +73,7 @@ game_creation_default(_Config) ->
   250 = spts_games:ticktime(Game),
   10 = spts_games:countdown(Game),
   infinity = spts_games:rounds(Game),
+  1 = spts_games:initial_food(Game),
   created = spts_games:state(Game),
   [] = spts_games:serpents(Game),
   {comment, ""}.
@@ -86,6 +88,7 @@ game_creation_with_options(_Config) ->
   250 = spts_games:ticktime(Game0),
   10 = spts_games:countdown(Game0),
   infinity = spts_games:rounds(Game0),
+  1 = spts_games:initial_food(Game0),
 
   ct:comment("Create a game with more cols"),
   Game1 = spts_core:create_game(#{cols => 30}),
@@ -94,6 +97,7 @@ game_creation_with_options(_Config) ->
   250 = spts_games:ticktime(Game1),
   10 = spts_games:countdown(Game1),
   infinity = spts_games:rounds(Game1),
+  1 = spts_games:initial_food(Game1),
 
   ct:comment("Create a game with more ticktime"),
   Game2 = spts_core:create_game(#{ticktime => 300}),
@@ -102,6 +106,7 @@ game_creation_with_options(_Config) ->
   300 = spts_games:ticktime(Game2),
   10 = spts_games:countdown(Game2),
   infinity = spts_games:rounds(Game2),
+  1 = spts_games:initial_food(Game2),
 
   ct:comment("Create a game with less cols and rows"),
   Game3 = spts_core:create_game(#{cols => 10, rows => 10}),
@@ -110,6 +115,7 @@ game_creation_with_options(_Config) ->
   250 = spts_games:ticktime(Game3),
   10 = spts_games:countdown(Game3),
   infinity = spts_games:rounds(Game3),
+  1 = spts_games:initial_food(Game3),
 
   Game4 = spts_core:create_game(#{countdown => 25}),
   20 = spts_games:rows(Game4),
@@ -117,6 +123,7 @@ game_creation_with_options(_Config) ->
   250 = spts_games:ticktime(Game4),
   25 = spts_games:countdown(Game4),
   infinity = spts_games:rounds(Game4),
+  1 = spts_games:initial_food(Game4),
 
   Game5 = spts_core:create_game(#{ticktime => 400, countdown => 25}),
   20 = spts_games:rows(Game5),
@@ -124,6 +131,7 @@ game_creation_with_options(_Config) ->
   400 = spts_games:ticktime(Game5),
   25 = spts_games:countdown(Game5),
   infinity = spts_games:rounds(Game5),
+  1 = spts_games:initial_food(Game5),
 
   Game6 = spts_core:create_game(#{ticktime => 500, rounds => 100}),
   20 = spts_games:rows(Game5),
@@ -131,6 +139,7 @@ game_creation_with_options(_Config) ->
   500 = spts_games:ticktime(Game6),
   10 = spts_games:countdown(Game6),
   100 = spts_games:rounds(Game6),
+  1 = spts_games:initial_food(Game6),
 
   Game7 = spts_core:create_game(#{rounds => 1000, countdown => 25}),
   20 = spts_games:rows(Game7),
@@ -138,6 +147,15 @@ game_creation_with_options(_Config) ->
   250 = spts_games:ticktime(Game7),
   25 = spts_games:countdown(Game7),
   1000 = spts_games:rounds(Game7),
+  1 = spts_games:initial_food(Game7),
+
+  Game8 = spts_core:create_game(#{initial_food => 3}),
+  20 = spts_games:rows(Game8),
+  20 = spts_games:cols(Game8),
+  250 = spts_games:ticktime(Game8),
+  10 = spts_games:countdown(Game8),
+  infinity = spts_games:rounds(Game8),
+  3 = spts_games:initial_food(Game8),
 
   ct:comment("Create a game with non default values"),
   GameF =
@@ -147,12 +165,14 @@ game_creation_with_options(_Config) ->
        , ticktime => 500
        , countdown => 0
        , rounds => 100
+       , initial_food => 5
        }),
   10 = spts_games:rows(GameF),
   10 = spts_games:cols(GameF),
   500 = spts_games:ticktime(GameF),
   0 = spts_games:countdown(GameF),
   100 = spts_games:rounds(GameF),
+  5 = spts_games:initial_food(GameF),
 
   {comment, ""}.
 
@@ -256,6 +276,18 @@ game_creation_bad_rounds(_Config) ->
 
   ct:comment("Less than 100 rounds fails"),
   TryWith(99),
+
+  {comment, ""}.
+
+-spec game_creation_bad_food(spts_test_utils:config()) ->
+  {comment, string()}.
+game_creation_bad_food(_Config) ->
+  ct:comment("Negative food fails"),
+  try spts_core:create_game(#{initial_food => -15}) of
+    G -> ct:fail("Unexpected game with negative food: ~p", [G])
+  catch
+    throw:invalid_food -> ok
+  end,
 
   {comment, ""}.
 

@@ -77,6 +77,12 @@ post_games_wrong(_Config) ->
     spts_test_utils:api_call(post, "/games", Headers, "{\"rounds\":-10}"),
   #{<<"error">> := <<"invalid_rounds">>} = spts_json:decode(Body5),
 
+  ct:comment("Invalid food fails"),
+  #{status_code := 400,
+           body := Body6} =
+    spts_test_utils:api_call(post, "/games", Headers, "{\"initial_food\":-10}"),
+  #{<<"error">> := <<"invalid_food">>} = spts_json:decode(Body6),
+
   {comment, ""}.
 
 -spec post_games_ok(spts_test_utils:config()) -> {comment, []}.
@@ -93,6 +99,7 @@ post_games_ok(_Config) ->
    , <<"ticktime">> := 250
    , <<"countdown">> := 10
    , <<"rounds">> := null
+   , <<"initial_food">> := 1
    , <<"serpents">> := []
    , <<"state">> := <<"created">>
    , <<"cells">> := []
@@ -100,7 +107,13 @@ post_games_ok(_Config) ->
 
   ct:comment("Start a game, no default values"),
   ReqBody2 =
-    spts_json:encode(#{rows => 5, cols => 5, ticktime => 1000, rounds => 160}),
+    spts_json:encode(
+      #{ rows => 5
+       , cols => 5
+       , ticktime => 1000
+       , rounds => 160
+       , initial_food => 5
+       }),
   #{status_code := 201,
            body := Body2} =
     spts_test_utils:api_call(post, "/games", Headers, ReqBody2),
@@ -110,6 +123,7 @@ post_games_ok(_Config) ->
    , <<"ticktime">> := 1000
    , <<"countdown">> := 10
    , <<"rounds">> := 160
+   , <<"initial_food">> := 5
    , <<"serpents">> := []
    , <<"state">> := <<"created">>
    , <<"cells">> := []
@@ -167,6 +181,7 @@ get_game_created(_Config) ->
    , <<"ticktime">> := 250
    , <<"countdown">> := 10
    , <<"rounds">> := null
+   , <<"initial_food">> := 1
    , <<"serpents">> := []
    , <<"state">> := <<"created">>
    , <<"cells">> := []
@@ -194,6 +209,7 @@ get_game_countdown(_Config) ->
    , <<"ticktime">> := 60000
    , <<"countdown">> := 9
    , <<"rounds">> := null
+   , <<"initial_food">> := 1
    , <<"serpents">> := Serpents
    , <<"state">> := <<"countdown">>
    , <<"cells">> := []
@@ -226,6 +242,7 @@ get_game_started(_Config) ->
    , <<"ticktime">> := 60000
    , <<"countdown">> := 0
    , <<"rounds">> := null
+   , <<"initial_food">> := 1
    , <<"serpents">> := Serpents
    , <<"state">> := <<"started">>
    , <<"cells">> := []
@@ -363,6 +380,7 @@ put_game_ok(_Config) ->
    , <<"ticktime">> := 60000
    , <<"countdown">> := 0
    , <<"rounds">> := null
+   , <<"initial_food">> := 1
    , <<"serpents">> := Serpents
    , <<"state">> := <<"started">>
    , <<"cells">> := []

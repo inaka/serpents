@@ -23,12 +23,13 @@
     ticktime => Millis :: pos_integer(),
     countdown => CountdownRounds :: non_neg_integer(),
     rounds => GameRounds :: infinity | pos_integer(),
+    initial_food => non_neg_integer(),
     cells => [cell()]
   }.
 -export_type([game/0, state/0, id/0, content/0, position/0, direction/0]).
 
 -export(
-  [ new/6
+  [ new/7
   , id/1
   , rows/1
   , cols/1
@@ -37,6 +38,7 @@
   , countdown/2
   , rounds/1
   , rounds/2
+  , initial_food/1
   , state/1
   , serpents/1
   , serpent/2
@@ -53,8 +55,8 @@
 
 -spec new(
   id(), pos_integer(), pos_integer(), pos_integer(), infinity | pos_integer(),
-  undefined | pos_integer()) -> game().
-new(Id, Rows, Cols, TickTime, Countdown, Rounds) ->
+  infinity | pos_integer(), non_neg_integer()) -> game().
+new(Id, Rows, Cols, TickTime, Countdown, Rounds, InitialFood) ->
   #{ id => Id
    , serpents => []
    , state => created
@@ -63,6 +65,7 @@ new(Id, Rows, Cols, TickTime, Countdown, Rounds) ->
    , ticktime => TickTime
    , countdown => Countdown
    , rounds => Rounds
+   , initial_food => InitialFood
    , cells => []
    }.
 
@@ -89,6 +92,9 @@ rounds(#{rounds := Rounds}) -> Rounds.
 
 -spec rounds(game(), infinity | pos_integer()) -> game().
 rounds(Game, Rounds) -> Game#{rounds := Rounds}.
+
+-spec initial_food(game()) -> non_neg_integer().
+initial_food(#{initial_food := InitialFood}) -> InitialFood.
 
 -spec state(game()) -> state().
 state(#{state := State}) -> State.
@@ -169,6 +175,7 @@ to_json(Game) ->
                   infinity -> null;
                   Rounds -> Rounds
                 end
+   , initial_food => initial_food(Game)
    , serpents => [ spts_serpents:to_json(Serpent) || Serpent <- serpents(Game)]
    , state => state(Game)
    , cells => [cell_to_json(Cell) || Cell <- Cells]
