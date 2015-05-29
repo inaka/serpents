@@ -146,7 +146,7 @@ random_direction(Game, {Row, Col}) ->
     lists:nth(random:uniform(length(Candidates)), Candidates),
   Direction.
 
-validate(Rows, _, _, _, _) when Rows < 5 ->throw(invalid_rows);
+validate(Rows, _, _, _, _) when Rows < 5 -> throw(invalid_rows);
 validate(_, Cols, _, _, _) when Cols < 5 -> throw(invalid_cols);
 validate(_, _, Tick, _, _) when Tick < 100 -> throw(invalid_ticktime);
 validate(_, _, _, Count, _) when Count < 0 -> throw(invalid_countdown);
