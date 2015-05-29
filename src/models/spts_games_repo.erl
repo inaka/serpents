@@ -206,10 +206,10 @@ add_initial_cells(Game) ->
     true ->
       CellCount = spts_games:rows(Game) * spts_games:cols(Game),
       WallCount = 1 + random:uniform(trunc(CellCount / 10)),
-      do_add_initial_cells(Game, WallCount)
+      add_initial_cells(Game, WallCount)
   end.
 
-do_add_initial_cells(Game, WallCount) ->
+add_initial_cells(Game, WallCount) ->
   lists:foldl(
     fun(_, AccGame) ->
       Position = find_empty_position(AccGame, fun spts_games:is_empty/2),
