@@ -14,8 +14,12 @@ All parameters are optional
 , "countdown": [#-OF-COUNTDOWN-TICKS]
 , "rounds": [MAX-#-OF-GAME-TICKS]
 , "initial_food": [INITIAL-FOOD-COUNT]
+, "max_serpents": [MAX-#-OF-SERPENTS]
+, "flags": [LIST-OF-FLAGS]
 }
 ```
+* `[FLAGS]` can include `walls`, `random_food` and/or `increasing_food`
+
 ##### Responses
 * **400 Bad Request** with a descriptive message
 * **201 Created** with
@@ -27,15 +31,19 @@ All parameters are optional
 , "countdown": [#-OF-COUNTDOWN-TICKS]
 , "rounds": [MAX-#-OF-GAME-TICKS]
 , "initial_food": [INITIAL-FOOD-COUNT]
+, "max_serpents": [MAX-#-OF-SERPENTS]
+, "flags": [LIST-OF-FLAGS]
 , "serpents": {}
 , "state": "created"
-, "cells": [ {"row": [ROW#], "col": [COL#], "content": [CONTENT]}
+, "cells": [ {"row": [ROW#], "col": [COL#], "content": [CONTENT], "value": [VALUE]}
            , {"row": [ROW#], "col": [COL#], "content": [CONTENT]}
            , …
            ]
 }
 ```
-* `[CONTENT]` can be `"fruit"` or `"wall"`
+* `[CONTENT]` can be
+  - `"fruit"`, in which case `[VALUE]` will be the amount of food it provides
+  - `"wall"`, in which case `"value"` will not be there
 * `[ROW#]` and `[COL#]` are 1-based
 
 ---
@@ -51,9 +59,11 @@ All parameters are optional
   , "countdown": [#-OF-COUNTDOWN-TICKS]
   , "rounds": [MAX-#-OF-GAME-TICKS]
   , "initial_food": [INITIAL-FOOD-COUNT]
+  , "flags": [LIST-OF-FLAGS]
+  , "max_serpents": [MAX-#-OF-SERPENTS]
   , "serpents": [{…}, {…}]
   , "state": [STATE]
-  , "cells": [ {"row": [ROW#], "col": [COL#], "content": [CONTENT]}
+  , "cells": [ {"row": [ROW#], "col": [COL#], "content": [CONTENT], "value": [VALUE]}
              , {"row": [ROW#], "col": [COL#], "content": [CONTENT]}
              , …
              ]
@@ -62,7 +72,10 @@ All parameters are optional
 ]
 ```
 * `[STATE]` can be `"created"`, `"countdown"`, `"started"` or `"finished"`
-* `[CONTENT]` can be `"fruit"` or `"wall"`
+* `[CONTENT]` can be
+  - `"fruit"`, in which case `[VALUE]` will be the amount of food it provides
+  - `"wall"`, in which case `"value"` will not be there
+* `[ROW#]` and `[COL#]` are 1-based
 * Each serpent will look like:
 ```json
 { "name": [NAME]
@@ -88,10 +101,13 @@ All parameters are optional
 , "ticktime": [#-OF-TICKTIME-MILLISECONDS]
 , "countdown": [#-OF-COUNTDOWN-TICKS]
 , "rounds": [MAX-#-OF-GAME-TICKS]
+, "with": [LIST-OF-EXTRA-FLAGS]
 , "initial_food": [INITIAL-FOOD-COUNT]
+, "flags": [LIST-OF-FLAGS]
+, "max_serpents": [MAX-#-OF-SERPENTS]
 , "serpents": [{…}, {…}]
 , "state": [STATE]
-, "cells": [ {"row": [ROW#], "col": [COL#], "content": [CONTENT]}
+, "cells": [ {"row": [ROW#], "col": [COL#], "content": [CONTENT], "value": [VALUE]}
            , {"row": [ROW#], "col": [COL#], "content": [CONTENT]}
            , …
            ]

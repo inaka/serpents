@@ -6,30 +6,33 @@
 -type col() :: pos_integer().
 -type position() :: {row(), col()}.
 -type direction() :: left | right | up | down.
--type content() :: wall | fruit.
+-type content() :: wall | {fruit, pos_integer()}.
 -type cell() ::
   #{ position => position()
    , content => content()
    }.
 -type state() :: created | countdown | started | finished.
+-type flag() :: walls | random_food | increasing_food.
 -type id() :: binary().
 -opaque game() ::
-  #{
-    id => id(),
-    serpents => [spts_serpents:serpent()],
-    state => state(),
-    rows => pos_integer(),
-    cols => pos_integer(),
-    ticktime => Millis :: pos_integer(),
-    countdown => CountdownRounds :: non_neg_integer(),
-    rounds => GameRounds :: infinity | pos_integer(),
-    initial_food => non_neg_integer(),
-    cells => [cell()]
+  #{ id => id()
+   , serpents => [spts_serpents:serpent()]
+   , state => state()
+   , rows => pos_integer()
+   , cols => pos_integer()
+   , ticktime => Millis :: pos_integer()
+   , countdown => CountdownRounds :: non_neg_integer()
+   , rounds => GameRounds :: infinity | pos_integer()
+   , initial_food => non_neg_integer()
+   , max_serpents => infinity | pos_integer()
+   , flags => [flag()]
+   , cells => [cell()]
   }.
--export_type([game/0, state/0, id/0, content/0, position/0, direction/0]).
+-export_type([
+  game/0, state/0, id/0, content/0, position/0, direction/0, flag/0]).
 
 -export(
-  [ new/7
+  [ new/9
   , id/1
   , rows/1
   , cols/1
@@ -39,12 +42,16 @@
   , rounds/1
   , rounds/2
   , initial_food/1
+  , max_serpents/1
+  , flags/1
+  , is_flag_on/2
   , state/1
   , serpents/1
   , serpent/2
   , is_empty/2
   , content/3
-  , find/2
+  , fruit/1
+  , walls/1
   , add_serpent/2
   , state/2
   , turn/3
@@ -55,8 +62,11 @@
 
 -spec new(
   id(), pos_integer(), pos_integer(), pos_integer(), infinity | pos_integer(),
-  infinity | pos_integer(), non_neg_integer()) -> game().
-new(Id, Rows, Cols, TickTime, Countdown, Rounds, InitialFood) ->
+  infinity | pos_integer(), non_neg_integer(), infinity | pos_integer(),
+  [flag()]) -> game().
+new(
+  Id, Rows, Cols, TickTime, Countdown, Rounds, InitialFood, MaxSerpents,
+  Flags) ->
   #{ id => Id
    , serpents => []
    , state => created
@@ -66,6 +76,8 @@ new(Id, Rows, Cols, TickTime, Countdown, Rounds, InitialFood) ->
    , countdown => Countdown
    , rounds => Rounds
    , initial_food => InitialFood
+   , max_serpents => MaxSerpents
+   , flags => Flags
    , cells => []
    }.
 
@@ -96,6 +108,15 @@ rounds(Game, Rounds) -> Game#{rounds := Rounds}.
 -spec initial_food(game()) -> non_neg_integer().
 initial_food(#{initial_food := InitialFood}) -> InitialFood.
 
+-spec max_serpents(game()) -> infinity | pos_integer().
+max_serpents(#{max_serpents := MaxSerpents}) -> MaxSerpents.
+
+-spec flags(game()) -> [flag()].
+flags(#{flags := Flags}) -> Flags.
+
+-spec is_flag_on(game(), flag()) -> boolean().
+is_flag_on(#{flags := Flags}, Flag) -> lists:member(Flag, Flags).
+
 -spec state(game()) -> state().
 state(#{state := State}) -> State.
 
@@ -122,11 +143,20 @@ content(Game, Position, Content) ->
   Cell = #{position => Position, content => Content},
   Game#{cells := [Cell | Cells]}.
 
-%% @doc finds the position for a content
--spec find(game(), content()) -> [position()].
-find(Game, Content) ->
+%% @doc finds the position and value for the fruit, if any
+-spec fruit(game()) -> notfound | {position(), pos_integer()}.
+fruit(Game) ->
   #{cells := Cells} = Game,
-  [P || #{position := P, content := C} <- Cells, C == Content].
+  case [{P, V} || #{position := P, content := {fruit, V}} <- Cells] of
+    [] -> notfound;
+    [{Position, Value}] -> {Position, Value}
+  end.
+
+%% @doc finds the position of the walls within then game
+-spec walls(game()) -> [position()].
+walls(Game) ->
+  #{cells := Cells} = Game,
+  [P || #{position := P, content := wall} <- Cells].
 
 %% @doc adds a new serpent to the game
 -spec add_serpent(game(), spts_serpents:serpent()) -> game().
@@ -176,7 +206,12 @@ to_json(Game) ->
                   Rounds -> Rounds
                 end
    , initial_food => initial_food(Game)
-   , serpents => [ spts_serpents:to_json(Serpent) || Serpent <- serpents(Game)]
+   , max_serpents => case max_serpents(Game) of
+                       infinity -> null;
+                       MaxSerpents -> MaxSerpents
+                     end
+   , flags => flags(Game)
+   , serpents => [spts_serpents:to_json(Serpent) || Serpent <- serpents(Game)]
    , state => state(Game)
    , cells => [cell_to_json(Cell) || Cell <- Cells]
    }.
@@ -184,17 +219,18 @@ to_json(Game) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% INTERNAL FUNCTIONS
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-cell_to_json(#{position := {Row, Col}, content := Content}) ->
-  #{row => Row, col => Col, content => Content}.
+cell_to_json(#{position := {Row, Col}, content := {fruit, Food}}) ->
+  #{row => Row, col => Col, content => fruit, value => Food};
+cell_to_json(#{position := {Row, Col}, content := wall}) ->
+  #{row => Row, col => Col, content => wall}.
 
 maybe_remove_fruit(Game) ->
   #{cells := Cells} = Game,
-  case [Cell || Cell = #{content := fruit} <- Cells] of
+  case [Cell || Cell = #{content := {fruit, _}} <- Cells] of
     [] -> Game;
     [FruitCell = #{position := Position}] ->
       case contents(Game, Position) of
-        [fruit] -> Game;
+        [{fruit, _}] -> Game;
         _ASerpentEatIt ->
           Game#{cells := Cells -- [FruitCell]}
       end
@@ -209,7 +245,7 @@ do_kill_or_feed(Game, Serpent) ->
   Name = spts_serpents:name(Serpent),
   case lists:sort(contents(Game, Head)) of
     [{serpent, Name}] -> Serpent;
-    [fruit, {serpent, Name}] -> spts_serpents:feed(Serpent);
+    [{fruit, Food}, {serpent, Name}] -> spts_serpents:feed(Serpent, Food);
     [_, _| _] -> spts_serpents:status(Serpent, dead)
   end.
 

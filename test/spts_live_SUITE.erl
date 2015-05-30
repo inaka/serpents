@@ -27,13 +27,26 @@
         , no_countdown/1
         , rounds/1
         , initial_food/1
+        , increasing_food/1
+        , random_food/1
+        , max_serpents/1
         ]).
 
 -spec all() -> [atom()].
-all() -> spts_test_utils:all(?MODULE).
+all() -> [max_serpents]. % spts_test_utils:all(?MODULE).
 
 -spec init_per_testcase(atom(), spts_test_utils:config()) ->
   spts_test_utils:config().
+init_per_testcase(random_food, Config) ->
+  Game =
+    spts_games_repo:create(
+      #{cols => 5, rows => 5, flags => [random_food, increasing_food]}),
+  [{game, Game} | Config];
+init_per_testcase(increasing_food, Config) ->
+  Game =
+    spts_games_repo:create(
+      #{cols => 5, rows => 5, flags => [increasing_food]}),
+  [{game, Game} | Config];
 init_per_testcase(initial_food, Config) ->
   GameId =
     spts_games:id(
@@ -70,6 +83,12 @@ init_per_testcase(rounds, Config) ->
     end,
   ok = spts_core:turn(GameId, <<"serp1">>, Direction),
   [{game, GameId} | Config];
+init_per_testcase(max_serpents, Config) ->
+  GameId =
+    spts_games:id(
+      spts_core:create_game(
+        #{cols => 5, rows => 5, max_serpents => 2})),
+  [{game, GameId} | Config];
 init_per_testcase(serpent_movement, Config) ->
   GameId =
     spts_games:id(
@@ -83,7 +102,7 @@ init_per_testcase(Test, Config) when Test == collision_with_serpent_body;
                                      Test == collision_with_serpent_head;
                                      Test == fruit_reapears;
                                      Test == fruit_feeds ->
-  Game = spts_games_repo:create(#{cols => 5, rows => 5}),
+  Game = spts_games_repo:create(#{cols => 5, rows => 5, initial_food => 0}),
   [{game, Game} | Config];
 init_per_testcase(countdown, Config) ->
   GameId =
@@ -259,7 +278,7 @@ always_a_fruit(Config) ->
       spts_games:process_name(GameId) ! tick,
       NewGame = spts_core:fetch_game(GameId),
       ct:comment("Fruit is still there: ~p / ~p", [NewGame, Cycle]),
-      [_|_] = spts_games:find(NewGame, fruit)
+      {_, _} = spts_games:fruit(NewGame)
     end,
 
   lists:foreach(Advance, Cycle),
@@ -272,10 +291,10 @@ fruit_reapears(Config) ->
   {game, Game} = lists:keyfind(game, 1, Config),
 
   ct:comment("Serpent and fruit are placed in proper positions"),
-  Serpent1 = spts_serpents:new(<<"serp1">>, {2, 2}, right, 1),
+  Serpent1 = spts_serpents:new(<<"serp1">>, {2, 2}, right, 0),
   GameWithSerpentAndFruit =
     spts_games:add_serpent(
-      spts_games:content(Game, {2, 3}, fruit), Serpent1),
+      spts_games:content(Game, {2, 3}, {fruit, 1}), Serpent1),
 
   ct:comment("When serpent moves it feeds"),
   NewGame = spts_games_repo:advance(GameWithSerpentAndFruit),
@@ -286,9 +305,10 @@ fruit_reapears(Config) ->
   [{2, 3}] = spts_serpents:body(NewSerpent1),
 
   ct:comment("Fruit is somewhere else"),
-  case spts_games:find(NewGame, fruit) of
-    [{2, 3}] -> ct:fail("Fruit did not move");
-    [_NewFruit] -> ok
+  case spts_games:fruit(NewGame) of
+    notfound -> ct:fail("There is no fruit");
+    {{2, 3}, _} -> ct:fail("Fruit did not move");
+    _NewFruit -> ok
   end,
 
   {comment, ""}.
@@ -299,11 +319,11 @@ fruit_feeds(Config) ->
   {game, Game} = lists:keyfind(game, 1, Config),
 
   ct:comment("Serpent and fruit are placed in proper positions"),
-  Serpent1 = spts_serpents:new(<<"serp1">>, {2, 2}, right, 1),
+  Serpent1 = spts_serpents:new(<<"serp1">>, {2, 2}, right, 0),
   [{2, 2}] = spts_serpents:body(Serpent1),
   GameWithSerpentAndFruit =
     spts_games:add_serpent(
-      spts_games:content(Game, {2, 3}, fruit), Serpent1),
+      spts_games:content(Game, {2, 3}, {fruit, 1}), Serpent1),
 
   ct:comment("When serpent moves it feeds"),
   NewGame = spts_games_repo:advance(GameWithSerpentAndFruit),
@@ -315,10 +335,12 @@ fruit_feeds(Config) ->
 
   ct:comment("Serpent advances again, it's body is extended"),
   {Direction, NewerHead, FinalHead} =
-    case spts_games:find(NewGame, fruit) of
-      [{2, 4}] -> {down, {3, 3}, {4, 3}};
-      [_NewFruit] -> {right, {2, 4}, {2, 5}}
+    case spts_games:fruit(NewGame) of
+      notfound -> ct:fail("There is no fruit");
+      {{2, 4}, _} -> {down, {3, 3}, {4, 3}};
+      _NewFruit -> {right, {2, 4}, {2, 5}}
     end,
+
   NewerGame =
     spts_games_repo:advance(
       spts_games_repo:turn(NewGame, <<"serp1">>, Direction)),
@@ -427,5 +449,68 @@ initial_food(Config) ->
 
   ct:comment("After the second tick, the length should be 3"),
   [_, _, _] = Tick(),
+
+  {comment, ""}.
+
+-spec increasing_food(spts_test_utils:config()) -> {comment, []}.
+increasing_food(Config) ->
+  {game, Game} = lists:keyfind(game, 1, Config),
+
+  ct:comment("Serpent and fruit are placed in proper positions"),
+  Serpent1 = spts_serpents:new(<<"serp1">>, {2, 2}, right, 1),
+  GameWithSerpentAndFruit =
+    spts_games:add_serpent(
+      spts_games:content(Game, {2, 3}, {fruit, 10}), Serpent1),
+
+  ct:comment("When serpent moves it feeds"),
+  NewGame = spts_games_repo:advance(GameWithSerpentAndFruit),
+
+  ct:comment("Fruit has a higher value"),
+  case spts_games:fruit(NewGame) of
+    notfound -> ct:fail("There is no fruit");
+    {_, NewValue} when NewValue =< 10 -> ct:fail("Fruit value didn't increase");
+    {_, _} -> ok
+  end,
+
+  {comment, ""}.
+
+-spec random_food(spts_test_utils:config()) -> {comment, []}.
+random_food(Config) ->
+  {game, Game} = lists:keyfind(game, 1, Config),
+
+  ct:comment("Serpent and fruit are placed in proper positions"),
+  Serpent1 = spts_serpents:new(<<"serp1">>, {2, 2}, right, 1),
+  GameWithSerpentAndFruit =
+    spts_games:add_serpent(
+      spts_games:content(Game, {2, 3}, {fruit, 1}), Serpent1),
+
+  ct:comment("When serpent moves it feeds"),
+  NewGame = spts_games_repo:advance(GameWithSerpentAndFruit),
+
+  ct:comment("Fruit has a different value"),
+  case spts_games:fruit(NewGame) of
+    notfound -> ct:fail("There is no fruit");
+    {_, 1} -> ct:fail("Fruit value didn't change");
+    {_, _} -> ok
+  end,
+
+  {comment, ""}.
+
+-spec max_serpents(spts_test_utils:config()) -> {comment, []}.
+max_serpents(Config) ->
+  {game, GameId} = lists:keyfind(game, 1, Config),
+
+  ct:comment("2 serpents can be added"),
+  spts_core:add_serpent(GameId, <<"serp1">>),
+  spts_core:add_serpent(GameId, <<"serp2">>),
+
+  ct:comment("the 3rd one can not"),
+  try spts_core:add_serpent(GameId, <<"serp3">>) of
+    S -> ct:fail("Unexpected serpent addition: ~p", [S])
+  catch
+    throw:invalid_state -> ok
+  end,
+
+  [_, _] = spts_games:serpents(spts_core:fetch_game(GameId)),
 
   {comment, ""}.

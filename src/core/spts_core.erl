@@ -27,8 +27,10 @@
 -export(
   [ created/3
   , created/2
-  , ready_to_start/3
-  , ready_to_start/2
+  , open/3
+  , open/2
+  , closed/3
+  , closed/2
   , countdown/3
   , countdown/2
   , started/3
@@ -49,6 +51,8 @@
                     , countdown => CountdownRounds :: non_neg_integer()
                     , rounds => GameRounds :: pos_integer()
                     , initial_food => non_neg_integer()
+                    , max_serpents => pos_integer()
+                    , flags => [spts_games:flag()]
                     }.
 -export_type([options/0]).
 
@@ -220,7 +224,7 @@ code_change(_, StateName, State, _) -> {ok, StateName, State}.
 -spec created({add_serpent, spts_serpents:name()} | term(), _From, state()) ->
   {reply, {ok, spts_serpents:serpent()} | {error, term()}, created, state()}.
 created({add_serpent, SerpentName}, From, State) ->
-  ready_to_start({add_serpent, SerpentName}, From, State);
+  open({add_serpent, SerpentName}, From, State);
 created(Request, _From, State) ->
   lager:warning("Invalid Request: ~p", [Request]),
   {reply, {error, invalid_state}, created, State}.
@@ -230,43 +234,75 @@ created(Request, State) ->
   lager:warning("Invalid Request: ~p", [Request]),
   {next_state, created, State}.
 
--spec ready_to_start(
+-spec open(
   {add_serpent, spts_serpents:name()} | term(), _From, state()) ->
-    {reply, {ok, spts_serpents:serpent()} | {error, term()}, 
-     ready_to_start, state()}.
-ready_to_start({add_serpent, SerpentName}, _From, State) ->
+    {reply, {ok, spts_serpents:serpent()} | {error, term()},
+     open | closed, state()}.
+open({add_serpent, SerpentName}, _From, State) ->
   #state{game = Game} = State,
   try spts_games_repo:add_serpent(Game, SerpentName) of
     NewGame ->
       Serpent = spts_games:serpent(NewGame, SerpentName),
       ok = notify({serpent_added, Serpent}, State),
-      {reply, {ok, Serpent}, ready_to_start, State#state{game = NewGame}}
+      NextState =
+        case spts_games_repo:can_add_serpent(NewGame) of
+          false -> closed;
+          true -> open
+        end,
+      {reply, {ok, Serpent}, NextState, State#state{game = NewGame}}
   catch
+    _:game_full ->
+      {reply, {error, game_full}, closed, State};
     _:Error ->
-      {reply, {error, Error}, ready_to_start, State}
+      {reply, {error, Error}, open, State}
   end;
-ready_to_start(Request, _From, State) ->
+open(Request, _From, State) ->
   lager:warning("Invalid Request: ~p", [Request]),
-  {reply, {error, invalid_state}, ready_to_start, State}.
+  {reply, {error, invalid_state}, open, State}.
 
--spec ready_to_start(
+-spec open(
   {turn, spts_serpents:name(), spts_games:direction()} | start | term(),
-  state()) -> {next_state, started | ready_to_start, state()}.
-ready_to_start({turn, SerpentName, Direction}, State) ->
+  state()) -> {next_state, started | open, state()}.
+open({turn, SerpentName, Direction}, State) ->
   #state{game = Game} = State,
   try spts_games_repo:turn(Game, SerpentName, Direction) of
     NewGame ->
-      {next_state, ready_to_start, State#state{game = NewGame}}
+      {next_state, open, State#state{game = NewGame}}
   catch
     throw:invalid_serpent ->
       lager:warning("Invalid Turn: ~p / ~p", [SerpentName, Direction]),
-      {next_state, ready_to_start, State}
+      {next_state, open, State}
   end;
-ready_to_start(start, State) ->
+open(start, State) ->
   handle_info(tick, countdown, State);
-ready_to_start(Request, State) ->
+open(Request, State) ->
   lager:warning("Invalid Request: ~p", [Request]),
-  {next_state, ready_to_start, State}.
+  {next_state, open, State}.
+
+-spec closed(term(), _From, state()) ->
+    {reply, {error, invalid_state}, closed, state()}.
+closed(Request, _From, State) ->
+  lager:warning("Invalid Request: ~p", [Request]),
+  {reply, {error, invalid_state}, open, State}.
+
+-spec closed(
+  {turn, spts_serpents:name(), spts_games:direction()} | start | term(),
+  state()) -> {next_state, started | closed, state()}.
+closed({turn, SerpentName, Direction}, State) ->
+  #state{game = Game} = State,
+  try spts_games_repo:turn(Game, SerpentName, Direction) of
+    NewGame ->
+      {next_state, closed, State#state{game = NewGame}}
+  catch
+    throw:invalid_serpent ->
+      lager:warning("Invalid Turn: ~p / ~p", [SerpentName, Direction]),
+      {next_state, closed, State}
+  end;
+closed(start, State) ->
+  handle_info(tick, countdown, State);
+closed(Request, State) ->
+  lager:warning("Invalid Request: ~p", [Request]),
+  {next_state, closed, State}.
 
 -spec countdown(term(), _From, state()) ->
     {reply, {error, invalid_state}, countdown, state()}.
