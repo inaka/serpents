@@ -21,6 +21,7 @@
         , game_creation_bad_countdown/1
         , game_creation_bad_rounds/1
         , game_creation_bad_food/1
+        , game_creation_bad_serpents/1
         , game_creation_bad_flags/1
         , add_serpent_ok/1
         , add_serpent_wrong/1
@@ -76,6 +77,7 @@ game_creation_default(_Config) ->
   10 = spts_games:countdown(Game),
   infinity = spts_games:rounds(Game),
   1 = spts_games:initial_food(Game),
+  infinity = spts_games:max_serpents(Game),
   [] = spts_games:flags(Game),
   created = spts_games:state(Game),
   [] = spts_games:serpents(Game),
@@ -92,6 +94,7 @@ game_creation_with_options(_Config) ->
   10 = spts_games:countdown(Game0),
   infinity = spts_games:rounds(Game0),
   1 = spts_games:initial_food(Game0),
+  infinity = spts_games:max_serpents(Game0),
   [] = spts_games:flags(Game0),
 
   ct:comment("Create a game with more cols"),
@@ -102,6 +105,7 @@ game_creation_with_options(_Config) ->
   10 = spts_games:countdown(Game1),
   infinity = spts_games:rounds(Game1),
   1 = spts_games:initial_food(Game1),
+  infinity = spts_games:max_serpents(Game1),
   [] = spts_games:flags(Game1),
 
   ct:comment("Create a game with more ticktime"),
@@ -112,6 +116,7 @@ game_creation_with_options(_Config) ->
   10 = spts_games:countdown(Game2),
   infinity = spts_games:rounds(Game2),
   1 = spts_games:initial_food(Game2),
+  infinity = spts_games:max_serpents(Game2),
   [] = spts_games:flags(Game2),
 
   ct:comment("Create a game with less cols and rows"),
@@ -122,6 +127,7 @@ game_creation_with_options(_Config) ->
   10 = spts_games:countdown(Game3),
   infinity = spts_games:rounds(Game3),
   1 = spts_games:initial_food(Game3),
+  infinity = spts_games:max_serpents(Game3),
   [] = spts_games:flags(Game3),
 
   Game4 = spts_core:create_game(#{countdown => 25}),
@@ -131,6 +137,7 @@ game_creation_with_options(_Config) ->
   25 = spts_games:countdown(Game4),
   infinity = spts_games:rounds(Game4),
   1 = spts_games:initial_food(Game4),
+  infinity = spts_games:max_serpents(Game4),
   [] = spts_games:flags(Game4),
 
   Game5 = spts_core:create_game(#{ticktime => 400, countdown => 25}),
@@ -140,6 +147,7 @@ game_creation_with_options(_Config) ->
   25 = spts_games:countdown(Game5),
   infinity = spts_games:rounds(Game5),
   1 = spts_games:initial_food(Game5),
+  infinity = spts_games:max_serpents(Game5),
   [] = spts_games:flags(Game5),
 
   Game6 = spts_core:create_game(#{ticktime => 500, rounds => 100}),
@@ -149,6 +157,7 @@ game_creation_with_options(_Config) ->
   10 = spts_games:countdown(Game6),
   100 = spts_games:rounds(Game6),
   1 = spts_games:initial_food(Game6),
+  infinity = spts_games:max_serpents(Game6),
   [] = spts_games:flags(Game6),
 
   Game7 = spts_core:create_game(#{rounds => 1000, countdown => 25}),
@@ -158,6 +167,7 @@ game_creation_with_options(_Config) ->
   25 = spts_games:countdown(Game7),
   1000 = spts_games:rounds(Game7),
   1 = spts_games:initial_food(Game7),
+  infinity = spts_games:max_serpents(Game7),
   [] = spts_games:flags(Game7),
 
   Game8 = spts_core:create_game(#{initial_food => 3}),
@@ -167,6 +177,7 @@ game_creation_with_options(_Config) ->
   10 = spts_games:countdown(Game8),
   infinity = spts_games:rounds(Game8),
   3 = spts_games:initial_food(Game8),
+  infinity = spts_games:max_serpents(Game8),
   [] = spts_games:flags(Game8),
 
   Game9 = spts_core:create_game(#{flags => [random_food]}),
@@ -176,7 +187,18 @@ game_creation_with_options(_Config) ->
   10 = spts_games:countdown(Game9),
   infinity = spts_games:rounds(Game9),
   1 = spts_games:initial_food(Game9),
+  infinity = spts_games:max_serpents(Game9),
   [random_food] = spts_games:flags(Game9),
+
+  GameA = spts_core:create_game(#{max_serpents => 7}),
+  20 = spts_games:rows(GameA),
+  20 = spts_games:cols(GameA),
+  250 = spts_games:ticktime(GameA),
+  10 = spts_games:countdown(GameA),
+  infinity = spts_games:rounds(GameA),
+  1 = spts_games:initial_food(GameA),
+  7 = spts_games:max_serpents(GameA),
+  [] = spts_games:flags(GameA),
 
   ct:comment("Create a game with non default values"),
   GameF =
@@ -187,6 +209,7 @@ game_creation_with_options(_Config) ->
        , countdown => 0
        , rounds => 100
        , initial_food => 5
+       , max_serpents => 2
        , flags => [walls, increasing_food, random_food]
        }),
   10 = spts_games:rows(GameF),
@@ -195,6 +218,7 @@ game_creation_with_options(_Config) ->
   0 = spts_games:countdown(GameF),
   100 = spts_games:rounds(GameF),
   5 = spts_games:initial_food(GameF),
+  2 = spts_games:max_serpents(GameF),
   [increasing_food, random_food, walls] = lists:sort(spts_games:flags(GameF)),
 
   {comment, ""}.
@@ -299,6 +323,26 @@ game_creation_bad_rounds(_Config) ->
 
   ct:comment("Less than 100 rounds fails"),
   TryWith(99),
+
+  {comment, ""}.
+
+-spec game_creation_bad_serpents(spts_test_utils:config()) ->
+  {comment, string()}.
+game_creation_bad_serpents(_Config) ->
+  TryWith =
+    fun(MS) ->
+      try spts_core:create_game(#{max_serpents => MS}) of
+        G -> ct:fail("Unexpected game with max_serpents == ~p: ~p", [MS, G])
+      catch
+        throw:invalid_serpents -> ok
+      end
+    end,
+
+  ct:comment("Negative serpents fails"),
+  TryWith(-10),
+
+  ct:comment("0 serpents fails"),
+  TryWith(0),
 
   {comment, ""}.
 
@@ -445,7 +489,8 @@ too_many_serpents(_Config) ->
       fun(SerpentName) ->
         try spts_core:add_serpent(GameId, SerpentName)
         catch
-          throw:game_full -> game_full
+          throw:game_full -> game_full;
+          throw:invalid_state -> game_full
         end
       end, Serpents),
 

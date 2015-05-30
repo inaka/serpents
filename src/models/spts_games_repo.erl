@@ -7,6 +7,7 @@
         , countdown_or_start/1
         , turn/3
         , advance/1
+        , can_add_serpent/1
         ]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -22,11 +23,14 @@ create(Options) ->
   Countdown = maps:get(countdown, Options, 10),
   Rounds = maps:get(rounds, Options, infinity),
   InitialFood = maps:get(initial_food, Options, 1),
+  MaxSerpents = maps:get(max_serpents, Options, infinity),
   Flags = maps:get(flags, Options, []),
-  validate(Rows, Cols, TickTime, Countdown, Rounds, InitialFood, Flags),
+  check(
+    Rows, Cols, TickTime, Countdown, Rounds, InitialFood, MaxSerpents, Flags),
   Game0 =
     spts_games:new(
-      Name, Rows, Cols, TickTime, Countdown, Rounds, InitialFood, Flags),
+      Name, Rows, Cols, TickTime, Countdown, Rounds, InitialFood, MaxSerpents,
+      Flags),
   add_initial_cells(Game0).
 
 %% @doc Adds a serpent to a game
@@ -42,6 +46,23 @@ add_serpent(Game, SerpentName) ->
       spts_games:add_serpent(Game, Serpent);
     _ -> throw(already_in)
   end.
+
+%% @doc Do the game allow adding another serpent?
+-spec can_add_serpent(spts_games:game()) -> boolean().
+can_add_serpent(Game) ->
+R=  case { spts_games:state(Game)
+       , spts_games:max_serpents(Game)
+       , spts_games:serpents(Game)
+       } of
+    {created, infinity, _} -> true;
+    {created, MaxS, Ss} when MaxS > length(Ss) -> true;
+    {_, _, _} -> false
+  end,
+  ct:pal("Can add serpent? ~p ~p", [{ spts_games:state(Game)
+       , spts_games:max_serpents(Game)
+       , spts_games:serpents(Game)
+       }, R]),
+R.
 
 %% @doc Starts a game
 -spec countdown_or_start(spts_games:game()) -> spts_games:game().
@@ -77,7 +98,6 @@ advance(Game) ->
     {_, []} -> spts_games:state(NewerGame, finished);
     {_, [_|_]} -> ensure_fruit(Game, NewerGame)
   end.
-
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% INTERNAL FUNCTIONS
@@ -168,18 +188,19 @@ random_direction(Game, {Row, Col}) ->
     lists:nth(random:uniform(length(Candidates)), Candidates),
   Direction.
 
-validate(Rows, _, _, _, _, _, _) when Rows < 5 -> throw(invalid_rows);
-validate(_, Cols, _, _, _, _, _) when Cols < 5 -> throw(invalid_cols);
-validate(_, _, Tick, _, _, _, _) when Tick < 100 -> throw(invalid_ticktime);
-validate(_, _, _, Count, _, _, _) when Count < 0 -> throw(invalid_countdown);
-validate(_, _, _, _, Rounds, _, _) when Rounds < 100 -> throw(invalid_rounds);
-validate(_, _, _, _, _, Food, _) when Food < 0 -> throw(invalid_food);
-validate(_, _, _, _, _, _, Flags) -> lists:foreach(fun validate_flag/1, Flags).
+check(Rows, _, _, _, _, _, _, _) when Rows < 5 -> throw(invalid_rows);
+check(_, Cols, _, _, _, _, _, _) when Cols < 5 -> throw(invalid_cols);
+check(_, _, Tick, _, _, _, _, _) when Tick < 100 -> throw(invalid_ticktime);
+check(_, _, _, Count, _, _, _, _) when Count < 0 -> throw(invalid_countdown);
+check(_, _, _, _, Rounds, _, _, _) when Rounds < 100 -> throw(invalid_rounds);
+check(_, _, _, _, _, Food, _, _) when Food < 0 -> throw(invalid_food);
+check(_, _, _, _, _, _, MaxSpts, _) when MaxSpts < 1 -> throw(invalid_serpents);
+check(_, _, _, _, _, _, _, Flags) -> lists:foreach(fun check_flag/1, Flags).
 
-validate_flag(walls) -> ok;
-validate_flag(random_food) -> ok;
-validate_flag(increasing_food) -> ok;
-validate_flag(_) -> throw(invalid_flag).
+check_flag(walls) -> ok;
+check_flag(random_food) -> ok;
+check_flag(increasing_food) -> ok;
+check_flag(_) -> throw(invalid_flag).
 
 is_proper_starting_point(Game, {Row, Col}) ->
   SurroundingPositions =

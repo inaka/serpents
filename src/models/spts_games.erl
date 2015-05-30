@@ -24,6 +24,7 @@
    , countdown => CountdownRounds :: non_neg_integer()
    , rounds => GameRounds :: infinity | pos_integer()
    , initial_food => non_neg_integer()
+   , max_serpents => infinity | pos_integer()
    , flags => [flag()]
    , cells => [cell()]
   }.
@@ -31,7 +32,7 @@
   game/0, state/0, id/0, content/0, position/0, direction/0, flag/0]).
 
 -export(
-  [ new/8
+  [ new/9
   , id/1
   , rows/1
   , cols/1
@@ -41,6 +42,7 @@
   , rounds/1
   , rounds/2
   , initial_food/1
+  , max_serpents/1
   , flags/1
   , is_flag_on/2
   , state/1
@@ -60,8 +62,11 @@
 
 -spec new(
   id(), pos_integer(), pos_integer(), pos_integer(), infinity | pos_integer(),
-  infinity | pos_integer(), non_neg_integer(), [flag()]) -> game().
-new(Id, Rows, Cols, TickTime, Countdown, Rounds, InitialFood, Flags) ->
+  infinity | pos_integer(), non_neg_integer(), infinity | pos_integer(),
+  [flag()]) -> game().
+new(
+  Id, Rows, Cols, TickTime, Countdown, Rounds, InitialFood, MaxSerpents,
+  Flags) ->
   #{ id => Id
    , serpents => []
    , state => created
@@ -71,6 +76,7 @@ new(Id, Rows, Cols, TickTime, Countdown, Rounds, InitialFood, Flags) ->
    , countdown => Countdown
    , rounds => Rounds
    , initial_food => InitialFood
+   , max_serpents => MaxSerpents
    , flags => Flags
    , cells => []
    }.
@@ -101,6 +107,9 @@ rounds(Game, Rounds) -> Game#{rounds := Rounds}.
 
 -spec initial_food(game()) -> non_neg_integer().
 initial_food(#{initial_food := InitialFood}) -> InitialFood.
+
+-spec max_serpents(game()) -> infinity | pos_integer().
+max_serpents(#{max_serpents := MaxSerpents}) -> MaxSerpents.
 
 -spec flags(game()) -> [flag()].
 flags(#{flags := Flags}) -> Flags.
@@ -197,6 +206,10 @@ to_json(Game) ->
                   Rounds -> Rounds
                 end
    , initial_food => initial_food(Game)
+   , max_serpents => case max_serpents(Game) of
+                       infinity -> null;
+                       MaxSerpents -> MaxSerpents
+                     end
    , flags => flags(Game)
    , serpents => [spts_serpents:to_json(Serpent) || Serpent <- serpents(Game)]
    , state => state(Game)

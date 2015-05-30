@@ -14,6 +14,7 @@ All parameters are optional
 , "countdown": [#-OF-COUNTDOWN-TICKS]
 , "rounds": [MAX-#-OF-GAME-TICKS]
 , "initial_food": [INITIAL-FOOD-COUNT]
+, "max_serpents": [MAX-#-OF-SERPENTS]
 , "flags": [LIST-OF-FLAGS]
 }
 ```
@@ -30,6 +31,7 @@ All parameters are optional
 , "countdown": [#-OF-COUNTDOWN-TICKS]
 , "rounds": [MAX-#-OF-GAME-TICKS]
 , "initial_food": [INITIAL-FOOD-COUNT]
+, "max_serpents": [MAX-#-OF-SERPENTS]
 , "flags": [LIST-OF-FLAGS]
 , "serpents": {}
 , "state": "created"
@@ -58,6 +60,7 @@ All parameters are optional
   , "rounds": [MAX-#-OF-GAME-TICKS]
   , "initial_food": [INITIAL-FOOD-COUNT]
   , "flags": [LIST-OF-FLAGS]
+  , "max_serpents": [MAX-#-OF-SERPENTS]
   , "serpents": [{…}, {…}]
   , "state": [STATE]
   , "cells": [ {"row": [ROW#], "col": [COL#], "content": [CONTENT], "value": [VALUE]}
@@ -101,6 +104,7 @@ All parameters are optional
 , "with": [LIST-OF-EXTRA-FLAGS]
 , "initial_food": [INITIAL-FOOD-COUNT]
 , "flags": [LIST-OF-FLAGS]
+, "max_serpents": [MAX-#-OF-SERPENTS]
 , "serpents": [{…}, {…}]
 , "state": [STATE]
 , "cells": [ {"row": [ROW#], "col": [COL#], "content": [CONTENT], "value": [VALUE]}

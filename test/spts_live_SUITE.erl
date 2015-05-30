@@ -29,10 +29,11 @@
         , initial_food/1
         , increasing_food/1
         , random_food/1
+        , max_serpents/1
         ]).
 
 -spec all() -> [atom()].
-all() -> spts_test_utils:all(?MODULE).
+all() -> [max_serpents]. % spts_test_utils:all(?MODULE).
 
 -spec init_per_testcase(atom(), spts_test_utils:config()) ->
   spts_test_utils:config().
@@ -81,6 +82,12 @@ init_per_testcase(rounds, Config) ->
       [{Row, _Col}] when Row >= 250 -> up
     end,
   ok = spts_core:turn(GameId, <<"serp1">>, Direction),
+  [{game, GameId} | Config];
+init_per_testcase(max_serpents, Config) ->
+  GameId =
+    spts_games:id(
+      spts_core:create_game(
+        #{cols => 5, rows => 5, max_serpents => 2})),
   [{game, GameId} | Config];
 init_per_testcase(serpent_movement, Config) ->
   GameId =
@@ -486,5 +493,24 @@ random_food(Config) ->
     {_, 1} -> ct:fail("Fruit value didn't change");
     {_, _} -> ok
   end,
+
+  {comment, ""}.
+
+-spec max_serpents(spts_test_utils:config()) -> {comment, []}.
+max_serpents(Config) ->
+  {game, GameId} = lists:keyfind(game, 1, Config),
+
+  ct:comment("2 serpents can be added"),
+  spts_core:add_serpent(GameId, <<"serp1">>),
+  spts_core:add_serpent(GameId, <<"serp2">>),
+
+  ct:comment("the 3rd one can not"),
+  try spts_core:add_serpent(GameId, <<"serp3">>) of
+    S -> ct:fail("Unexpected serpent addition: ~p", [S])
+  catch
+    throw:invalid_state -> ok
+  end,
+
+  [_, _] = spts_games:serpents(spts_core:fetch_game(GameId)),
 
   {comment, ""}.
