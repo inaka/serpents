@@ -22,7 +22,7 @@
    , cols => pos_integer()
    , ticktime => Millis :: pos_integer()
    , countdown => CountdownRounds :: non_neg_integer()
-   , rounds => GameRounds :: infinity | pos_integer()
+   , rounds => GameRounds :: infinity | non_neg_integer()
    , initial_food => non_neg_integer()
    , max_serpents => infinity | pos_integer()
    , flags => [flag()]
@@ -99,10 +99,10 @@ countdown(#{countdown := Countdown}) -> Countdown.
 -spec countdown(game(), non_neg_integer()) -> game().
 countdown(Game, Countdown) -> Game#{countdown := Countdown}.
 
--spec rounds(game()) -> infinity | pos_integer().
+-spec rounds(game()) -> infinity | non_neg_integer().
 rounds(#{rounds := Rounds}) -> Rounds.
 
--spec rounds(game(), infinity | pos_integer()) -> game().
+-spec rounds(game(), infinity | non_neg_integer()) -> game().
 rounds(Game, Rounds) -> Game#{rounds := Rounds}.
 
 -spec initial_food(game()) -> non_neg_integer().
