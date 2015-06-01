@@ -18,6 +18,7 @@
         , game_updated/1
         , collision_detected/1
         , game_finished/1
+        , ignored_event/1
         ]).
 
 -spec all() -> [atom()].
@@ -213,5 +214,28 @@ game_finished(_Config) ->
 
   ct:comment("The event body should reflect the current state of the game"),
   Game = spts_json:decode(Data),
+
+  {comment, ""}.
+
+-spec ignored_event(spts_test_utils:config()) -> {comment, []}.
+ignored_event(_Config) ->
+  ct:comment("A game is created"),
+  GameId = spts_games:id(spts_core:create_game()),
+
+  {ok, Dispatcher} =
+    gen_fsm:sync_send_all_state_event(
+      spts_games:process_name(GameId), dispatcher),
+
+  ct:comment("An unknown event is sent and the client receives nothing"),
+  Task1 = fun() -> gen_event:notify(Dispatcher, unknown_event) end,
+  ok =
+    spts_test_utils:no_events_after(
+      <<"/games/", GameId/binary, "/news">>, Task1),
+
+  ct:comment("An unknown info message is sent and the client receives nothing"),
+  Task2 = fun() -> Dispatcher ! unknown_info, ok end,
+  ok =
+    spts_test_utils:no_events_after(
+      <<"/games/", GameId/binary, "/news">>, Task2),
 
   {comment, ""}.
