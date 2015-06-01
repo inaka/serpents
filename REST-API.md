@@ -117,7 +117,8 @@ All parameters are optional
 ---
 
 #### ``PUT /api/games/:game_id``
-To start a game
+To start a game. The game needs to have at least one player connected, or will
+return a 403 error.
 
 ##### Parameters
 All parameters are required
@@ -126,6 +127,7 @@ All parameters are required
 ```
 ##### Responses
 * **400 Bad Request** with a descriptive message
+* **403 Forbidden** with the text "Forbidden"
 * **200 OK** with the same json object as ``GET /games/:game_id``
 
 ---

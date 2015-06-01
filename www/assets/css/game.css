@@ -1,0 +1,35 @@
+table.board {
+  border: 1px solid black;
+  border-spacing: 2px;
+  border-collapse: separate;
+  float: left;
+
+}
+table.board td {
+  padding: 0;
+  width: 10px;
+  height: 10px;
+  border: 0;
+  background-color: #eee;
+}
+div.player-color {
+  width: 10px;
+  height: 10px;
+  float: left;
+  margin-right: 10px;
+  margin-top: 2px;
+}
+div.status {
+  text-transform: uppercase;
+}
+div.player-list {
+  float: left;
+  margin-left: 10px;
+}
+div.player-list ul {
+  padding-left: 0px;
+}
+
+div.player-list ul li {
+  list-style: none;
+}

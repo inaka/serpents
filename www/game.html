@@ -1,13 +1,32 @@
 <html>
 <head>
-  <script src="/assets/serpents.js"></script>
+  <script src="/assets/js/jquery-2.0.0.js"></script>
+  <script src="/assets/js/md5.js"></script>
+  <script src="/assets/js/jquery.color-2.1.2.min.js"></script>
+  <script src="/assets/js/serpents.js"></script>
+  <link rel="stylesheet" href="/assets/css/game.css">
 </head>
 <body>
-  <p>
-    This is the page for game <span id="game_id">game</span>
-  </p>
-  <script type="text/javascript">
-    document.getElementById("game_id").innerText = gameId();
-  </script>
+  <h1>Game: <span id="game_id">game</span></h1>
+  <a href="/">Back to games listing</a><br>
+  <hr>
+  <input type="button" value="START GAME" id="start_game">
+  <style>
+  </style>
+  <div>
+    Countdown: <span id="countdown"></span>
+  </div>
+  <div class="status">
+    Status: <span id="status"></span>
+  </div>
+<table class="board">
+  <tr>
+  </tr>
+</table>
+<div class="player-list">
+  <b>PLAYERS</b>
+  <ul>
+  </ul>
+</div>
 </body>
 </html>
