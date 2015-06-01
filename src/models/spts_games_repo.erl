@@ -50,19 +50,14 @@ add_serpent(Game, SerpentName) ->
 %% @doc Do the game allow adding another serpent?
 -spec can_add_serpent(spts_games:game()) -> boolean().
 can_add_serpent(Game) ->
-R=  case { spts_games:state(Game)
+  case { spts_games:state(Game)
        , spts_games:max_serpents(Game)
        , spts_games:serpents(Game)
        } of
     {created, infinity, _} -> true;
     {created, MaxS, Ss} when MaxS > length(Ss) -> true;
     {_, _, _} -> false
-  end,
-  ct:pal("Can add serpent? ~p ~p", [{ spts_games:state(Game)
-       , spts_games:max_serpents(Game)
-       , spts_games:serpents(Game)
-       }, R]),
-R.
+  end.
 
 %% @doc Starts a game
 -spec countdown_or_start(spts_games:game()) -> spts_games:game().

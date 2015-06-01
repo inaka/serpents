@@ -182,7 +182,6 @@ process_name(GameId) ->
   binary_to_atom(<<?MODULE_STRING, $:, GameId/binary>>, utf8).
 
 -spec advance_serpents(game()) -> game().
-advance_serpents(Game = #{state := finished}) -> Game;
 advance_serpents(Game) ->
   #{serpents := Serpents} = Game,
   NewSerpents = [spts_serpents:advance(Serpent) || Serpent <- Serpents],

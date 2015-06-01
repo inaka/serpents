@@ -29,15 +29,21 @@
         , initial_food/1
         , increasing_food/1
         , random_food/1
+        , random_increasing_food/1
         , max_serpents/1
         ]).
 
 -spec all() -> [atom()].
-all() -> [max_serpents]. % spts_test_utils:all(?MODULE).
+all() -> spts_test_utils:all(?MODULE).
 
 -spec init_per_testcase(atom(), spts_test_utils:config()) ->
   spts_test_utils:config().
 init_per_testcase(random_food, Config) ->
+  Game =
+    spts_games_repo:create(
+      #{cols => 5, rows => 5, flags => [random_food]}),
+  [{game, Game} | Config];
+init_per_testcase(random_increasing_food, Config) ->
   Game =
     spts_games_repo:create(
       #{cols => 5, rows => 5, flags => [random_food, increasing_food]}),
@@ -474,8 +480,8 @@ increasing_food(Config) ->
 
   {comment, ""}.
 
--spec random_food(spts_test_utils:config()) -> {comment, []}.
-random_food(Config) ->
+-spec random_increasing_food(spts_test_utils:config()) -> {comment, []}.
+random_increasing_food(Config) ->
   {game, Game} = lists:keyfind(game, 1, Config),
 
   ct:comment("Serpent and fruit are placed in proper positions"),
@@ -491,6 +497,28 @@ random_food(Config) ->
   case spts_games:fruit(NewGame) of
     notfound -> ct:fail("There is no fruit");
     {_, 1} -> ct:fail("Fruit value didn't change");
+    {_, _} -> ok
+  end,
+
+  {comment, ""}.
+
+-spec random_food(spts_test_utils:config()) -> {comment, []}.
+random_food(Config) ->
+  {game, Game} = lists:keyfind(game, 1, Config),
+
+  ct:comment("Serpent and fruit are placed in proper positions"),
+  Serpent1 = spts_serpents:new(<<"serp1">>, {2, 2}, right, 1),
+  GameWithSerpentAndFruit =
+    spts_games:add_serpent(
+      spts_games:content(Game, {2, 3}, {fruit, 10}), Serpent1),
+
+  ct:comment("When serpent moves it feeds"),
+  NewGame = spts_games_repo:advance(GameWithSerpentAndFruit),
+
+  ct:comment("Fruit has a =< 10 value"),
+  case spts_games:fruit(NewGame) of
+    notfound -> ct:fail("There is no fruit");
+    {_, F} when F > 10 -> ct:fail("Fruit value too high");
     {_, _} -> ok
   end,
 

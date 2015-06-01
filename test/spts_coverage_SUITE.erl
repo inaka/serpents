@@ -1,0 +1,101 @@
+-module(spts_coverage_SUITE).
+-author('elbrujohalcon@inaka.net').
+
+-include_lib("mixer/include/mixer.hrl").
+-mixin([
+        {spts_test_utils,
+         [ init_per_suite/1
+         , end_per_suite/1
+         ]}
+       ]).
+
+-export([ all/0
+        , spts_web_utils/1
+        , spts_single_game_handler/1
+        , spts_news_handler/1
+        , spts_news_event_handler/1
+        , spts_core/1
+        ]).
+
+-spec all() -> [atom()].
+all() -> spts_test_utils:all(?MODULE).
+
+-spec spts_web_utils(spts_test_utils:config()) -> {comment, []}.
+spts_web_utils(_Config) ->
+  ct:comment("spts_web_utils:handle_exception with unknown exception"),
+  {halt, req, state} =
+    spts_web_utils:handle_exception({unknown, reason}, req, state),
+  {comment, ""}.
+
+-spec spts_single_game_handler(spts_test_utils:config()) -> {comment, []}.
+spts_single_game_handler(_Config) ->
+  ct:comment("spts_single_game_handler:handle_get with unknown exception"),
+  {halt, req, state} = spts_single_game_handler:handle_get(req, state),
+
+  ct:comment("spts_single_game_handler:delete_resource with unknown exception"),
+  {halt, req, state} = spts_single_game_handler:delete_resource(req, state),
+  {comment, ""}.
+
+-spec spts_news_handler(spts_test_utils:config()) -> {comment, []}.
+spts_news_handler(_Config) ->
+  ct:comment("spts_news_handler:handle_error with unknown exception"),
+  state = spts_news_handler:handle_error(event, error, state),
+  {comment, ""}.
+
+-spec spts_news_event_handler(spts_test_utils:config()) -> {comment, []}.
+spts_news_event_handler(_Config) ->
+  ct:comment("spts_news_event_handler:code_change"),
+  {ok, state} = spts_news_event_handler:code_change(oldvsn, state, extra),
+  {comment, ""}.
+
+-spec spts_core(spts_test_utils:config()) -> {comment, []}.
+spts_core(_Config) ->
+  ct:comment("spts_core:code_change"),
+  {ok, state_name, state} =
+    spts_core:code_change(oldvsn, state_name, state, extra),
+
+  ct:comment("turn in closed"),
+  GameId =
+    spts_games:id(
+      spts_core:create_game(
+        #{max_serpents => 1, countdown => 1, rounds => 100})),
+  spts_core:add_serpent(GameId, <<"tic">>),
+  ok = spts_core:turn(GameId, <<"tic">>, right),
+  ok = spts_core:turn(GameId, <<"no-tic">>, right),
+
+  ct:comment("start in closed"),
+  ok = spts_core:start_game(GameId),
+
+  ct:comment("turn in countdown"),
+  ok = spts_core:turn(GameId, <<"tic">>, left),
+  ok = spts_core:turn(GameId, <<"no-tic">>, left),
+
+  ct:comment("impossible turn"),
+  try spts_core:add_serpent(<<"no-game-id">>, <<"it">>) of
+    RR -> ct:fail("Unexpected result: ~p", [RR])
+  catch
+    _:{noproc, _} -> ok
+  end,
+
+  ct:comment("turn in started"),
+  spts_games:process_name(GameId) ! tick,
+  ok = spts_core:turn(GameId, <<"tic">>, up),
+  ok = spts_core:turn(GameId, <<"no-tic">>, up),
+
+  ct:comment("add_serpent in finished"),
+  lists:foreach(
+    fun(_) -> spts_games:process_name(GameId) ! tick end, lists:seq(1, 100)),
+  try spts_core:add_serpent(GameId, <<"asif">>) of
+    R -> ct:fail("Unexpected serpent in ~p: ~p", [GameId, R])
+  catch
+    throw:invalid_state -> ok
+  end,
+
+  ct:comment("start in finished"),
+  ok = spts_core:start_game(GameId),
+
+  ct:comment("turn in finished"),
+  ok = spts_core:turn(GameId, <<"tic">>, left),
+  ok = spts_core:turn(GameId, <<"no-tic">>, left),
+
+  {comment, ""}.

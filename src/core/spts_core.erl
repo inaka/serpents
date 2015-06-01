@@ -221,13 +221,10 @@ terminate(Reason, StateName, State) ->
     {ok, atom(), state()}.
 code_change(_, StateName, State, _) -> {ok, StateName, State}.
 
--spec created({add_serpent, spts_serpents:name()} | term(), _From, state()) ->
+-spec created({add_serpent, spts_serpents:name()}, _From, state()) ->
   {reply, {ok, spts_serpents:serpent()} | {error, term()}, created, state()}.
 created({add_serpent, SerpentName}, From, State) ->
-  open({add_serpent, SerpentName}, From, State);
-created(Request, _From, State) ->
-  lager:warning("Invalid Request: ~p", [Request]),
-  {reply, {error, invalid_state}, created, State}.
+  open({add_serpent, SerpentName}, From, State).
 
 -spec created(term(), state()) -> {next_state, created, state()}.
 created(Request, State) ->
@@ -235,7 +232,7 @@ created(Request, State) ->
   {next_state, created, State}.
 
 -spec open(
-  {add_serpent, spts_serpents:name()} | term(), _From, state()) ->
+  {add_serpent, spts_serpents:name()}, _From, state()) ->
     {reply, {ok, spts_serpents:serpent()} | {error, term()},
      open | closed, state()}.
 open({add_serpent, SerpentName}, _From, State) ->
@@ -255,14 +252,11 @@ open({add_serpent, SerpentName}, _From, State) ->
       {reply, {error, game_full}, closed, State};
     _:Error ->
       {reply, {error, Error}, open, State}
-  end;
-open(Request, _From, State) ->
-  lager:warning("Invalid Request: ~p", [Request]),
-  {reply, {error, invalid_state}, open, State}.
+  end.
 
 -spec open(
-  {turn, spts_serpents:name(), spts_games:direction()} | start | term(),
-  state()) -> {next_state, started | open, state()}.
+  {turn, spts_serpents:name(), spts_games:direction()} | start, state()) ->
+  {next_state, started | open, state()}.
 open({turn, SerpentName, Direction}, State) ->
   #state{game = Game} = State,
   try spts_games_repo:turn(Game, SerpentName, Direction) of
@@ -274,10 +268,7 @@ open({turn, SerpentName, Direction}, State) ->
       {next_state, open, State}
   end;
 open(start, State) ->
-  handle_info(tick, countdown, State);
-open(Request, State) ->
-  lager:warning("Invalid Request: ~p", [Request]),
-  {next_state, open, State}.
+  handle_info(tick, countdown, State).
 
 -spec closed(term(), _From, state()) ->
     {reply, {error, invalid_state}, closed, state()}.
@@ -286,7 +277,7 @@ closed(Request, _From, State) ->
   {reply, {error, invalid_state}, open, State}.
 
 -spec closed(
-  {turn, spts_serpents:name(), spts_games:direction()} | start | term(),
+  {turn, spts_serpents:name(), spts_games:direction()} | start,
   state()) -> {next_state, started | closed, state()}.
 closed({turn, SerpentName, Direction}, State) ->
   #state{game = Game} = State,
@@ -299,10 +290,7 @@ closed({turn, SerpentName, Direction}, State) ->
       {next_state, closed, State}
   end;
 closed(start, State) ->
-  handle_info(tick, countdown, State);
-closed(Request, State) ->
-  lager:warning("Invalid Request: ~p", [Request]),
-  {next_state, closed, State}.
+  handle_info(tick, countdown, State).
 
 -spec countdown(term(), _From, state()) ->
     {reply, {error, invalid_state}, countdown, state()}.
@@ -327,6 +315,12 @@ countdown(Request, State) ->
   lager:warning("Invalid Request: ~p", [Request]),
   {next_state, countdown, State}.
 
+-spec started(term(), _From, state()) ->
+                {reply, {error, invalid_state}, started, state()}.
+started(Request, _From, State) ->
+  lager:warning("Invalid Request: ~p", [Request]),
+  {reply, {error, invalid_state}, started, State}.
+
 -spec started(
   {turn, spts_serpents:name(), spts_games:direction()} | term(),
   state()) -> {next_state, started | finished, state()}.
@@ -344,22 +338,16 @@ started(Request, State) ->
   lager:warning("Invalid Request: ~p", [Request]),
   {next_state, started, State}.
 
--spec started(term(), _From, state()) ->
-                {reply, {error, invalid_state}, started, state()}.
-started(Request, _From, State) ->
-  lager:warning("Invalid Request: ~p", [Request]),
-  {reply, {error, invalid_state}, started, State}.
-
--spec finished(term(), state()) -> {next_state, finished, state()}.
-finished(Request, State) ->
-  lager:warning("Invalid Request: ~p", [Request]),
-  {next_state, finished, State}.
-
 -spec finished(term(), _From, state()) ->
                 {reply, {error, invalid_state}, finished, state()}.
 finished(Request, _From, State) ->
   lager:warning("Invalid Request: ~p", [Request]),
   {reply, {error, invalid_state}, finished, State}.
+
+-spec finished(term(), state()) -> {next_state, finished, state()}.
+finished(Request, State) ->
+  lager:warning("Invalid Request: ~p", [Request]),
+  {next_state, finished, State}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% INTERNAL FUNCTIONS
