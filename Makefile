@@ -2,6 +2,8 @@ PROJECT = serpents
 
 CONFIG ?= test/test.config
 
+RELX_URL := https://github.com/erlware/relx/releases/download/v2.0.0/relx
+
 DEPS = eper mixer lager cowboy jiffy katana lasse
 SELL_DEPS = sync
 TEST_DEPS = xref_runner shotgun

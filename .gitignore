@@ -1,3 +1,6 @@
+relx
+_rel/
+.erlang.mk/
 db
 Mnesia*
 ebin
