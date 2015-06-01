@@ -222,7 +222,8 @@ terminate(Reason, StateName, State) ->
 code_change(_, StateName, State, _) -> {ok, StateName, State}.
 
 -spec created({add_serpent, spts_serpents:name()}, _From, state()) ->
-  {reply, {ok, spts_serpents:serpent()} | {error, term()}, created, state()}.
+  {reply, {ok, spts_serpents:serpent()} | {error, term()},
+   open | closed, state()}.
 created({add_serpent, SerpentName}, From, State) ->
   open({add_serpent, SerpentName}, From, State).
 
@@ -274,7 +275,7 @@ open(start, State) ->
     {reply, {error, invalid_state}, closed, state()}.
 closed(Request, _From, State) ->
   lager:warning("Invalid Request: ~p", [Request]),
-  {reply, {error, invalid_state}, open, State}.
+  {reply, {error, invalid_state}, closed, State}.
 
 -spec closed(
   {turn, spts_serpents:name(), spts_games:direction()} | start,
