@@ -2,7 +2,8 @@
 <html>
 <head>
   <script src="/assets/js/jquery-2.0.0.js"></script>
-  <script src="/assets/js/serpents.js"></script>
+  <link rel="stylesheet" href="/assets/css/index.css">
+
 </head>
 <body>
 <script>
@@ -10,13 +11,49 @@
     $.getJSON('/api/games', function(results) {
       $('ul.game-list').empty();
       results.forEach(function(element) {
-        $('ul.game-list').append('<li><a href="/game/' + element.id + '">' + element.id + '</a></li>');
+        $('table.game-list tbody').append(
+            '<tr id="game_' + element.id + '">' +
+            '<td><a href="/game/' + element.id + '">' + element.id + '</a></td>' +
+            '<td><a href="#" onclick=" return deleteGame(\'' + element.id + '\')">Delete</a></td>' +
+            '</tr>'
+        );
       });
     });
   }
+  function deleteGame(game) {
+    $.ajax('/api/games/' + game,
+        {
+          contentType : 'application/json',
+          type: 'DELETE',
+          success: function() {
+            $('#game_' + game).remove();
+          },
+          error: function(response) {
+            alert(
+                'An error was found while deleting the game: ' +
+                response.statusText
+            );
+          }
+        }
+    );
+
+    return false;
+  }
   $(document).ready(function() {
     $('form[name=create-game] input.create').click(function() {
-      data = {};
+      var data = {},
+          fields = [
+            'rows', 'cols', 'ticktime', 'countdown', 'rounds',
+            'initial_food', 'max_serpents', 'flags'
+          ];
+      fields.forEach(function(fieldName) {
+        var field = $('input[name=' + fieldName + ']')
+        if(field.val() !== '') {
+          data[fieldName] = field.val();
+        }
+      });
+
+
       $.ajax('/api/games',
           {
             data : JSON.stringify(data),
@@ -38,14 +75,45 @@
     updateListing();
   });
 </script>
-<form name="create-game">
+<form name="create-game" class="create-game">
   <fieldset>
     <legend>New game</legend>
+    <label for="rows">Rows:</label>
+    <input type="number" name="rows" id="rows" value="20"><br>
+
+    <label for="cols">Cols:</label>
+    <input type="number" name="cols" id="cols" value="20"><br>
+
+    <label for="ticktime">Ticktime:</label>
+    <input type="number" name="ticktime" id="ticktime" value="250"><br>
+
+    <label for="countdown">Countdown:</label>
+    <input type="number" name="countdown" id="countdown" value="10"><br>
+
+    <label for="rounds">Rounds:</label>
+    <input type="number" name="rounds" id="rounds" value=""><br>
+
+    <label for="initial_food">Initial food:</label>
+    <input type="number" name="initial_food" id="initial_food" value="1"><br>
+
+    <label for="max_serpents">Max serpents:</label>
+    <input type="number" name="max_serpents" id="max_serpents" value=""><br>
+
+    <label for="flags">Flags:</label>
+    <input type="text" name="flags" id="flags" value="" pattern="^[a-z, ]+$"><br>
+
     <input type="button" class="create" value="Create game">
   </fieldset>
 </form>
 <h1>Game listing</h1>
-<ul class="game-list">
-</ul>
+<table class="game-list">
+  <thead>
+  <tr>
+    <th>Name</th>
+    <th>Actions</th>
+  </tr>
+  </thead>
+  <tbody></tbody>
+</table>
 </body>
 </html>
