@@ -44,14 +44,22 @@
       var data = {},
           fields = [
             'rows', 'cols', 'ticktime', 'countdown', 'rounds',
-            'initial_food', 'max_serpents', 'flags'
-          ];
+            'initial_food', 'max_serpents'
+          ],
+          availableFlags = ['walls', 'random_food', 'increasing_food'],
+          flags;
       fields.forEach(function(fieldName) {
-        var field = $('input[name=' + fieldName + ']')
+        var field = $('input[name=' + fieldName + ']');
         if(field.val() !== '') {
           data[fieldName] = field.val();
         }
       });
+      flags = availableFlags.filter(function(flag){
+        return $('#' + flag).is(':checked');
+      });
+      if(flags.length > 0) {
+        data.flags = flags;
+      }
 
 
       $.ajax('/api/games',
@@ -78,29 +86,44 @@
 <form name="create-game" class="create-game">
   <fieldset>
     <legend>New game</legend>
-    <label for="rows">Rows:</label>
+    <label class="label" for="rows">Rows:</label>
     <input type="number" name="rows" id="rows" value="20"><br>
 
-    <label for="cols">Cols:</label>
+    <label class="label" for="cols">Cols:</label>
     <input type="number" name="cols" id="cols" value="20"><br>
 
-    <label for="ticktime">Ticktime:</label>
+    <label class="label" for="ticktime">Ticktime:</label>
     <input type="number" name="ticktime" id="ticktime" value="250"><br>
 
-    <label for="countdown">Countdown:</label>
+    <label class="label" for="countdown">Countdown:</label>
     <input type="number" name="countdown" id="countdown" value="10"><br>
 
-    <label for="rounds">Rounds:</label>
+    <label class="label" for="rounds">Rounds:</label>
     <input type="number" name="rounds" id="rounds" value=""><br>
 
-    <label for="initial_food">Initial food:</label>
+    <label class="label" for="initial_food">Initial food:</label>
     <input type="number" name="initial_food" id="initial_food" value="1"><br>
 
-    <label for="max_serpents">Max serpents:</label>
+    <label class="label" for="max_serpents">Max serpents:</label>
     <input type="number" name="max_serpents" id="max_serpents" value=""><br>
 
-    <label for="flags">Flags:</label>
-    <input type="text" name="flags" id="flags" value="" pattern="^[a-z, ]+$"><br>
+    <span class="label">Flags:</span>
+    <div class="checkoxes">
+      <label>
+        <input type="checkbox" name="walls" id="walls">
+        walls
+      </label>
+      <br>
+      <label>
+        <input type="checkbox" name="random_food" id="random_food">
+        random_food
+      </label>
+      <br>
+      <label>
+        <input type="checkbox" name="increasing_food" id="increasing_food">
+        increasing_food
+      </label>
+    </div>
 
     <input type="button" class="create" value="Create game">
   </fieldset>

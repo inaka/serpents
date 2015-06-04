@@ -2,9 +2,13 @@ form.create-game fieldset {
   width: 300px;
 }
 
-form.create-game label {
+form.create-game .label {
   width: 135px;
   display: block;
+  float: left;
+}
+
+form.create-game .checkoxes {
   float: left;
 }
 
