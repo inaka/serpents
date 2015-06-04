@@ -51,7 +51,7 @@
       fields.forEach(function(fieldName) {
         var field = $('input[name=' + fieldName + ']');
         if(field.val() !== '') {
-          data[fieldName] = field.val();
+          data[fieldName] = parseInt(field.val(), 10);
         }
       });
       flags = availableFlags.filter(function(flag){
