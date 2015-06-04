@@ -1,3 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="/assets/js/jquery-2.0.0.js"></script>
+  <script src="/assets/js/serpents.js"></script>
+</head>
 <body>
-  This is the main page
+<script>
+  function updateListing() {
+    $.getJSON('/api/games', function(results) {
+      $('ul.game-list').empty();
+      results.forEach(function(element) {
+        $('ul.game-list').append('<li><a href="/game/' + element.id + '">' + element.id + '</a></li>');
+      });
+    });
+  }
+  $(document).ready(function() {
+    $('form[name=create-game] input.create').click(function() {
+      data = {};
+      $.ajax('/api/games',
+          {
+            data : JSON.stringify(data),
+            contentType : 'application/json',
+            type: 'POST',
+            success: function() {
+              updateListing()
+            },
+            error: function(response) {
+              alert(
+                  'An error was found while creating the game: ' +
+                  response.responseJSON.error
+              );
+            }
+          }
+      );
+
+    });
+    updateListing();
+  });
+</script>
+<form name="create-game">
+  <fieldset>
+    <legend>New game</legend>
+    <input type="button" class="create" value="Create game">
+  </fieldset>
+</form>
+<h1>Game listing</h1>
+<ul class="game-list">
+</ul>
 </body>
+</html>
