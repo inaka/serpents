@@ -238,10 +238,11 @@ get_game_id(UserId, [{GameId, _GameName, GameUsers} | T]) ->
 
 get_basic_info({GameId, GameName, Users}) ->
   Game = spts_core:fetch_game(GameId),
-  {GameId,
-   spts_games:ticktime(Game),
-   length(Users),
-   spts_games:max_serpents(Game)}.
+  MaxUsers = case spts_games:max_serpents(Game) of
+               infinity -> 255;
+               Value -> Value
+             end,
+  {GameId, spts_games:ticktime(Game), length(Users), MaxUsers}.
 
 %%==============================================================================
 %% Message building
