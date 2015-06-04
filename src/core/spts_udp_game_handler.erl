@@ -49,9 +49,9 @@ user_connected(Name, Address, GameId) ->
 get_game_users(GameId) ->
   gen_server:call(?MODULE, {get_game_users, GameId}).
 
--spec user_update(id(), integer(), integer()) -> ok.
-user_update(UserId, KnownServerTick, Direction) ->
-  gen_server:cast(?MODULE, {user_update, UserId, KnownServerTick, Direction}).
+-spec user_update(address(), integer(), integer()) -> ok.
+user_update(Address, KnownServerTick, Direction) ->
+  gen_server:cast(?MODULE, {user_update, Address, KnownServerTick, Direction}).
 
 %%==============================================================================
 %% gen_server callbacks
@@ -82,8 +82,9 @@ handle_info(Msg, State) ->
   {noreply, State}.
 
 -spec handle_cast(any(), state()) -> {noreply, state()}.
-handle_cast({user_update, UserId, KnownServerTick, Direction},
-            State = #state{games = Games, tick = CurrentTick}) ->
+handle_cast({user_update, Address, KnownServerTick, Direction},
+            State = #state{users = Users, games = Games, tick = CurrentTick}) ->
+  UserId = get_id_by_address(Address, Users),
   NewGames = handle_user_update(UserId,
                                 KnownServerTick, % Last tick the user received
                                 CurrentTick, % The actual tick of the server
@@ -146,6 +147,14 @@ handle_user_update(UserId, KnownServerTick, CurrentTick, Direction, Games) ->
 %%==============================================================================
 %% Utils
 %%==============================================================================
+get_id_by_address(Address, Users) ->
+  case lists:keyfind(Address, 3, Users) of
+    false ->
+      undefined;
+    {UserId, _Name, Address} ->
+      UserId
+  end.
+
 update_all_users(CurrentTick, Users) ->
   lists:foreach(fun(User) -> update_user(CurrentTick, User) end, Users).
 

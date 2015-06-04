@@ -99,7 +99,7 @@ handle_message(join, <<GameId:16/unsigned-integer,
                        Name:NameSize/binary>>, Metadata) ->
   try
     % Tell the game handler that the user connected
-    Address = {Metadata#metadata.socket, Metadata#metadata.port},
+    Address = get_address_from_metadata(Metadata),
     {ok, PlayerId} = spts_udp_game_handler:user_connected(Name, Address, GameId),
     
     % Retrieve the game data
@@ -137,6 +137,9 @@ handle_message(join, <<GameId:16/unsigned-integer,
                  ErrorReason],
                 Metadata)
   end;
+handle_message(action, <<LastUpdate:?USHORT, Direction:?UCHAR>>, Metadata) ->
+  Address = get_address_from_metadata(Metadata),
+  spts_udp_game_handler(Address, LastUpdate, Direction);
 handle_message(_MessageType, _Garbage, _Metadata) ->
   undefined.
 
@@ -172,3 +175,6 @@ send(Message, #metadata{socket = UdpSocket, ip = Ip, port = Port}) ->
 
 send(Message, UdpSocket, Ip, Port) ->
   gen_udp:send(UdpSocket, Ip, Port, Message).
+
+get_address_from_metadata(Metadata) ->
+  {Metadata#metadata.socket, Metadata#metadata.port}.

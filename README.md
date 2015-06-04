@@ -156,3 +156,45 @@ GameId             | The game's id
 Reason             | Any string, this is basically a small user friendly description of the error (usually "full" or "started")
 PlayerId           | The ID the game assigned to the client
 GameInfoResponse   | The exact same format as the ``Game Info Response``
+
+### Client Update ###
+
+Notifies the server that the player moved and that the last update was received.
+
+    ClientUpdate => LastServerUpdate Action
+    LastServerUpdate => ushort
+    Action => uchar
+
+Field              | Description
+-------------------|-------------
+LastServerUpdate   | Should be the last tick received from the server
+Action             | A direction change, set the char to 1 for left, 2 for right, 4 for up and 8 for down, any other value is ignored
+
+### Server Update ###
+
+Sent every server tick (50 times per second) with any updates the game had. There is a guarantee that the events will be in chronological order.
+
+    ServerUpdate => NumEvents [Event]
+    NumEvents => uchar
+    Event => Tick EventType (Left | Joined | DirectionChanged | Died)
+    Tick => ushort
+    EventType => uchar => LEFT_COMMAND | JOINED_COMMAND | DIRECTION_CHANGED_COMMAND | DIED_COMMAND
+    LEFT_COMMAND => 0
+    JOINED_COMMAND => 1
+    DIRECTION_CHANGED_COMMAND => 2
+    DIED_COMMAND => 3
+    Left => PlayerId
+    PlayerId => uint
+    Joined => PlayerId Name
+    Name => StringSize bytes
+    StringSize => uchar
+    DirectionChanged => PlayerId Action
+    Action => uchar
+    Died => PlayerId
+
+Field     | Description
+----------|-------------
+NumEvents | The amount of events, this value can be 0
+Time      | The tick in which the event happened
+EventType | The type of event is indicated by uchar
+Action    | Same as the client update Action, for now only specifies a direction change
