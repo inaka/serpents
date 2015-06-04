@@ -96,8 +96,8 @@ handle_message(info, <<>>, Metadata = #metadata{messageId = MessageId,
           MessageId:?UINT,
           UserTime:?USHORT,
           NumGames:?UCHAR>>,
-        [<<Id:?USHORT, TickRate:?UCHAR, NumPlayers:?UCHAR, MaxPlayers:?UCHAR>> ||
-         {Id, TickRate, NumPlayers, MaxPlayers} <- AllGames]],
+        [<<Id:?USHORT, TickRate:?UCHAR, NumPlayers:?UCHAR, MaxPlayers:?UCHAR>>
+         || {Id, TickRate, NumPlayers, MaxPlayers} <- AllGames]],
        Metadata);
 handle_message(info, <<_GameId:16/unsigned-integer>>, _Metadata) ->
   % TODO
@@ -112,7 +112,9 @@ handle_message(join,
   try
     % Tell the game handler that the user connected
     Address = get_address_from_metadata(Metadata),
-    {ok, PlayerId} = spts_udp_game_handler:user_connected(Name, Address, GameId),
+    {ok, PlayerId} = spts_udp_game_handler:user_connected(Name,
+                                                          Address,
+                                                          GameId),
     
     % Retrieve the game data
     Game = spts_core:fetch_game(GameId),
