@@ -87,18 +87,20 @@ handle_info(update, State = #state{tick = Tick, games = Games}) ->
   _Pid = spawn(fun() -> update_all_users(CurrentTick, Games) end),
   {noreply, State#state{tick = CurrentTick}};
 handle_info({event, {serpent_added, _Serpent}}, State) ->
-  % Do nothing
+  lager:critical("serpent_added"),
   {noreply, State};
-handle_info({event, {game_started, Game}}, State) ->
-  % Do nothing
+handle_info({event, {game_started, _Game}}, State) ->
+  lager:critical("game_started"),
   {noreply, State};
-handle_info({event, {game_finished, Game}}, State) ->
-  % Do nothing
+handle_info({event, {game_finished, Game}}, State = #state{games = Games}) ->
+  lager:critical("game_finished"),
+  NewGames = handle_game_finished(Game, Games),
+  {noreply, State#state{games = NewGames}};
+handle_info({event, {game_updated, _Game}}, State) ->
+  lager:critical("game_updated"),
   {noreply, State};
-handle_info({event, {game_updated, Game}}, State) ->
-  % Do nothing
-  {noreply, State};
-handle_info({event, {game_countdown, Game}}, State) ->
+handle_info({event, {game_countdown, _Game}}, State) ->
+  lager:critical("game_countdown"),
   {noreply, State};
 handle_info(Msg, State) ->
   lager:notice("~p received unexpected info message: ~p", [Msg]),
@@ -107,8 +109,8 @@ handle_info(Msg, State) ->
 -spec handle_cast(any(), state()) -> {noreply, state()}.
 handle_cast({user_update, Address, KnownServerTick, Direction},
             State = #state{users = Users, games = Games, tick = CurrentTick}) ->
-  UserId = get_id_by_address(Address, Users),
-  NewGames = handle_user_update(UserId,
+  User = get_user_by_address(Address, Users),
+  NewGames = handle_user_update(User,
                                 KnownServerTick, % Last tick the user received
                                 CurrentTick, % The actual tick of the server
                                 Direction, % The movement direction (as a uchar)
@@ -148,27 +150,37 @@ handle_get_game_users(GameId, Games) ->
        {{UserId, UserName, _Address} = _User, _Events} <- GameUsers]
   end.
 
-handle_user_update(UserId, KnownServerTick, CurrentTick, Direction, Games) ->
+handle_user_update(User, KnownServerTick, CurrentTick, Direction, Games) ->
+  {UserId, UserName, _Address} = User,
   GameId = get_game_id(UserId, Games),
   case lists:keytake(GameId, 1, Games) of
     false ->
       lager:error("invalid update of user ~p on game ~p", [UserId, GameId]),
       Games;
     {value, {GameId, GameName, GameUsers}, Tail} ->
+      % Update the direction (if needed)
+      ok = case get_direction_atom(Direction) of
+             ignore ->
+               ok;
+             DirectionAtom ->
+               spts_core:turn(GameId, UserName, DirectionAtom)
+           end,
       % Notify everyone of the move event, also call the function to clear the
       % old events
       NewEvents = [build_moved(UserId, CurrentTick, Direction)],
-      NewGameUsers = [{User,
+      NewGameUsers = [{TheUser,
                        clear_messages_older_than(UserId,
-                                                 User,
+                                                 TheUser,
                                                  Events,
                                                  KnownServerTick) ++ NewEvents}
-                      || {User, Events} <- GameUsers],
+                      || {TheUser, Events} <- GameUsers],
       [{GameId, GameName, NewGameUsers} | Tail]
   end.
 
 handle_get_games(KnownGames) ->
   AllGameNames = [spts_games:id(Game) || Game <- spts_core:all_games()],
+  lager:critical("all_games: ~p", [spts_core:all_games()]),
+  lager:critical("AllGameNames: ~p", [AllGameNames]),
   lists:foldl(fun(GameName, Acc) ->
                 NewGame = case lists:keytake(GameName, 2, KnownGames) of
                             false ->
@@ -186,12 +198,12 @@ handle_get_games(KnownGames) ->
 subscribe_to(GameName) ->
   spts_core:subscribe(GameName, {?MODULE, self()}, self()).
 
-get_id_by_address(Address, Users) ->
+get_user_by_address(Address, Users) ->
   case lists:keyfind(Address, 3, Users) of
     false ->
       undefined;
-    {UserId, _Name, Address} ->
-      UserId
+    User ->
+      User
   end.
 
 update_all_users(CurrentTick, Users) ->
@@ -243,6 +255,28 @@ get_basic_info({GameId, GameName, Users}) ->
              end,
   {GameId, spts_games:ticktime(Game), length(Users), MaxUsers}.
 
+handle_game_finished(Game, Games) ->
+  GameName = spts_games:id(Game),
+  case lists:keytake(GameName, 2, Games) of
+    false ->
+      Games;
+    {value, _DiscardedGame, NewGames} ->
+      NewGames
+  end.
+
+get_direction_atom(1) -> left;
+get_direction_atom(2) -> right;
+get_direction_atom(4) -> up;
+get_direction_atom(8) -> down;
+get_direction_atom(_) -> ignore.
+
+get_user_name(UserId, []) ->
+  undefined;
+get_user_name(UserId, [{{UserId, UserName, _Address}, _Events} | _Users]) ->
+  UserName;
+get_user_name(UserId, [_User | Users]) ->
+  get_user_name(UserId, Users).
+
 %%==============================================================================
 %% Message building
 %%==============================================================================
@@ -261,9 +295,9 @@ build_user_joined(User, Tick) ->
             NameSize:?UCHAR>>,
           Name]}.
 
-build_user_left(UserId, Tick) ->
-  LeftCommand = get_command(left),
-  {Tick, <<Tick:?USHORT, LeftCommand:?UCHAR, UserId:?UINT>>}.
+%build_user_left(UserId, Tick) ->
+%  LeftCommand = get_command(left),
+%  {Tick, <<Tick:?USHORT, LeftCommand:?UCHAR, UserId:?UINT>>}.
 
 build_moved(UserId, Tick, Direction) ->
   MovedCommand = get_command(moved),
