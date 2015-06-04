@@ -11,6 +11,7 @@
 % gen_server callbacks
 -export([init/1, terminate/2, code_change/3,
          handle_call/3, handle_cast/2, handle_info/2]).
+-export([handle_event/2]).
 
 -define(UCHAR,  8/unsigned-integer).
 -define(USHORT, 16/unsigned-integer).
@@ -88,6 +89,7 @@ handle_info(update, State = #state{tick = Tick, games = Games}) ->
   {noreply, State#state{tick = CurrentTick}};
 handle_info({event, {serpent_added, _Serpent}}, State) ->
   lager:critical("serpent_added"),
+  % Do nothing, we already know this (we joined the guy!)
   {noreply, State};
 handle_info({event, {game_started, _Game}}, State) ->
   lager:critical("game_started"),
@@ -103,7 +105,7 @@ handle_info({event, {game_countdown, _Game}}, State) ->
   lager:critical("game_countdown"),
   {noreply, State};
 handle_info(Msg, State) ->
-  lager:notice("~p received unexpected info message: ~p", [Msg]),
+  lager:notice("received unexpected info message: ~p", [Msg]),
   {noreply, State}.
 
 -spec handle_cast(any(), state()) -> {noreply, state()}.
@@ -126,7 +128,9 @@ code_change(_OldVsn, State, _Extra) -> {ok, State}.
 %%==============================================================================
 %% Handlers
 %%==============================================================================
--spec init([]) -> {ok, state()}.
+-spec init(any()) -> {ok, state()}.
+init(gen_event) ->
+  {ok, []};
 init([]) ->
   TRef = timer:send_interval(get_ms_per_update(), ?MODULE, update),
   {ok, #state{tick = 0, tref = TRef}}.
@@ -179,8 +183,6 @@ handle_user_update(User, KnownServerTick, CurrentTick, Direction, Games) ->
 
 handle_get_games(KnownGames) ->
   AllGameNames = [spts_games:id(Game) || Game <- spts_core:all_games()],
-  lager:critical("all_games: ~p", [spts_core:all_games()]),
-  lager:critical("AllGameNames: ~p", [AllGameNames]),
   lists:foldl(fun(GameName, Acc) ->
                 NewGame = case lists:keytake(GameName, 2, KnownGames) of
                             false ->
@@ -192,11 +194,15 @@ handle_get_games(KnownGames) ->
                 [NewGame | Acc]
               end, [], AllGameNames).
 
+handle_event(Event, State) ->
+  ?MODULE ! {event, Event},
+  {ok, State}.
+
 %%==============================================================================
 %% Utils
 %%==============================================================================
 subscribe_to(GameName) ->
-  spts_core:subscribe(GameName, {?MODULE, self()}, self()).
+  spts_core:subscribe(GameName, ?MODULE, gen_event).
 
 get_user_by_address(Address, Users) ->
   case lists:keyfind(Address, 3, Users) of
