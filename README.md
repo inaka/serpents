@@ -176,13 +176,14 @@ Sent every server tick (50 times per second) with any updates the game had. Ther
 
     ServerUpdate => NumEvents [Event]
     NumEvents => uchar
-    Event => Tick EventType (Left | Joined | DirectionChanged | Died)
+    Event => Tick EventType EventData
     Tick => ushort
     EventType => uchar => LEFT_COMMAND | JOINED_COMMAND | DIRECTION_CHANGED_COMMAND | DIED_COMMAND
     LEFT_COMMAND => 0
     JOINED_COMMAND => 1
     DIRECTION_CHANGED_COMMAND => 2
     DIED_COMMAND => 3
+    EventData => Left | Joined | DirectionChanged | Died
     Left => PlayerId
     PlayerId => uint
     Joined => PlayerId Name

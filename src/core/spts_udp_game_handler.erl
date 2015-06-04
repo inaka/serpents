@@ -4,7 +4,8 @@
 -behavior(gen_server).
 
 %% API
--export([user_connected/3, get_game_users/1, timestamp/0, user_update/3]).
+-export([user_connected/3, get_game_users/1, timestamp/0, user_update/3,
+         get_games/0]).
 % Supervisors
 -export([start_link/0]).
 % gen_server callbacks
@@ -53,6 +54,10 @@ get_game_users(GameId) ->
 user_update(Address, KnownServerTick, Direction) ->
   gen_server:cast(?MODULE, {user_update, Address, KnownServerTick, Direction}).
 
+-spec get_games() -> [{id(), integer(), integer(), integer()}].
+get_games() ->
+  gen_server:call(?MODULE, {get_games}).
+
 %%==============================================================================
 %% gen_server callbacks
 %%==============================================================================
@@ -69,6 +74,10 @@ handle_call({user_connected, Name, Address, GameId}, _From,
       NewGames = add_user_to_game(NewUser, GameId, CurrentTick, Games),
       {reply, Id, State#state{users = NewUsers, games = NewGames}}
   end;
+handle_call({get_games}, _From, State = #state{games = Games}) ->
+  NewGames = handle_get_games(Games),
+  Reply = [get_basic_info(Game) || Game <- NewGames],
+  {reply, Reply, State#state{games = NewGames}};
 handle_call({get_game_users, GameId}, _From, State = #state{games = Games}) ->
   {reply, handle_get_game_users(GameId, Games), State}.
 
@@ -77,6 +86,21 @@ handle_info(update, State = #state{tick = Tick, games = Games}) ->
   CurrentTick = Tick + 1,
   _Pid = spawn(fun() -> update_all_users(CurrentTick, Games) end),
   {noreply, State#state{tick = CurrentTick}};
+handle_info({event, {serpent_added, _Serpent}}, State) ->
+  % Do nothing
+  {noreply, State};
+handle_info({event, {game_started, Game}}, State) ->
+  % Do nothing
+  {noreply, State};
+handle_info({event, {game_finished, Game}}, State) ->
+  % Do nothing
+  {noreply, State};
+handle_info({event, {game_updated, Game}}, State) ->
+  % Do nothing
+  {noreply, State};
+handle_info({event, {game_countdown, Game}}, State) ->
+  % Do nothing
+  {noreply, State};
 handle_info(Msg, State) ->
   lager:notice("~p received unexpected info message: ~p", [Msg]),
   {noreply, State}.
@@ -144,9 +168,25 @@ handle_user_update(UserId, KnownServerTick, CurrentTick, Direction, Games) ->
       [{GameId, GameName, NewGameUsers} | Tail]
   end.
 
+handle_get_games(KnownGames) ->
+  AllGameNames = spts_core:all_games(),
+  lists:foldl(fun(GameName, Acc) ->
+                NewGame = case lists:keytake(GameName, 2, KnownGames) of
+                            false ->
+                              subscribe_to(GameName),
+                              {random:uniform(65535), GameName, []};
+                            {value, Game, _Tail} ->
+                              Game
+                          end,
+                [NewGame | Acc]
+              end, [], AllGameNames).
+
 %%==============================================================================
 %% Utils
 %%==============================================================================
+subscribe_to(GameName) ->
+  spts_core:subscribe(GameName, {?MODULE, self()}, self()).
+
 get_id_by_address(Address, Users) ->
   case lists:keyfind(Address, 3, Users) of
     false ->
@@ -195,6 +235,13 @@ get_game_id(UserId, [{GameId, _GameName, GameUsers} | T]) ->
     false -> get_game_id(UserId, T);
     _     -> GameId
   end.
+
+get_basic_info({GameId, GameName, Users}) ->
+  Game = spts_core:fetch_game(GameId),
+  {GameId,
+   spts_games:ticktime(Game),
+   length(Users),
+   spts_games:max_serpents(Game)}.
 
 %%==============================================================================
 %% Message building

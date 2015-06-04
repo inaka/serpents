@@ -87,16 +87,28 @@ handle_message(ping, _Ignored, Metadata = #metadata{messageId = MessageId,
          UserTime:?USHORT>>,
        Metadata);
 %% INFO REQUESTS
-handle_message(info, <<>>, _Metadata) ->
-  % TODO
-  ok;
+handle_message(info, <<>>, Metadata = #metadata{messageId = MessageId,
+                                                userTime  = UserTime}) ->
+  AllGames = spts_udp_game_handler:get_games(),
+  NumGames = length(AllGames), 
+  Flags = set_flags([info, success]),
+  send([<<Flags:?UCHAR,
+          MessageId:?UINT,
+          UserTime:?USHORT,
+          NumGames:?UCHAR>>,
+        [<<Id:?USHORT, TickRate:?UCHAR, NumPlayers:?UCHAR, MaxPlayers:?UCHAR>> ||
+         {Id, TickRate, NumPlayers, MaxPlayers} <- AllGames]],
+       Metadata);
 handle_message(info, <<_GameId:16/unsigned-integer>>, _Metadata) ->
   % TODO
   ok;
 %% JOIN COMMAND
-handle_message(join, <<GameId:16/unsigned-integer,
-                       NameSize:8/unsigned-integer,
-                       Name:NameSize/binary>>, Metadata) ->
+handle_message(join,
+               <<GameId:16/unsigned-integer,
+                 NameSize:8/unsigned-integer,
+                 Name:NameSize/binary>>,
+               Metadata = #metadata{messageId = MessageId,
+                                    userTime  = UserTime}) ->
   try
     % Tell the game handler that the user connected
     Address = get_address_from_metadata(Metadata),
@@ -117,6 +129,8 @@ handle_message(join, <<GameId:16/unsigned-integer,
     % Build the response
     SuccessFlags = set_flags([join, success]),
     send([<<SuccessFlags:?UCHAR,
+            MessageId:?UINT,
+            UserTime:?USHORT,
             PlayerId:?USHORT,
             GameId:?USHORT,
             Tickrate:?UCHAR,
@@ -139,7 +153,7 @@ handle_message(join, <<GameId:16/unsigned-integer,
   end;
 handle_message(action, <<LastUpdate:?USHORT, Direction:?UCHAR>>, Metadata) ->
   Address = get_address_from_metadata(Metadata),
-  spts_udp_game_handler(Address, LastUpdate, Direction);
+  spts_udp_game_handler:user_update(Address, LastUpdate, Direction);
 handle_message(_MessageType, _Garbage, _Metadata) ->
   undefined.
 
