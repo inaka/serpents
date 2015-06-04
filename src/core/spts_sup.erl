@@ -25,8 +25,8 @@ init(noargs) ->
       permanent, 5000, supervisor, [spts_game_sup]},
   UDPSup1 =
     {spts_udp_game_handler, {spts_udp_game_handler, start_link, []},
-      permanent, 5000, supervisor, [spts_udp_game_handler]},
+      permanent, 5000, worker, [spts_udp_game_handler]},
   UDPSup2 =
     {spts_udp_handler, {spts_udp_handler, start_link, [1234]},
-      permanent, 5000, supervisor, [spts_udp_handler]},
+      permanent, 5000, worker, [spts_udp_handler]},
   {ok, {{one_for_one, 5, 10}, [KatanaRandom, GameSup, UDPSup1, UDPSup2]}}.
