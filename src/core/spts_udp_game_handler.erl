@@ -99,7 +99,6 @@ handle_info({event, {game_updated, Game}}, State) ->
   % Do nothing
   {noreply, State};
 handle_info({event, {game_countdown, Game}}, State) ->
-  % Do nothing
   {noreply, State};
 handle_info(Msg, State) ->
   lager:notice("~p received unexpected info message: ~p", [Msg]),
@@ -169,7 +168,7 @@ handle_user_update(UserId, KnownServerTick, CurrentTick, Direction, Games) ->
   end.
 
 handle_get_games(KnownGames) ->
-  AllGameNames = spts_core:all_games(),
+  AllGameNames = [spts_games:id(Game) || Game <- spts_core:all_games()],
   lists:foldl(fun(GameName, Acc) ->
                 NewGame = case lists:keytake(GameName, 2, KnownGames) of
                             false ->
@@ -237,7 +236,7 @@ get_game_id(UserId, [{GameId, _GameName, GameUsers} | T]) ->
   end.
 
 get_basic_info({GameId, GameName, Users}) ->
-  Game = spts_core:fetch_game(GameId),
+  Game = spts_core:fetch_game(GameName),
   MaxUsers = case spts_games:max_serpents(Game) of
                infinity -> 255;
                Value -> Value
