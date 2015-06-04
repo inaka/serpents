@@ -1,0 +1,32 @@
+form.create-game fieldset {
+  width: 300px;
+}
+
+form.create-game label {
+  width: 135px;
+  display: block;
+  float: left;
+}
+
+form.create-game input[type=text], form.create-game input[type=number]  {
+  width: 55px;
+}
+
+table.game-list {
+  border-spacing: 0;
+  border-collapse: separate;
+  width: 300px;
+}
+table.game-list th {
+  text-align: left;
+}
+
+table.game-list th {
+  border: 1px solid black;
+}
+
+table.game-list td {
+  border-left: 1px solid black;
+  border-right: 1px solid black;
+  border-bottom: 1px solid black;
+}
