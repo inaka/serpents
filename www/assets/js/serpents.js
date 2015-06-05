@@ -6,6 +6,21 @@ function gameId() {
 window.players = [];
 window.playerColors = {};
 window.rounds_count = 0;
+
+window.entityMap = {
+  "&": "&amp;",
+  "<": "&lt;",
+  ">": "&gt;",
+  '"': '&quot;',
+  "'": '&#39;',
+  "/": '&#x2F;'
+};
+
+function escapeHtml(string) {
+  return String(string).replace(/[&<>"'\/]/g, function (s) {
+    return window.entityMap[s];
+  });
+}
 function nameToColor(name) {
   if(!window.playerColors[name]) {
     window.playerColors[name] = '#' + CryptoJS.MD5(name).toString().substring(0, 6);
@@ -20,7 +35,7 @@ function setupPlayers(players) {
   })
 }
 function addPlayer(player) {
-  var playerName = $(player.name).text();
+  var playerName = escapeHtml(player.name);
   $('.player-list ul').append(
     '<li><div class="player-color" style="background-color: ' + nameToColor(playerName) + '"></div>' + playerName + '</li>'
   );
@@ -105,7 +120,8 @@ function paintCell(row, col, color) {
 $(document).ready(function() {
   var id = gameId(),
       evtSource,
-      processBoard;
+      processBoard,
+      processBoardWithRound;
 
   $("#game_id").text(id);
   $("#start_game").click(function() {
@@ -132,17 +148,18 @@ $(document).ready(function() {
     var game = JSON.parse(e.data);
     redrawGame(game);
   };
-
-  evtSource.addEventListener("game_updated", function(e) {
+  processBoardWithRound = function(e) {
     var game = JSON.parse(e.data);
     window.rounds_count++;
     $('#rounds_count').text(window.rounds_count);
     redrawGame(game);
-  }, false);
+  };
+
+  evtSource.addEventListener("game_updated", processBoardWithRound, false);
   evtSource.addEventListener("game_countdown", processBoard, false);
   evtSource.addEventListener("game_started", processBoard, false);
   evtSource.addEventListener("game_status", processBoard, false);
-  evtSource.addEventListener("game_finished", processBoard, false);
+  evtSource.addEventListener("game_finished", processBoardWithRound, false);
   evtSource.addEventListener("serpent_added", function(e) {
     var player = JSON.parse(e.data);
     addPlayer(player);
