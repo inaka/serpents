@@ -136,7 +136,7 @@ init([]) ->
   {ok, #state{tick = 0, tref = TRef}}.
 
 handle_user_connected(Name, Address, GameId) ->
-  case spts_core:add_serpent(GameId, Name) of
+  case uncall(spts_core, add_serpent, [GameId, Name]) of
     {error, Reason} ->
       lager:warning("Unable to join game, reason: ~p", [Reason]),
       ignored;
@@ -291,6 +291,13 @@ get_user_name(UserId, [{{UserId, UserName, _Address}, _Events} | _Users]) ->
   UserName;
 get_user_name(UserId, [_User | Users]) ->
   get_user_name(UserId, Users).
+
+uncall(M, F, Args) ->
+  try apply(M, F, Args) of
+    Any -> {ok, Any}
+  catch
+    _:Error -> {error, Error}
+  end.
 
 %%==============================================================================
 %% Message building
