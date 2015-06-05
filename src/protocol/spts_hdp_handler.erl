@@ -58,11 +58,11 @@ handle_udp(<<Flags:?UCHAR,
              MessageId:?USHORT,
              UserTime:?USHORT,
              UserId:?USHORT,
-             Message/binary>>,
+             Message/binary>> = Data,
            UdpSocket, Ip, Port) ->
   case get_message_type(Flags) of
     undefined ->
-      lager:info("received completely unexpected message from ~p", [Ip]);
+      lager:info("received bad type from ~p: ~p", [Ip, Data]);
     MessageType ->
       Metadata = #metadata{messageId = MessageId,
                            userTime = UserTime,
@@ -71,12 +71,15 @@ handle_udp(<<Flags:?UCHAR,
                            ip = Ip,
                            port = Port},
       case handle_message(MessageType, Message, Metadata) of
-        undefined -> lager:info("received garbage ~p from ~p", [Message, Ip]);
-        _Ok       -> ok
+        undefined ->
+          lager:info("received bad message ~p from ~p", [Message, Ip]);
+        _Ok ->
+          ok
       end
   end;
 % Garbage and malformed messages are simply ignored
-handle_udp(_Garbage, _UdpSocket, _Ip, _Port) ->
+handle_udp(MalforedMessage, _UdpSocket, Ip, _Port) ->
+  lager:info("received malformed message from ~p: ~p", [Ip, MalforedMessage]),
   ok.
 
 %% PING
@@ -166,10 +169,10 @@ handle_message(_MessageType, _Garbage, _Metadata) ->
 udp_opts() ->
   [{mode, binary}, {reuseaddr, true}].
 
-get_message_type(<<_Flags:5/unsigned-integer, 1:3/unsigned-integer>>) -> ping;
-get_message_type(<<_Flags:5/unsigned-integer, 2:3/unsigned-integer>>) -> info;
-get_message_type(<<_Flags:5/unsigned-integer, 3:3/unsigned-integer>>) -> join;
-get_message_type(<<_Flags:5/unsigned-integer, 4:3/unsigned-integer>>) -> action;
+get_message_type(1) -> ping;
+get_message_type(2) -> info;
+get_message_type(3) -> join;
+get_message_type(4) -> action;
 get_message_type(_Garbage) -> undefined.
 
 set_flags(Flags) ->
