@@ -22,7 +22,7 @@
 %%==============================================================================
 -spec start_link() -> {ok, pid()}.
 start_link() ->
-  Port = application:get_env(serpents, hdp_port, 1234),
+  Port = application:get_env(serpents, udp_port, 1234),
   {ok, UdpSocket} = gen_udp:open(Port, udp_opts()),
   UdpHandler = spawn_link(?MODULE, loop, [UdpSocket]),
   register(?MODULE, UdpHandler),

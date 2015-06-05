@@ -16,7 +16,7 @@
   },
   {serpents,
    [
-    {hdp_port, 8584},
+    {udp_port, 8584},
     {http_port, 8585},
     {http_listener_count, 10}
    ]
