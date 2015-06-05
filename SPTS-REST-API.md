@@ -51,6 +51,8 @@ All parameters are required
 * **403 Forbidden** with the text "Forbidden"
 * **200 OK** with the same json object as ``POST /games/:game_id/serpents``
 
+---
+
 #### ``GET /api/games/:game_id/news``
 This endpoint returns a general state of the game as a first event and, if the caller keeps the connection open, it will keep sending new events through it as they happen. This endpoint implements [Server Sent Events](http://dev.w3.org/html5/eventsource/#server-sent-events-intro) protocol for that purpose.
 
