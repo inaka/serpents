@@ -187,17 +187,19 @@ handle_user_update(User, KnownServerTick, CurrentTick, Direction, Games) ->
   end.
 
 handle_get_games(KnownGames) ->
-  AllGameNames = [spts_games:id(Game) || Game <- spts_core:all_games()],
-  lists:foldl(fun(GameName, Acc) ->
+  AllGameIds =
+    [ {spts_games:numeric_id(Game), spts_games:id(Game)}
+    || Game <- spts_core:all_games()],
+  lists:foldl(fun({GameId, GameName}, Acc) ->
                 NewGame = case lists:keytake(GameName, 2, KnownGames) of
                             false ->
                               spts_udp_event_handler:subscribe(GameName),
-                              {random:uniform(65535), GameName, []};
+                              {GameId, GameName, []};
                             {value, Game, _Tail} ->
                               Game
                           end,
                 [NewGame | Acc]
-              end, [], AllGameNames).
+              end, [], AllGameIds).
 
 %%==============================================================================
 %% Utils

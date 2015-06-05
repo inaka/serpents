@@ -16,6 +16,7 @@
 -type id() :: binary().
 -opaque game() ::
   #{ id => id()
+   , numeric_id => pos_integer()
    , serpents => [spts_serpents:serpent()]
    , state => state()
    , rows => pos_integer()
@@ -32,8 +33,9 @@
   game/0, state/0, id/0, content/0, position/0, direction/0, flag/0]).
 
 -export(
-  [ new/9
+  [ new/10
   , id/1
+  , numeric_id/1
   , rows/1
   , cols/1
   , ticktime/1
@@ -61,13 +63,14 @@
 -export([process_name/1]).
 
 -spec new(
-  id(), pos_integer(), pos_integer(), pos_integer(), infinity | pos_integer(),
-  infinity | pos_integer(), non_neg_integer(), infinity | pos_integer(),
-  [flag()]) -> game().
+  id(), pos_integer(), pos_integer(), pos_integer(), pos_integer(),
+  infinity | pos_integer(), infinity | pos_integer(), non_neg_integer(),
+  infinity | pos_integer(), [flag()]) -> game().
 new(
-  Id, Rows, Cols, TickTime, Countdown, Rounds, InitialFood, MaxSerpents,
-  Flags) ->
+  Id, NumericId, Rows, Cols, TickTime, Countdown, Rounds, InitialFood,
+  MaxSerpents, Flags) ->
   #{ id => Id
+   , numeric_id => NumericId
    , serpents => []
    , state => created
    , rows => Rows
@@ -83,6 +86,9 @@ new(
 
 -spec id(game()) -> id().
 id(#{id := Id}) -> Id.
+
+-spec numeric_id(game()) -> pos_integer().
+numeric_id(#{numeric_id := NumericId}) -> NumericId.
 
 -spec rows(game()) -> pos_integer().
 rows(#{rows := Rows}) -> Rows.
