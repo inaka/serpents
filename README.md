@@ -50,7 +50,7 @@ Prefixes all server messages, both server originated and the replies.
 Field     | Description
 ----------|-------------
 Flags     | For now, only used to specify the message type
-MessageID | The same message ID the user sent if a reply or an ID
+MessageID | The same message ID the user sent if a reply or an unique server generated ID
 Time      | In the case of a response, the value sent by the client, otherwise, this is the current tick
 
 ### Ping Request ###
@@ -195,8 +195,18 @@ Sent every server tick (50 times per second) with any updates the game had. Ther
     DirectionChanged => PlayerId Direction
     Direction => uchar
     Died => PlayerId
-    GameStart => Ø
-    Turn => Ø
+    GameStart => NumWalls [Wall]
+    NumWalls => ushort
+    Wall => X Y
+    X => ushort
+    Y => ushort
+    Turn => FruitDiff NumOccupied [OccupiedDiff]
+    FruitDiff => Diff
+    OccupiedDiff => Diff
+    Diff = Status X Y
+    Status => uchar => ADDED | REMOVED
+    ADDED => 1
+    REMOVED => 2
 
 Field     | Description
 ----------|-------------
