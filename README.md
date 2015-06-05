@@ -198,7 +198,7 @@ Sent every server tick (50 times per second) with any updates the game had. Ther
     Died => PlayerId
     GameStart => Walls
     Walls => Cells
-    Turn => Fruits Occupied
+    Turn => Fruits Occupied Snakes
     Fruits => Cells
     Occupied => Cells
     Cells => NumCells [Cell]
@@ -207,6 +207,12 @@ Sent every server tick (50 times per second) with any updates the game had. Ther
     Status => uchar => ADDED | REMOVED
     ADDED => 1
     REMOVED => 2
+    Snakes => SnakeCount [Snake]
+    SnakeCount => uchar
+    Snake => PlayerId Head Tail
+    PlayerId => uint
+    Head => X Y
+    Tail => X Y
     Countdown => TurnsToGo
     TurnsToGo => uchar
 

@@ -6,7 +6,9 @@
 #include <sys/time.h>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <curses.h> 
 
+void readString(char *string, int maxSize);
 unsigned int getTimestamp();
 void sendPing();
 void getIp(const char *ipString, struct in_addr *out);
@@ -14,9 +16,46 @@ void writeChar(unsigned char value, char *out);
 void writeShort(unsigned short value, char *out);
 void writeInt(unsigned int value, char *out);
 
+void readString(char *string, int maxSize)
+{
+  int index = 0;
+  while(index < maxSize)
+  {
+    string[index] = getch();
+    printw ("%s", );
+    index++;
+  }
+}
+
 int main()
 {
-  printf("Welcome to desktop client v1!\n\n");
+  initscr();
+  noecho();
+
+  //keypad ( stdscr, TRUE );
+
+  printw("Welcome to desktop client v1!\n\n");
+
+//  while(1)
+//  {
+//    switch (getch())
+//    {
+//      case 258:
+//        printw ( "DOWN\n" );
+//        break;
+//      case 259:
+//        printw ( "UP\n" );
+//        break;
+//      case 260:
+//        printw ( "LEFT\n" );
+//        break;
+//      case 261:
+//        printw ( "RIGHT\n" );
+//        break;
+//    }
+//
+//    refresh();
+//  }
 
   char ipString[16];
   int port;
@@ -25,26 +64,27 @@ int main()
   while(!hasAddress)
   {
     // Read the IP the user wants to connect to
-    printf("Game server IP\n");
+    printw("Game server IP\n");
+    refresh();
     
-    fgets(ipString, sizeof(ipString), stdin);
-    fflush(stdin);
+    getstr(ipString);
     strtok(ipString, "\n");
 
     // Read the port
-    printf("Game server Port\n");
+    printw("Game server Port\n");
+    refresh();
     scanf("%d", &port);
     getchar();
 
     // Confirm
-    printf("connect to %s:%d? (y/n)\n", ipString, port);
+    printw("connect to %s:%d? (y/n)\n", ipString, port);
     char confirmation;
     
     confirmation = getchar();
     getchar();
     while(confirmation != 'y' && confirmation != 'n')
     {
-      printf("eh?");
+      printw("eh?");
       confirmation = getchar();
       getchar();
     }
@@ -52,13 +92,13 @@ int main()
     hasAddress = confirmation == 'y';
   }
 
-  printf("connecting to %s:%d...\n", ipString, port);
+  printw("connecting to %s:%d...\n", ipString, port);
   
   // Create a socket
   int fd; // The file descriptor
   if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
   {
-    printf("unable to create socket\n");
+    printw("unable to create socket\n");
     return 0;
   }
 
@@ -70,7 +110,7 @@ int main()
 
   if (bind(fd, (struct sockaddr *)&myaddr, sizeof(myaddr)) < 0)
   {
-    printf("unable to bind socket\n");
+    printw("unable to bind socket\n");
     close(fd);
     return 0;
   }
@@ -81,7 +121,7 @@ int main()
 
   unsigned int ping = 0;
 
-  printf("connected with ping: %d at %u\n", ping, timestamp);
+  printw("connected with ping: %d at %u\n", ping, timestamp);
 
   close(fd);
   return 0;

@@ -226,20 +226,21 @@ handle_game_updated(Game, CurrentTick, Games) ->
   case lists:keytake(GameId, 1, Games) of
     false ->
       Games;
-    {value, {GameId, GameName, GameUsers, {OldFruits, OldCells}}, Tail} ->
+    {value, {GameId, GameName, GameUsers, {OldFruits, OldWalls}}, Tail} ->
       % Get the new cell data
-      {NewFruits, NewWalls} = condense_cells(spts_games:cells(Game)),
+      NewFruits = spts_games:fruits(Game),
+      NewWalls = spts_games:walls(Game),
       NewSerpentCells = get_serpent_cells(spts_games:serpents(Game)),
-      NewCells = NewWalls + NewSerpentCells,
+      NewWalls = NewWalls + NewSerpentCells,
       % Find the diffs
       FruitDiff = get_cell_diff(OldFruits, NewFruits),
-      CellDiff = get_cell_diff(OldCells, NewCells),
+      CellDiff = get_cell_diff(OldWalls, NewWalls),
       % Make the event
       NewEvents = [build_simulation_step(CurrentTick, FruitDiff, CellDiff)],
       NewGameUsers = [{User, Events ++ NewEvents} ||
                       {User, Events} <- GameUsers],
       % Build the new state
-      NewGameState = {NewFruits, NewCells},
+      NewGameState = {NewFruits, NewWalls},
       % Compose the new game
       NewGame = {GameId, GameName, NewGameUsers, NewGameState},
       % Return the new game list
@@ -251,19 +252,19 @@ handle_game_started(Game, CurrentTick, Games) ->
   case lists:keytake(GameId, 1, Games) of
     false ->
       Games;
-    {value, {GameId, GameName, GameUsers, {_OldFruits, OldCells}}, Tail} ->
+    {value, {GameId, GameName, GameUsers, {_OldFruits, OldWalls}}, Tail} ->
       % Get the new cell data
-      {_NewFruits, NewWalls} = condense_cells(spts_games:cells(Game)),
+      NewWalls = spts_games:walls(Game),
       NewSerpentCells = get_serpent_cells(spts_games:serpents(Game)),
-      NewCells = NewWalls + NewSerpentCells,
+      NewWalls = NewWalls + NewSerpentCells,
       % Find the diffs
-      CellDiff = get_cell_diff(OldCells, NewCells),
+      CellDiff = get_cell_diff(OldWalls, NewWalls),
       % Make the event
       NewEvents = [build_start(CurrentTick, CellDiff)],
       NewGameUsers = [{User, Events ++ NewEvents} ||
                       {User, Events} <- GameUsers],
       % Build the new state
-      NewGameState = {[], NewCells},
+      NewGameState = {[], NewWalls},
       % Compose the new game
       NewGame = {GameId, GameName, NewGameUsers, NewGameState},
       % Return the new game list
@@ -295,19 +296,8 @@ get_serpent_cells(Serpents) ->
 get_serpent_cells([], Cells) ->
   Cells;
 get_serpent_cells([Serpent | T], Cells) ->
-  NewCells = spts_serpents:body(Serpent),
-  get_serpent_cells(T, Cells ++ NewCells).
-
-condense_cells(Cells) ->
-  condense_cells(Cells, [], []).
-condense_cells([], Fruits, Walls) ->
-  {Fruits, Walls};
-condense_cells([#{content := wall,
-                  position := Position} | T], Fruits, Walls) ->
-  condense_cells(T, Fruits, [Position | Walls]);
-condense_cells([#{content := {fruit, _WhatIsThis},
-                  position := Position} | T], Fruits, Walls) ->
-  condense_cells(T, [Position | Fruits], Walls).
+  NewWalls = spts_serpents:body(Serpent),
+  get_serpent_cells(T, Cells ++ NewWalls).
 
 get_cell_diff(PreviousCells, CurrentCells) ->
   AddedCells = CurrentCells -- PreviousCells,
@@ -366,7 +356,7 @@ get_game_id(UserId, [{GameId, _GameName, GameUsers} | T]) ->
     _     -> GameId
   end.
 
-get_basic_info({GameId, GameName, Users}) ->
+get_basic_info({GameId, GameName, Users, _Ignore}) ->
   Game = spts_core:fetch_game(GameName),
   MaxUsers = case spts_games:max_serpents(Game) of
                infinity -> 255;
