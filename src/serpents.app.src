@@ -9,6 +9,7 @@
     sasl,
     lager,
     cowboy,
+    jiffy,
     katana
   ]},
   {modules, []},
