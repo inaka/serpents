@@ -256,12 +256,16 @@ kill_or_feed(Game, Serpents) ->
   [do_kill_or_feed(NewGame, Serpent) || Serpent <- Serpents].
 
 do_kill_or_feed(Game, Serpent) ->
-  [Head | _] = spts_serpents:body(Serpent),
-  Name = spts_serpents:name(Serpent),
-  case lists:sort(contents(Game, Head)) of
-    [{serpent, Name}] -> Serpent;
-    [{fruit, Food}, {serpent, Name}] -> spts_serpents:feed(Serpent, Food);
-    [_, _| _] -> spts_serpents:status(Serpent, dead)
+  case spts_serpents:status(Serpent) of
+    dead -> Serpent;
+    alive ->
+      [Head | _] = spts_serpents:body(Serpent),
+      Name = spts_serpents:name(Serpent),
+      case lists:sort(contents(Game, Head)) of
+        [{serpent, Name}] -> Serpent;
+        [{fruit, Food}, {serpent, Name}] -> spts_serpents:feed(Serpent, Food);
+        [_, _| _] -> spts_serpents:status(Serpent, dead)
+      end
   end.
 
 contents(Game, Position) ->
@@ -269,6 +273,7 @@ contents(Game, Position) ->
   SerpentsInPos =
     [ {serpent, spts_serpents:name(Serpent)}
     || Serpent <- Serpents
+     , alive == spts_serpents:status(Serpent)
      , P <- spts_serpents:body(Serpent)
      , P == Position],
   SerpentsInPos ++ contents_in_cells(Game, Position).
