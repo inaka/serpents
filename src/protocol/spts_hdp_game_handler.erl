@@ -104,17 +104,15 @@ handle_info(update, State = #state{tick = Tick, games = Games}) ->
 handle_info({event, {serpent_added, _Serpent}}, State) ->
   % Do nothing, we already know this (we joined the guy!)
   {noreply, State};
-handle_info({event, {game_started, Game}}, State) ->
-  lager:critical("game_started: ~p", [Game]),
-  %NewGameUsers = send_event(NewEvents, GameUsers),
-  {noreply, State};
+handle_info({event, {game_started, Game}}, State = #state{games = Games,
+                                                          tick  = Tick}) ->
+  NewGames = handle_game_started(Game, Tick, Games),
+  {noreply, State#state{games = NewGames}};
 handle_info({event, {game_finished, Game}}, State = #state{games = Games}) ->
-  lager:critical("game_finished"),
   NewGames = handle_game_finished(Game, Games),
   {noreply, State#state{games = NewGames}};
 handle_info({event, {game_updated, Game}}, State = #state{games = Games,
                                                           tick  = Tick}) ->
-  lager:critical("game_updated"),
   NewGames = handle_game_updated(Game, Tick, Games),
   {noreply, State#state{games = NewGames}};
 handle_info({event, {game_countdown, _Game}}, State) ->
@@ -234,6 +232,30 @@ handle_game_updated(Game, CurrentTick, Games) ->
       [NewGame | Tail]
   end.
 
+handle_game_started(Game, CurrentTick, Games) ->
+  GameId = spts_games:numeric_id(Game),
+  case lists:keytake(GameId, 1, Games) of
+    false ->
+      Games;
+    {value, {GameId, GameName, GameUsers, {_OldFruits, OldCells}}, Tail} ->
+      % Get the new cell data
+      {_NewFruits, NewWalls} = condense_cells(spts_games:cells(Game)),
+      NewSerpentCells = get_serpent_cells(spts_games:serpents(Game)),
+      NewCells = NewWalls + NewSerpentCells,
+      % Find the diffs
+      CellDiff = get_cell_diff(OldCells, NewCells),
+      % Make the event
+      NewEvents = [build_start(CurrentTick, CellDiff)],
+      NewGameUsers = [{User, Events ++ NewEvents} ||
+                      {User, Events} <- GameUsers],
+      % Build the new state
+      NewGameState = {[], NewCells},
+      % Compose the new game
+      NewGame = {GameId, GameName, NewGameUsers, NewGameState},
+      % Return the new game list
+      [NewGame | Tail]
+  end.
+
 %%==============================================================================
 %% Utils
 %%==============================================================================
@@ -335,7 +357,7 @@ get_direction_atom(4) -> up;
 get_direction_atom(8) -> down;
 get_direction_atom(_) -> ignore.
 
-get_user_name(UserId, []) ->
+get_user_name(_UserId, []) ->
   undefined;
 get_user_name(UserId, [{{UserId, UserName, _Address}, _Events} | _Users]) ->
   UserName;
@@ -345,16 +367,6 @@ get_user_name(UserId, [_User | Users]) ->
 %%==============================================================================
 %% Message building
 %%==============================================================================
-get_command(left)  -> 0;
-get_command(join)  -> 1;
-get_command(moved) -> 2;
-get_command(died)  -> 3;
-get_command(start) -> 4;
-get_command(step)  -> 5.
-
-get_cell_status(added) -> 1;
-get_cell_status(removed) -> 2.
-
 build_user_joined(User, Tick) ->
   {Id, Name, _Adress} = User,
   NameSize = size(Name),
@@ -364,6 +376,12 @@ build_user_joined(User, Tick) ->
             Id:?UINT,
             NameSize:?UCHAR>>,
           Name]}.
+
+build_start(Tick, WallDiff) ->
+  StartCommand = get_command(start),
+  {Tick, [<<Tick:?USHORT,
+            StartCommand:?UCHAR>>,
+          build_diff(WallDiff)]}.
 
 build_moved(UserId, Tick, Direction) ->
   MovedCommand = get_command(moved),
@@ -376,7 +394,20 @@ build_simulation_step(Tick, FruitDiff, CellDiff) ->
           build_diff(FruitDiff),
           build_diff(CellDiff)]}.
 
+%%==============================================================================
+%% Message building Utils
+%%==============================================================================
 build_diff(Diff) ->
   [length(Diff),
    [<<(get_cell_status(Status)):?USHORT, X:?USHORT, Y:?USHORT>> ||
     {Status, X, Y} <- Diff]].
+
+get_command(left)  -> 0;
+get_command(join)  -> 1;
+get_command(moved) -> 2;
+get_command(died)  -> 3;
+get_command(start) -> 4;
+get_command(step)  -> 5.
+
+get_cell_status(added) -> 1;
+get_cell_status(removed) -> 2.
