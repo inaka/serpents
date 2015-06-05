@@ -178,14 +178,14 @@ Sent every server tick (50 times per second) with any updates the game had. Ther
     NumEvents => uchar
     Event => Tick EventType EventData
     Tick => ushort
-    EventType => uchar => LEFT_COMMAND | JOINED_COMMAND | DIRECTION_CHANGED_COMMAND | DIED_COMMAND | START_COMMAND | SIMULATION_STEP
+    EventType => uchar => LEFT_COMMAND | JOINED_COMMAND | DIRECTION_CHANGED_COMMAND | DIED_COMMAND | START_COMMAND | TURN
     LEFT_COMMAND => 0
     JOINED_COMMAND => 1
     DIRECTION_CHANGED_COMMAND => 2
     DIED_COMMAND => 3
     START_COMMAND => 4
-    SIMULATION_STEP => 5
-    EventData => Left | Joined | DirectionChanged | Died | GameStart | SimulationStep
+    TURN => 5
+    EventData => Left | Joined | DirectionChanged | Died | GameStart | Turn
     Left => PlayerId
     PlayerId => uint
     Joined => PlayerId Name
@@ -195,7 +195,7 @@ Sent every server tick (50 times per second) with any updates the game had. Ther
     Direction => uchar
     Died => PlayerId
     GameStart => Ø
-    SimulationStep => Ø
+    Turn => Ø
 
 Field     | Description
 ----------|-------------
@@ -203,3 +203,4 @@ NumEvents | The amount of events, this value can be 0
 Time      | The tick in which the event happened
 EventType | The type of event is indicated by uchar
 Direction | The direction, in the same format as in the client update Action
+Turn      | Notifies the user that the server has executed a turn
