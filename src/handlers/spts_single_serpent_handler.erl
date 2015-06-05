@@ -61,7 +61,7 @@ handle_put(Req, State) ->
   try
     {GameId, Req1} = cowboy_req:binding(game_id, Req),
     {Token, Req2} = cowboy_req:binding(token, Req1),
-    {ok, Body, Req2} = cowboy_req:body(Req1),
+    {ok, Body, Req3} = cowboy_req:body(Req2),
 
     case spts_core:is_game(GameId) of
       false -> throw(notfound);
@@ -76,12 +76,12 @@ handle_put(Req, State) ->
           ok =
             spts_core:turn(GameId, spts_serpents:name(OldSerpent), Direction),
           NewGame = spts_core:fetch_game(GameId),
-          spts_games:serpent_by_token(Game, Token)
+          spts_games:serpent_by_token(NewGame, Token)
       end,
 
-    RespBody = spts_json:encode(spts_serpents:to_json(Serpent)),
-    Req3 = cowboy_req:set_resp_body(RespBody, Req2),
-    {true, Req3, State}
+    RespBody = spts_json:encode(spts_serpents:to_json(Serpent, private)),
+    Req4 = cowboy_req:set_resp_body(RespBody, Req3),
+    {true, Req4, State}
   catch
     _:Exception ->
       spts_web_utils:handle_exception(Exception, Req, State)

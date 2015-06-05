@@ -41,6 +41,7 @@ handle_post(Req, State) ->
   try
     {GameId, Req1} = cowboy_req:binding(game_id, Req),
     {ok, Body, Req2} = cowboy_req:body(Req1),
+    Name = parse_body(spts_json:decode(Body)),
     #{<<"name">> := Name} = spts_json:decode(Body),
 
     case spts_core:is_game(GameId) of
@@ -57,3 +58,6 @@ handle_post(Req, State) ->
     _:Exception ->
       spts_web_utils:handle_exception(Exception, Req, State)
   end.
+
+parse_body(#{<<"name">> := Name}) -> Name;
+parse_body(_) -> throw({missing_field, <<"name">>}).
