@@ -16,6 +16,7 @@
 -export([ ping/1
         , games/1
         , single_game/1
+        , join/1
         ]).
 
 -define(UCHAR,  8/unsigned-integer).
@@ -80,12 +81,8 @@ single_game(Config) ->
   ct:comment("A game request is sent for an unexistent game"),
   ok = hdp_send(hdp_game(1, 1), Config),
 
-  ct:comment("A game description is received"),
-  try hdp_recv(Config) of
-    X -> ct:fail("Unexpected result: ~p", [X])
-  catch
-    throw:error -> ok
-  end,
+  ct:comment("A game description is not received"),
+  hdp_fail(Config),
 
   ct:comment("A game is created"),
   Game = spts_core:create_game(#{max_serpents => 2}),
@@ -121,9 +118,60 @@ single_game(Config) ->
 
   {comment, ""}.
 
+-spec join(spts_test_utils:config()) -> {comment, []}.
+join(Config) ->
+  ct:comment("A join request is sent for an unexistent game"),
+  ok = hdp_send(hdp_join(1, 1, <<"s1">>), Config),
+
+  ct:comment("It fails"),
+  {error_join_response, 1, _, {1, <<"unspecified">>}} = hdp_recv(Config),
+
+  ct:comment("A game is created"),
+  Game = spts_core:create_game(),
+  GameId = spts_games:numeric_id(Game),
+  GameName = spts_games:id(Game),
+  update_game_list(Config),
+
+  ct:comment("A player joins"),
+  ok = hdp_send(hdp_join(2, GameId, <<"s1">>), Config),
+  {join_response, 2, _, GD1} = hdp_recv(Config),
+  {S1Id, GameId, 250, 20, 20, 255, [{S1Id, <<"s1">>}]} = GD1,
+  [Serpent1] = spts_games:serpents(spts_core:fetch_game(GameName)),
+  {S1Id, S1Id} = {S1Id, GameId * 10000 + spts_serpents:numeric_id(Serpent1)},
+
+  ct:comment("A player tries to join again"),
+  ok = hdp_send(hdp_join(3, GameId, <<"s1">>), Config),
+  {error_join_response, 3, _, {GameId, <<"unspecified">>}} = hdp_recv(Config),
+  [Serpent1] = spts_games:serpents(spts_core:fetch_game(GameName)),
+
+  ct:comment("Another player joins"),
+  ok = hdp_send(hdp_join(3, GameId, <<"s2">>), Config),
+  {join_response, 3, _, GD2} = hdp_recv(Config),
+  {S2Id, GameId, 250, 20, 20, 255, [{S2Id, <<"s2">>}, {S1Id, <<"s1">>}]} = GD2,
+  Serpent2 = spts_games:serpent(spts_core:fetch_game(GameName), <<"s2">>),
+  {S2Id, S2Id} = {S2Id, GameId * 10000 + spts_serpents:numeric_id(Serpent2)},
+
+  ct:comment("The game starts"),
+  spts_core:start_game(GameName),
+
+  ct:comment("Nobody can join anymore"),
+  ok = hdp_send(hdp_join(4, GameId, <<"s3">>), Config),
+  {error_join_response, 4, _, {GameId, <<"unspecified">>}} = hdp_recv(Config),
+  [_, _] = spts_games:serpents(spts_core:fetch_game(GameName)),
+
+  {comment, ""}.
+
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Message parsing/handling
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+hdp_fail(Config) ->
+  try hdp_recv(Config) of
+    X -> ct:fail("Unexpected result: ~p", [X])
+  catch
+    throw:error -> ok
+  end.
+
 hdp_recv(Config) ->
   hdp_recv(Config, default).
 hdp_recv(Config, Parser) ->
@@ -141,6 +189,7 @@ hdp_recv(Config, Parser) ->
       130 -> info_response;
       131 -> join_response;
       132 -> game_update;
+      003 -> error_join_response;
       Other when Other band 128 == 0 -> throw(error)
     end,
   {Type, MsgId, Time, hdp_parse(Type, Parser, Message)}.
@@ -160,18 +209,41 @@ hdp_parse(info_response, detail, GameDesc) ->
    , CurrP:?UCHAR
    , MaxP:?UCHAR
    , Players/binary>> = GameDesc,
-  {GameId, TickRate, Cols, Rows, MaxP, hdp_parse_players(CurrP, Players)}.
+  {GameId, TickRate, Cols, Rows, MaxP, hdp_parse_players(CurrP, Players)};
+hdp_parse(error_join_response, _, Error) ->
+  <<GameId:?USHORT, ReasonSize:?UCHAR, Reason:ReasonSize/binary>> = Error,
+  {GameId, Reason};
+hdp_parse(join_response, _, GameDesc) ->
+  << PlayerId:?UINT
+   , GameId:?USHORT
+   , TickRate:?UCHAR
+   , Cols:?UCHAR
+   , Rows:?UCHAR
+   , CurrP:?UCHAR
+   , MaxP:?UCHAR
+   , Players/binary>> = GameDesc,
+  {PlayerId, GameId, TickRate, Cols, Rows, MaxP,
+   hdp_parse_players(CurrP, Players)}.
 
-hdp_parse_players(CurrP, Players) when length(Players) == CurrP ->
-  [ {Id, Name}
-  || <<Id:?UINT, NameSize:?UCHAR, Name:NameSize/binary>> <= Players
-  ].
+hdp_parse_players(CurrP, Players) ->
+  PlayerIds =
+    [ {Id, Name}
+    || <<Id:?UINT, NameSize:?UCHAR, Name:NameSize/binary>> <= Players
+    ],
+  case length(PlayerIds) of
+    CurrP -> PlayerIds;
+    _ -> ct:fail("Bad list of players (not ~p): ~p", [CurrP, Players])
+  end.
 
 hdp_send(Message, Config) ->
   {socket, UdpSocket} = lists:keyfind(socket, 1, Config),
   Port = application:get_env(serpents, udp_port, 8584),
   gen_udp:send(UdpSocket, localhost, Port, Message).
 
+hdp_join(MsgId, GameId, Name) ->
+  H = hdp_head(3, MsgId),
+  S = size(Name),
+  <<H/binary, GameId:?USHORT, S:?UCHAR, Name/binary>>.
 
 hdp_game(MsgId, GameId) ->
   H = hdp_head(2, MsgId),
@@ -188,3 +260,11 @@ hdp_head(Flags, MsgId, UserId) ->
   hdp_head(Flags, MsgId, Nanos rem 65536, UserId).
 hdp_head(Flags, MsgId, UserTime, UserId) ->
   <<Flags:?UCHAR, MsgId:?USHORT, UserTime:?USHORT, UserId:?USHORT>>.
+
+update_game_list(Config) ->
+  ct:comment("A games request is sent"),
+  ok = hdp_send(hdp_games(99), Config),
+
+  ct:comment("A games list is received"),
+  {info_response, 99, _, {_, _}} = hdp_recv(Config),
+  ok.

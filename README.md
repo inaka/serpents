@@ -149,6 +149,7 @@ Returns either an error or the game info if the join was successful. Note that t
     Reason => StringSize bytes
     StringSize => uchar
     Success => PlayerID GameInfoResponse
+    PlayerID => uint
 
 Field              | Description
 -------------------|-------------
