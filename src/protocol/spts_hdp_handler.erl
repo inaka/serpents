@@ -109,7 +109,7 @@ handle_message(info,
                                     userTime  = UserTime}) ->
   try
     % Retrieve the game data
-    GameName = spts_hdp_handler:get_game_name(GameId),
+    GameName = spts_hdp_game_handler:get_game_name(GameId),
     Game = spts_core:fetch_game(GameName),
     Rows = spts_games:rows(Game),
     Cols = spts_games:cols(Game),
