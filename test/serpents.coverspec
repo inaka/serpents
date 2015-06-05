@@ -9,7 +9,9 @@
  , spts_games_handler
  , spts_news_event_handler
  , spts_news_handler
+ , spts_serpents_handler
  , spts_single_game_handler
+ , spts_single_serpent_handler
  , spts_status_handler
  , spts_games
  , spts_games_repo

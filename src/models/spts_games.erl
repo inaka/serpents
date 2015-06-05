@@ -50,6 +50,7 @@
   , state/1
   , serpents/1
   , serpent/2
+  , serpent_by_token/2
   , is_empty/2
   , content/3
   , fruit/1
@@ -134,6 +135,15 @@ serpents(#{serpents := Serpents}) -> Serpents.
 serpent(#{serpents := Serpents}, SerpentName) ->
   case [Serpent || Serpent <- Serpents
                  , SerpentName == spts_serpents:name(Serpent)] of
+    [] -> notfound;
+    [Serpent|_] -> Serpent
+  end.
+
+-spec serpent_by_token(game(), binary()) ->
+  spts_serpents:serpent() | notfound.
+serpent_by_token(#{serpents := Serpents}, SerpentToken) ->
+  case [Serpent || Serpent <- Serpents
+                 , SerpentToken == spts_serpents:token(Serpent)] of
     [] -> notfound;
     [Serpent|_] -> Serpent
   end.

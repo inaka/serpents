@@ -17,7 +17,7 @@ handle_exception({missing_field, Field}, Req, State) ->
   Response = spts_json:encode(#{error => <<"missing field: ", Field/binary>>}),
   {ok, Req1} = cowboy_req:reply(400, [], Response, Req),
   {halt, Req1, State};
-handle_exception(not_found, Req, State) ->
+handle_exception(notfound, Req, State) ->
   {ok, Req1} = cowboy_req:reply(404, Req),
   {halt, Req1, State};
 handle_exception(Error, Req, State) when is_atom(Error) ->
