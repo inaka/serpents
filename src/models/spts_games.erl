@@ -30,7 +30,7 @@
    , cells => [cell()]
   }.
 -export_type([
-  game/0, state/0, id/0, content/0, position/0, direction/0, flag/0]).
+  game/0, state/0, id/0, content/0, position/0, direction/0, flag/0, cell/0]).
 
 -export(
   [ new/10

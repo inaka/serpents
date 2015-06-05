@@ -103,13 +103,60 @@ handle_message(info, <<>>, Metadata = #metadata{messageId = MessageId,
         [<<Id:?USHORT, TickRate:?UCHAR, NumPlayers:?UCHAR, MaxPlayers:?UCHAR>>
          || {Id, TickRate, NumPlayers, MaxPlayers} <- AllGames]],
        Metadata);
-handle_message(info, <<_GameId:16/unsigned-integer>>, _Metadata) ->
-  % TODO
-  ok;
+handle_message(info,
+               <<GameId:?USHORT>>,
+               Metadata = #metadata{messageId = MessageId,
+                                    userTime  = UserTime}) ->
+  try
+    % Retrieve the game data
+    GameName = spts_hdp_handler:get_game_name(GameId),
+    Game = spts_core:fetch_game(GameName),
+    Rows = spts_games:rows(Game),
+    Cols = spts_games:cols(Game),
+    Tickrate = spts_games:ticktime(Game),
+    MaxPlayers =
+      case spts_games:max_serpents(Game) of
+        infinity -> 255;
+        MaxS -> MaxS
+      end,
+
+    % Retrieve the game data that's stored on the game handler
+    Players = spts_hdp_game_handler:get_game_users(GameId),
+    NumPlayers = length(Players),
+    BinPlayersInfo = [[<<Id:?UINT, (size(PlayerName)):?UCHAR>>, PlayerName] ||
+                      {Id, PlayerName} <- Players],
+
+    SuccessFlags = set_flags([info, success]),
+    send([<<SuccessFlags:?UCHAR,
+            MessageId:?UINT,
+            UserTime:?USHORT,
+            GameId:?USHORT,
+            Tickrate:?UCHAR,
+            Cols:?UCHAR,
+            Rows:?UCHAR,
+            NumPlayers:?UCHAR,
+            MaxPlayers:?UCHAR>>,
+            BinPlayersInfo],
+           Metadata)
+  catch
+    A:B -> lager:warning(
+            "Unexpected error ~p:~p~n~p", [A, B, erlang:get_stacktrace()]),
+           ErrorFlags = set_flags([info, error]),
+           ErrorReason = "unspecified",
+           ErrorReasonLength = length(ErrorReason),
+           send([<<ErrorFlags:?UCHAR,
+                   MessageId:?UINT,
+                   UserTime:?USHORT,
+                   GameId:?USHORT,
+                   ErrorReasonLength:?UCHAR>>,
+                 ErrorReason],
+                Metadata)
+  end;
+  
 %% JOIN COMMAND
 handle_message(join,
-               <<GameId:16/unsigned-integer,
-                 NameSize:8/unsigned-integer,
+               <<GameId:?USHORT,
+                 NameSize:?UCHAR,
                  Name:NameSize/binary>>,
                Metadata = #metadata{messageId = MessageId,
                                     userTime  = UserTime}) ->

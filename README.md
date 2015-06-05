@@ -50,7 +50,7 @@ Prefixes all server messages, both server originated and the replies.
 Field     | Description
 ----------|-------------
 Flags     | For now, only used to specify the message type
-MessageID | The same message ID the user sent if a reply or an ID
+MessageID | The same message ID the user sent if a reply or an unique server generated ID
 Time      | In the case of a response, the value sent by the client, otherwise, this is the current tick
 
 ### Ping Request ###
@@ -179,14 +179,15 @@ Sent every server tick (50 times per second) with any updates the game had. Ther
     NumEvents => uchar
     Event => Tick EventType EventData
     Tick => ushort
-    EventType => uchar => LEFT_COMMAND | JOINED_COMMAND | DIRECTION_CHANGED_COMMAND | DIED_COMMAND | START_COMMAND | TURN
+    EventType => uchar => LEFT_COMMAND | JOINED_COMMAND | DIRECTION_CHANGED_COMMAND | DIED_COMMAND | START_COMMAND | TURN_COMMAND | COUNTDOWN_COMMAND
     LEFT_COMMAND => 0
     JOINED_COMMAND => 1
     DIRECTION_CHANGED_COMMAND => 2
     DIED_COMMAND => 3
     START_COMMAND => 4
-    TURN => 5
-    EventData => Left | Joined | DirectionChanged | Died | GameStart | Turn
+    TURN_COMMAND => 5
+    COUNTDOWN_COMMAND => 6
+    EventData => Left | Joined | DirectionChanged | Died | GameStart | Turn | Countdown
     Left => PlayerId
     PlayerId => uint
     Joined => PlayerId Name
@@ -195,8 +196,19 @@ Sent every server tick (50 times per second) with any updates the game had. Ther
     DirectionChanged => PlayerId Direction
     Direction => uchar
     Died => PlayerId
-    GameStart => Ø
-    Turn => Ø
+    GameStart => Walls
+    Walls => Cells
+    Turn => Fruits Occupied
+    Fruits => Cells
+    Occupied => Cells
+    Cells => NumCells [Cell]
+    NumCells => ushort
+    Cell => Status X Y
+    Status => uchar => ADDED | REMOVED
+    ADDED => 1
+    REMOVED => 2
+    Countdown => TurnsToGo
+    TurnsToGo => uchar
 
 Field     | Description
 ----------|-------------
@@ -205,3 +217,5 @@ Time      | The tick in which the event happened
 EventType | The type of event is indicated by uchar
 Direction | The direction, in the same format as in the client update Action
 Turn      | Notifies the user that the server has executed a turn
+Cells     | A list of cells expressed as a diff
+TurnsToGo | Used on the countdown, used clientside to predict when the game will start
