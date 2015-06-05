@@ -66,13 +66,22 @@ handle_call({user_connected, Name, Address, GameId}, _From,
             State = #state{users = Users,
                            games = Games,
                            tick  = CurrentTick}) ->
-  case handle_user_connected(Name, Address, GameId) of
-    ignored ->
+  case lists:keytake(GameId, 1, Games) of
+    false ->
       {reply, error, State};
-    {Id, _Name, _Address} = NewUser ->
-      NewUsers = [NewUser | Users],
-      NewGames = add_user_to_game(NewUser, GameId, CurrentTick, Games),
-      {reply, Id, State#state{users = NewUsers, games = NewGames}}
+    {value, {GameId, GameName, GameUsers}, OtherGames} ->
+      case handle_user_connected(Name, Address, GameName) of
+        ignored ->
+          {reply, error, State};
+        {InGameId, Name, Address} ->
+          Id = GameId * 10000 + InGameId,
+          NewUser = {Id, Name, Address},
+          NewUsers = [NewUser | Users],
+          NewGame =
+            add_user_to_game(NewUser, GameId, GameName, GameUsers, CurrentTick),
+          NewGames = [NewGame|OtherGames],
+          {reply, Id, State#state{users = NewUsers, games = NewGames}}
+      end
   end;
 handle_call({get_games}, _From, State = #state{games = Games}) ->
   NewGames = handle_get_games(Games),
@@ -132,11 +141,9 @@ init([]) ->
   TRef = timer:send_interval(get_ms_per_update(), ?MODULE, update),
   {ok, #state{tick = 0, tref = TRef}}.
 
-handle_user_connected(Name, Address, GameId) ->
-  try spts_core:add_serpent(GameId, Name) of
-    _Serpent ->
-      UserID = random:uniform(2147483647),
-      {UserID, Name, Address}
+handle_user_connected(Name, Address, GameName) ->
+  try spts_core:add_serpent(GameName, Name) of
+    Serpent -> {spts_serpents:numeric_id(Serpent), Name, Address}
   catch
     _:Reason ->
       lager:warning("Unable to join game, reason: ~p", [Reason]),
@@ -223,20 +230,13 @@ update_user(CurrentTick, {{_Id, _Name, {Ip, Port}}, Events}) ->
 get_ms_per_update()      -> 1000 / get_updates_per_second().
 get_updates_per_second() -> 50.
 
-add_user_to_game(NewUser, GameId, CurrentTick, Games) ->
-  case lists:keytake(GameId, 1, Games) of
-    false ->
-      % TODO: Remove the user from the server
-      lager:error("unable to add ~p to ~p", [NewUser, GameId]),
-      Games;
-    {value, {GameId, GameName, GameUsers}, Tail} ->
-      % Notify all players in the game that this user joined,
-      % The events need to be in cronological order, hence the '++'
-      NewEvents = [build_user_joined(NewUser, CurrentTick)],
-      NewGameUsers = [{User, Events ++ NewEvents} ||
-                      {User, Events} <- GameUsers],
-      [{GameId, GameName, [{NewUser, []} | NewGameUsers]} | Tail]
-  end.
+add_user_to_game(NewUser, GameId, GameName, GameUsers, CurrentTick) ->
+  % Notify all players in the game that this user joined,
+  % The events need to be in cronological order, hence the '++'
+  NewEvents = [build_user_joined(NewUser, CurrentTick)],
+  NewGameUsers = [{User, Events ++ NewEvents} ||
+                  {User, Events} <- GameUsers],
+  {GameId, GameName, [{NewUser, []} | NewGameUsers]}.
 
 clear_messages_older_than(UserId, {UserId, _Name, _Address}, Events, Tick) ->
   lists:filter(fun({EvtTick, _Data}) -> Tick < EvtTick end, Events);

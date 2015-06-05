@@ -388,6 +388,7 @@ add_serpent_ok(Config) ->
   ct:comment("serp1 is aded"),
   Serpent1 = spts_core:add_serpent(GameId, <<"serp1">>),
   [{Row1, Col1}] = spts_serpents:body(Serpent1),
+  1 = spts_serpents:numeric_id(Serpent1),
   true =
     lists:member(spts_serpents:direction(Serpent1), [up, down, left, right]),
   true = Row1 > 0,
@@ -400,6 +401,7 @@ add_serpent_ok(Config) ->
   ct:comment("serp2 is added"),
   Serpent2 = spts_core:add_serpent(GameId, <<"serp2">>),
   [{Row2, Col2}] = spts_serpents:body(Serpent2),
+  2 = spts_serpents:numeric_id(Serpent2),
   true =
     lists:member(spts_serpents:direction(Serpent2), [up, down, left, right]),
   true = Row2 > 0,
@@ -412,6 +414,7 @@ add_serpent_ok(Config) ->
   ct:comment("serp3 is added"),
   Serpent3 = spts_core:add_serpent(GameId, <<"serp3">>),
   [{Row3, Col3}] = spts_serpents:body(Serpent3),
+  3 = spts_serpents:numeric_id(Serpent3),
   true =
     lists:member(spts_serpents:direction(Serpent3), [up, down, left, right]),
   true = Row3 > 0,
