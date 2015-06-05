@@ -116,42 +116,50 @@ handle_message(join,
   try
     % Tell the game handler that the user connected
     Address = get_address_from_metadata(Metadata),
-    {ok, PlayerId} = spts_hdp_game_handler:user_connected(Name,
-                                                          Address,
-                                                          GameId),
+    {ok, PlayerId, GameName} =
+      spts_hdp_game_handler:user_connected(Name, Address, GameId),
 
     % Retrieve the game data
-    Game = spts_core:fetch_game(GameId),
+    Game = spts_core:fetch_game(GameName),
     Rows = spts_games:rows(Game),
     Cols = spts_games:cols(Game),
+    Tickrate = spts_games:ticktime(Game),
+    MaxPlayers =
+      case spts_games:max_serpents(Game) of
+        infinity -> 255;
+        MaxS -> MaxS
+      end,
 
     % Retrieve the game data that's stored on the game handler
     Players = spts_hdp_game_handler:get_game_users(GameId),
     NumPlayers = length(Players),
-    BinPlayersInfo = [[<<Id:?UINT, (length(PlayerName)):?UCHAR>>, PlayerName] ||
+    BinPlayersInfo = [[<<Id:?UINT, (size(PlayerName)):?UCHAR>>, PlayerName] ||
                       {Id, PlayerName} <- Players],
-    Tickrate = 0,
 
     % Build the response
     SuccessFlags = set_flags([join, success]),
+    ct:pal("~p: ~w", [NumPlayers, BinPlayersInfo]),
     send([<<SuccessFlags:?UCHAR,
             MessageId:?UINT,
             UserTime:?USHORT,
-            PlayerId:?USHORT,
+            PlayerId:?UINT,
             GameId:?USHORT,
             Tickrate:?UCHAR,
             Cols:?UCHAR,
             Rows:?UCHAR,
-            NumPlayers:?USHORT,
-            255:?USHORT>>,
+            NumPlayers:?UCHAR,
+            MaxPlayers:?UCHAR>>,
           BinPlayersInfo],
          Metadata)
   catch
-    A:B -> lager:warning("Unexpected error ~p:~p", [A, B]),
+    A:B -> lager:warning(
+            "Unexpected error ~p:~p~n~p", [A, B, erlang:get_stacktrace()]),
            ErrorFlags = set_flags([join, error]),
            ErrorReason = "unspecified",
            ErrorReasonLength = length(ErrorReason),
            send([<<ErrorFlags:?UCHAR,
+                   MessageId:?UINT,
+                   UserTime:?USHORT,
                    GameId:?USHORT,
                    ErrorReasonLength:?UCHAR>>,
                  ErrorReason],
