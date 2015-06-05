@@ -90,7 +90,7 @@ handle_message(ping, _Ignored, Metadata = #metadata{messageId = MessageId,
 handle_message(info, <<>>, Metadata = #metadata{messageId = MessageId,
                                                 userTime  = UserTime}) ->
   AllGames = spts_udp_game_handler:get_games(),
-  NumGames = length(AllGames), 
+  NumGames = length(AllGames),
   Flags = set_flags([info, success]),
   send([<<Flags:?UCHAR,
           MessageId:?UINT,
@@ -115,7 +115,7 @@ handle_message(join,
     {ok, PlayerId} = spts_udp_game_handler:user_connected(Name,
                                                           Address,
                                                           GameId),
-    
+
     % Retrieve the game data
     Game = spts_core:fetch_game(GameId),
     Rows = spts_games:rows(Game),
