@@ -10,6 +10,7 @@
     lager,
     cowboy,
     jiffy,
+    lasse,
     katana
   ]},
   {modules, []},
