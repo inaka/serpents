@@ -68,10 +68,12 @@ handle_call({user_connected, Name, Address, GameId}, _From,
                            tick  = CurrentTick}) ->
   case lists:keytake(GameId, 1, Games) of
     false ->
+      lager:warning("Bad game id: ~p", [GameId]),
       {reply, error, State};
     {value, {GameId, GameName, GameUsers}, OtherGames} ->
       case handle_user_connected(Name, Address, GameName) of
         ignored ->
+          lager:warning("Ignored join: ~p / ~p", [GameId, Name]),
           {reply, error, State};
         {InGameId, Name, Address} ->
           Id = GameId * 10000 + InGameId,
@@ -80,7 +82,9 @@ handle_call({user_connected, Name, Address, GameId}, _From,
           NewGame =
             add_user_to_game(NewUser, GameId, GameName, GameUsers, CurrentTick),
           NewGames = [NewGame|OtherGames],
-          {reply, Id, State#state{users = NewUsers, games = NewGames}}
+          {reply,
+           {ok, Id, GameName},
+           State#state{users = NewUsers, games = NewGames}}
       end
   end;
 handle_call({get_games}, _From, State = #state{games = Games}) ->
@@ -296,7 +300,7 @@ get_command(step)  -> 5.
 
 build_user_joined(User, Tick) ->
   {Id, Name, _Adress} = User,
-  NameSize = length(Name),
+  NameSize = size(Name),
   JoinCommand = get_command(join),
   {Tick, [<<Tick:?USHORT,
             JoinCommand:?UCHAR,
