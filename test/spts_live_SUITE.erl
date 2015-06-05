@@ -20,6 +20,7 @@
         , collision_detection_down_wall/1
         , collision_with_serpent_body/1
         , collision_with_serpent_head/1
+        , collision_with_serpent_self/1
         , always_a_fruit/1
         , fruit_reapears/1
         , fruit_feeds/1
@@ -106,6 +107,7 @@ init_per_testcase(serpent_movement, Config) ->
   [{game, GameId} | Config];
 init_per_testcase(Test, Config) when Test == collision_with_serpent_body;
                                      Test == collision_with_serpent_head;
+                                     Test == collision_with_serpent_self;
                                      Test == fruit_reapears;
                                      Test == fruit_feeds ->
   Game = spts_games_repo:create(#{cols => 5, rows => 5, initial_food => 0}),
@@ -232,6 +234,33 @@ collision_with_serpent_body(Config) ->
 
   ct:comment("S2 should've died in ~p", [NewGame]),
   dead = spts_serpents:status(spts_games:serpent(NewGame, <<"serp2">>)),
+
+  {comment, ""}.
+
+-spec collision_with_serpent_self(spts_test_utils:config()) ->
+  {comment, []}.
+collision_with_serpent_self(Config) ->
+  {game, Game} = lists:keyfind(game, 1, Config),
+
+  ct:comment("Serpents are placed in proper positions"),
+  Serpent1 = spts_serpents:new(<<"serp1">>, 1, {2, 2}, right, 2),
+  GameWithSerpent = spts_games:add_serpent(Game, Serpent1),
+
+  ct:comment("When serpent move it grows"),
+  NewGame = spts_games_repo:advance(spts_games_repo:advance(GameWithSerpent)),
+
+  ct:comment("If it now turns back, it dies"),
+  NewerGame =
+    spts_games_repo:advance(
+      spts_games_repo:turn(NewGame, <<"serp1">>, left)),
+
+  ct:pal("Old: ~p~nNew: ~p~n", [NewGame, NewerGame]),
+
+  ct:comment("The serpent is dead"),
+  dead = spts_serpents:status(spts_games:serpent(NewerGame, <<"serp1">>)),
+
+  ct:comment("The game finished"),
+  finished = spts_games:state(NewerGame),
 
   {comment, ""}.
 
