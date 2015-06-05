@@ -11,7 +11,6 @@
 % gen_server callbacks
 -export([init/1, terminate/2, code_change/3,
          handle_call/3, handle_cast/2, handle_info/2]).
--export([handle_event/2]).
 
 -define(UCHAR,  8/unsigned-integer).
 -define(USHORT, 16/unsigned-integer).
@@ -129,20 +128,19 @@ code_change(_OldVsn, State, _Extra) -> {ok, State}.
 %% Handlers
 %%==============================================================================
 -spec init(any()) -> {ok, state()}.
-init(gen_event) ->
-  {ok, []};
 init([]) ->
   TRef = timer:send_interval(get_ms_per_update(), ?MODULE, update),
   {ok, #state{tick = 0, tref = TRef}}.
 
 handle_user_connected(Name, Address, GameId) ->
-  case uncall(spts_core, add_serpent, [GameId, Name]) of
-    {error, Reason} ->
-      lager:warning("Unable to join game, reason: ~p", [Reason]),
-      ignored;
-    {ok, _Serpent} ->
+  try spts_core:add_serpent(GameId, Name) of
+    _Serpent ->
       UserID = random:uniform(2147483647),
       {UserID, Name, Address}
+  catch
+    _:Reason ->
+      lager:warning("Unable to join game, reason: ~p", [Reason]),
+      ignored
   end.
 
 handle_get_game_users(GameId, Games) ->
@@ -167,7 +165,7 @@ handle_user_update(User, KnownServerTick, CurrentTick, Direction, Games) ->
                     ignore ->
                       [];
                     DirectionAtom ->
-                      spts_core:turn(GameId, UserName, DirectionAtom),
+                      ok = spts_core:turn(GameId, UserName, DirectionAtom),
                       [build_moved(UserId, CurrentTick, Direction)]
                   end,
       NewGameUsers = send_event(NewEvents, GameUsers),
@@ -186,18 +184,13 @@ handle_get_games(KnownGames) ->
   lists:foldl(fun(GameName, Acc) ->
                 NewGame = case lists:keytake(GameName, 2, KnownGames) of
                             false ->
-                              subscribe_to(GameName),
+                              spts_udp_event_handler:subscribe(GameName),
                               {random:uniform(65535), GameName, []};
                             {value, Game, _Tail} ->
                               Game
                           end,
                 [NewGame | Acc]
               end, [], AllGameNames).
-
--spec handle_event(any(), any()) -> {ok, any()}.
-handle_event(Event, State) ->
-  ?MODULE ! {event, Event},
-  {ok, State}.
 
 %%==============================================================================
 %% Utils
@@ -209,9 +202,6 @@ send_event([_|_] = NewEvents, GameUsers) ->
    {TheUser, Events} <- GameUsers];
 send_event(Event, GameUsers) ->
   send_event([Event], GameUsers).
-
-subscribe_to(GameName) ->
-  spts_core:subscribe(GameName, ?MODULE, gen_event).
 
 get_user_by_address(Address, Users) ->
   case lists:keyfind(Address, 3, Users) of
@@ -292,13 +282,6 @@ get_user_name(UserId, [{{UserId, UserName, _Address}, _Events} | _Users]) ->
 get_user_name(UserId, [_User | Users]) ->
   get_user_name(UserId, Users).
 
-uncall(M, F, Args) ->
-  try apply(M, F, Args) of
-    Any -> {ok, Any}
-  catch
-    _:Error -> {error, Error}
-  end.
-
 %%==============================================================================
 %% Message building
 %%==============================================================================
@@ -318,10 +301,6 @@ build_user_joined(User, Tick) ->
             Id:?UINT,
             NameSize:?UCHAR>>,
           Name]}.
-
-%build_user_left(UserId, Tick) ->
-%  LeftCommand = get_command(left),
-%  {Tick, <<Tick:?USHORT, LeftCommand:?UCHAR, UserId:?UINT>>}.
 
 build_simulation_step(Tick) ->
   SimulationStepCommand = get_command(step),
