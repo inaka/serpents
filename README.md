@@ -195,15 +195,14 @@ Sent every server tick (50 times per second) with any updates the game had. Ther
     DirectionChanged => PlayerId Direction
     Direction => uchar
     Died => PlayerId
-    GameStart => NumWalls [Wall]
-    NumWalls => ushort
-    Wall => X Y
-    X => ushort
-    Y => ushort
-    Turn => FruitDiff NumOccupied [OccupiedDiff]
-    FruitDiff => Diff
-    OccupiedDiff => Diff
-    Diff = Status X Y
+    GameStart => Walls
+    Walls => Cells
+    Turn => Fruits Occupied
+    Fruits => Cells
+    Occupied => Cells
+    Cells => NumCells [Cell]
+    NumCells => ushort
+    Cell => Status X Y
     Status => uchar => ADDED | REMOVED
     ADDED => 1
     REMOVED => 2
@@ -215,3 +214,4 @@ Time      | The tick in which the event happened
 EventType | The type of event is indicated by uchar
 Direction | The direction, in the same format as in the client update Action
 Turn      | Notifies the user that the server has executed a turn
+Cells     | A list of cells expressed as a diff

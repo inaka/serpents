@@ -20,7 +20,9 @@
 -type address()     :: {inet:ip_address(), integer()}.
 -type user()        :: {id(), spts_serpents:name(), address()}.
 -type event()       :: {integer(), iodata()}.
--type game()        :: {id(), spts_games:id(), [{user(), [event()]}]}.
+-type position()    :: {integer(), integer()}.
+-type game_state()  :: {[position()], [position()]}.
+-type game()        :: {id(), spts_games:id(), [{user(), [event()]}], game_state()}.
 
 -record(state, {tick = 0           :: integer(),
                 users = []         :: [user()],
@@ -70,7 +72,7 @@ handle_call({user_connected, Name, Address, GameId}, _From,
     false ->
       lager:warning("Bad game id: ~p", [GameId]),
       {reply, error, State};
-    {value, {GameId, GameName, GameUsers}, OtherGames} ->
+    {value, {GameId, GameName, GameUsers, GameState}, OtherGames} ->
       case handle_user_connected(Name, Address, GameName) of
         ignored ->
           lager:warning("Ignored join: ~p / ~p", [GameId, Name]),
@@ -80,7 +82,7 @@ handle_call({user_connected, Name, Address, GameId}, _From,
           NewUser = {Id, Name, Address},
           NewUsers = [NewUser | Users],
           NewGame =
-            add_user_to_game(NewUser, GameId, GameName, GameUsers, CurrentTick),
+            add_user_to_game(NewUser, GameId, GameName, GameUsers, GameState, CurrentTick),
           NewGames = [NewGame|OtherGames],
           {reply,
            {ok, Id, GameName},
@@ -110,9 +112,11 @@ handle_info({event, {game_finished, Game}}, State = #state{games = Games}) ->
   lager:critical("game_finished"),
   NewGames = handle_game_finished(Game, Games),
   {noreply, State#state{games = NewGames}};
-handle_info({event, {game_updated, _Game}}, State) ->
+handle_info({event, {game_updated, Game}}, State = #state{games = Games,
+                                                          tick  = Tick}) ->
   lager:critical("game_updated"),
-  {noreply, State};
+  NewGames = handle_game_updated(Game, Tick, Games),
+  {noreply, State#state{games = NewGames}};
 handle_info({event, {game_countdown, _Game}}, State) ->
   lager:critical("game_countdown"),
   {noreply, State};
@@ -158,7 +162,7 @@ handle_get_game_users(GameId, Games) ->
   case lists:keyfind(GameId, 1, Games) of
     false ->
       [];
-    {GameId, _GameName, GameUsers} ->
+    {GameId, _GameName, GameUsers, _GameState} ->
       [{UserId, UserName} ||
        {{UserId, UserName, _Address} = _User, _Events} <- GameUsers]
   end.
@@ -170,7 +174,7 @@ handle_user_update(User, KnownServerTick, CurrentTick, Direction, Games) ->
     false ->
       lager:error("invalid update of user ~p on game ~p", [UserId, GameId]),
       Games;
-    {value, {GameId, GameName, GameUsers}, Tail} ->
+    {value, {GameId, GameName, GameUsers, GameState}, Tail} ->
       % Update the direction (if needed)
       NewEvents = case get_direction_atom(Direction) of
                     ignore ->
@@ -187,7 +191,7 @@ handle_user_update(User, KnownServerTick, CurrentTick, Direction, Games) ->
                                                   Events,
                                                   KnownServerTick)} ||
                         {TheUser, Events} <- NewGameUsers],
-      [{GameId, GameName, NewGameUsers2} | Tail]
+      [{GameId, GameName, NewGameUsers2, GameState} | Tail]
   end.
 
 handle_get_games(KnownGames) ->
@@ -198,16 +202,66 @@ handle_get_games(KnownGames) ->
                 NewGame = case lists:keytake(GameName, 2, KnownGames) of
                             false ->
                               spts_hdp_event_handler:subscribe(GameName),
-                              {GameId, GameName, []};
+                              {GameId, GameName, [], {[], []}};
                             {value, Game, _Tail} ->
                               Game
                           end,
                 [NewGame | Acc]
               end, [], AllGameIds).
 
+handle_game_updated(Game, CurrentTick, Games) ->
+  GameId = spts_games:numeric_id(Game),
+  case lists:keytake(GameId, 1, Games) of
+    false ->
+      Games;
+    {value, {GameId, GameName, GameUsers, {OldFruits, OldCells}}, Tail} ->
+      % Get the new cell data
+      {NewFruits, NewWalls} = condense_cells(spts_games:cells(Game)),
+      NewSerpentCells = get_serpent_cells(spts_games:serpents(Game)),
+      NewCells = NewWalls + NewSerpentCells,
+      % Find the diffs
+      FruitDiff = get_cell_diff(OldFruits, NewFruits),
+      CellDiff = get_cell_diff(OldCells, NewCells),
+      % Make the event
+      NewEvents = [build_simulation_step(CurrentTick, FruitDiff, CellDiff)],
+      NewGameUsers = [{User, Events ++ NewEvents} ||
+                      {User, Events} <- GameUsers],
+      % Build the new state
+      NewGameState = {NewFruits, NewCells},
+      % Compose the new game
+      NewGame = {GameId, GameName, NewGameUsers, NewGameState},
+      % Return the new game list
+      [NewGame | Tail]
+  end.
+
 %%==============================================================================
 %% Utils
 %%==============================================================================
+get_serpent_cells(Serpents) ->
+  get_serpent_cells(Serpents, []).
+get_serpent_cells([], Cells) ->
+  Cells;
+get_serpent_cells([Serpent | T], Cells) ->
+  NewCells = spts_serpents:body(Serpent),
+  get_serpent_cells(T, Cells ++ NewCells).
+
+condense_cells(Cells) ->
+  condense_cells(Cells, [], []).
+condense_cells([], Fruits, Walls) ->
+  {Fruits, Walls};
+condense_cells([#{content := wall,
+                  position := Position} | T], Fruits, Walls) ->
+  condense_cells(T, Fruits, [Position | Walls]);
+condense_cells([#{content := {fruit, _WhatIsThis},
+                  position := Position} | T], Fruits, Walls) ->
+  condense_cells(T, [Position | Fruits], Walls).
+
+get_cell_diff(PreviousCells, CurrentCells) ->
+  AddedCells = CurrentCells -- PreviousCells,
+  RemovedCells = PreviousCells -- CurrentCells,
+  [{removed, X, Y} || {X, Y} <- RemovedCells] ++
+  [{added, X, Y} || {X, Y} <- AddedCells].
+
 send_event([], GameUsers) ->
   GameUsers;
 send_event([_|_] = NewEvents, GameUsers) ->
@@ -236,13 +290,13 @@ update_user(CurrentTick, {{_Id, _Name, {Ip, Port}}, Events}) ->
 get_ms_per_update()      -> 1000 / get_updates_per_second().
 get_updates_per_second() -> 50.
 
-add_user_to_game(NewUser, GameId, GameName, GameUsers, CurrentTick) ->
+add_user_to_game(NewUser, GameId, GameName, GameUsers, GameState, CurrentTick) ->
   % Notify all players in the game that this user joined,
   % The events need to be in cronological order, hence the '++'
   NewEvents = [build_user_joined(NewUser, CurrentTick)],
   NewGameUsers = [{User, Events ++ NewEvents} ||
                   {User, Events} <- GameUsers],
-  {GameId, GameName, [{NewUser, []} | NewGameUsers]}.
+  {GameId, GameName, [{NewUser, []} | NewGameUsers], GameState}.
 
 clear_messages_older_than(UserId, {UserId, _Name, _Address}, Events, Tick) ->
   lists:filter(fun({EvtTick, _Data}) -> Tick < EvtTick end, Events);
@@ -298,6 +352,9 @@ get_command(died)  -> 3;
 get_command(start) -> 4;
 get_command(step)  -> 5.
 
+get_cell_status(added) -> 1;
+get_cell_status(removed) -> 2.
+
 build_user_joined(User, Tick) ->
   {Id, Name, _Adress} = User,
   NameSize = size(Name),
@@ -308,11 +365,18 @@ build_user_joined(User, Tick) ->
             NameSize:?UCHAR>>,
           Name]}.
 
-build_simulation_step(Tick) ->
-  SimulationStepCommand = get_command(step),
-  {Tick, <<Tick:?USHORT,
-           SimulationStepCommand:?UCHAR>>}.
-
 build_moved(UserId, Tick, Direction) ->
   MovedCommand = get_command(moved),
   {Tick, <<Tick:?USHORT, MovedCommand:?UCHAR, UserId:?UINT, Direction:?UCHAR>>}.
+
+build_simulation_step(Tick, FruitDiff, CellDiff) ->
+  SimulationStepCommand = get_command(step),
+  {Tick, [<<Tick:?USHORT,
+            SimulationStepCommand:?UCHAR>>,
+          build_diff(FruitDiff),
+          build_diff(CellDiff)]}.
+
+build_diff(Diff) ->
+  [length(Diff),
+   [<<(get_cell_status(Status)):?USHORT, X:?USHORT, Y:?USHORT>> ||
+    {Status, X, Y} <- Diff]].
