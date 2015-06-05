@@ -6,6 +6,7 @@
 -type name() :: binary().
 -opaque serpent() :: #{ name       => name()
                       , numeric_id => pos_integer()
+                      , token      => binary()
                       , body       => [spts_games:position()]
                       , direction  => spts_games:direction()
                       , food       => pos_integer()
@@ -16,6 +17,7 @@
 -export([new/5]).
 -export([ name/1
         , numeric_id/1
+        , token/1
         , direction/1
         , direction/2
         , body/1
@@ -24,6 +26,7 @@
         , advance/1
         , feed/2
         , to_json/1
+        , to_json/2
         ]).
 
 -spec new(
@@ -32,6 +35,7 @@
 new(Name, NumericId, Position, Direction, Food) ->
   #{ name       => Name
    , numeric_id => NumericId
+   , token      => ktn_random:generate()
    , direction  => Direction
    , body       => [Position]
    , food       => Food
@@ -43,6 +47,9 @@ name(#{name := Name}) -> Name.
 
 -spec numeric_id(serpent()) -> pos_integer().
 numeric_id(#{numeric_id := NumericId}) -> NumericId.
+
+-spec token(serpent()) -> binary().
+token(#{token := Token}) -> Token.
 
 -spec direction(serpent()) -> spts_games:direction().
 direction(#{direction := Direction}) -> Direction.
@@ -76,8 +83,18 @@ advance(Serpent) ->
 feed(Serpent = #{food := Food}, MoreFood) -> Serpent#{food := Food + MoreFood}.
 
 -spec to_json(serpent()) -> map().
-to_json(Serpent) ->
+to_json(Serpent) -> to_json(Serpent, public).
+
+-spec to_json(serpent(), public | private) -> map().
+to_json(Serpent, public) ->
   #{ name => name(Serpent)
+   , body => [[Row, Col] || {Row, Col} <- body(Serpent)]
+   , status => status(Serpent)
+   };
+to_json(Serpent, private) ->
+  #{ name => name(Serpent)
+   , token => token(Serpent)
+   , direction => direction(Serpent)
    , body => [[Row, Col] || {Row, Col} <- body(Serpent)]
    , status => status(Serpent)
    }.

@@ -1,5 +1,5 @@
-%%% @doc /games/:game_id handler
--module(spts_single_game_handler).
+%%% @doc /games/:game_id/serpents/:token handler
+-module(spts_single_serpent_handler).
 -author('elbrujohalcon@inaka.net').
 
 -include_lib("mixer/include/mixer.hrl").
@@ -15,8 +15,6 @@
 -export([ allowed_methods/2
         , forbidden/2
         , handle_put/2
-        , handle_get/2
-        , delete_resource/2
         , resource_exists/2
         ]).
 
@@ -50,23 +48,38 @@ forbidden(Req, State) ->
   {boolean(), cowboy_req:req(), term()}.
 resource_exists(Req, State) ->
   {GameId, Req1} = cowboy_req:binding(game_id, Req),
-  Response = spts_core:is_game(GameId),
-  {Response, Req1, State}.
+  {Token, Req2} = cowboy_req:binding(token, Req1),
+  Response =
+    spts_core:is_game(GameId) andalso
+      spts_games:serpent_by_token(
+        spts_core:fetch_game(GameId), Token) =/= notfound,
+  {Response, Req2, State}.
 
 -spec handle_put(cowboy_req:req(), state()) ->
   {halt | boolean(), cowboy_req:req(), state()}.
 handle_put(Req, State) ->
   try
     {GameId, Req1} = cowboy_req:binding(game_id, Req),
+    {Token, Req2} = cowboy_req:binding(token, Req1),
+    {ok, Body, Req2} = cowboy_req:body(Req1),
+
     case spts_core:is_game(GameId) of
       false -> throw(notfound);
       true -> ok
     end,
-    {ok, Body, Req2} = cowboy_req:body(Req1),
-    ok = check_body(spts_json:decode(Body)),
-    ok = spts_core:start_game(GameId),
     Game = spts_core:fetch_game(GameId),
-    RespBody = spts_json:encode(spts_games:to_json(Game)),
+    Serpent =
+      case spts_games:serpent_by_token(Game, Token) of
+        notfound -> throw(notfound);
+        OldSerpent ->
+          Direction = parse_body(spts_json:decode(Body)),
+          ok =
+            spts_core:turn(GameId, spts_serpents:name(OldSerpent), Direction),
+          NewGame = spts_core:fetch_game(GameId),
+          spts_games:serpent_by_token(Game, Token)
+      end,
+
+    RespBody = spts_json:encode(spts_serpents:to_json(Serpent)),
     Req3 = cowboy_req:set_resp_body(RespBody, Req2),
     {true, Req3, State}
   catch
@@ -74,31 +87,10 @@ handle_put(Req, State) ->
       spts_web_utils:handle_exception(Exception, Req, State)
   end.
 
--spec handle_get(cowboy_req:req(), state()) ->
-  {halt | iodata(), cowboy_req:req(), state()}.
-handle_get(Req, State) ->
-  try
-    {GameId, Req1} = cowboy_req:binding(game_id, Req),
-    Game = spts_core:fetch_game(GameId),
-    RespBody = spts_json:encode(spts_games:to_json(Game)),
-    {RespBody, Req, State}
-  catch
-    _:Exception ->
-      spts_web_utils:handle_exception(Exception, Req, State)
-  end.
-
--spec delete_resource(cowboy_req:req(), state()) ->
-  {halt | boolean(), cowboy_req:req(), state()}.
-delete_resource(Req, State) ->
-  try
-    {GameId, Req1} = cowboy_req:binding(game_id, Req),
-    ok = spts_core:stop_game(GameId),
-    {true, Req1, State}
-  catch
-    _:Exception ->
-      spts_web_utils:handle_exception(Exception, Req, State)
-  end.
-
-check_body(#{<<"state">> := <<"started">>}) -> ok;
-check_body(#{<<"state">> := _}) -> throw(invalid_state);
-check_body(_) -> throw({missing_field, <<"state">>}).
+parse_body(#{<<"direction">> := D}) when D == <<"up">>
+                                       ; D == <<"down">>
+                                       ; D == <<"left">>
+                                       ; D == <<"right">> ->
+  binary_to_atom(D, utf8);
+parse_body(#{<<"direction">> := _}) -> throw(invalid_direction);
+parse_body(_) -> throw({missing_field, <<"direction">>}).
