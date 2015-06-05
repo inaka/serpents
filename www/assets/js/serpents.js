@@ -5,6 +5,7 @@ function gameId() {
 
 window.players = [];
 window.playerColors = {};
+window.rounds_count = 0;
 function nameToColor(name) {
   if(!window.playerColors[name]) {
     window.playerColors[name] = '#' + CryptoJS.MD5(name).toString().substring(0, 6);
@@ -19,8 +20,9 @@ function setupPlayers(players) {
   })
 }
 function addPlayer(player) {
+  var playerName = $(player.name).text();
   $('.player-list ul').append(
-    '<li><div class="player-color" style="background-color: ' + nameToColor(player.name) + '"></div>' + player.name + '</li>'
+    '<li><div class="player-color" style="background-color: ' + nameToColor(playerName) + '"></div>' + playerName + '</li>'
   );
 }
 function setupBoard(game) {
@@ -36,6 +38,10 @@ function setupBoard(game) {
     }
     htmlRow += '</tr>';
     $('table.board').append(htmlRow);
+  }
+  if(game.rounds) {
+    $('#total_rounds').text(game.rounds);
+    $('.rounds').show();
   }
 }
 function redrawPlayer(coords, color) {
@@ -101,7 +107,7 @@ $(document).ready(function() {
       evtSource,
       processBoard;
 
-  $("#game_id").html(id);
+  $("#game_id").text(id);
   $("#start_game").click(function() {
     var data = {state: 'started'};
     $.ajax('/api/games/' + id,
@@ -126,10 +132,16 @@ $(document).ready(function() {
     var game = JSON.parse(e.data);
     redrawGame(game);
   };
-  evtSource.addEventListener("game_status", processBoard, false);
+
+  evtSource.addEventListener("game_updated", function(e) {
+    var game = JSON.parse(e.data);
+    window.rounds_count++;
+    $('#rounds_count').text(window.rounds_count);
+    redrawGame(game);
+  }, false);
   evtSource.addEventListener("game_countdown", processBoard, false);
   evtSource.addEventListener("game_started", processBoard, false);
-  evtSource.addEventListener("game_updated", processBoard, false);
+  evtSource.addEventListener("game_status", processBoard, false);
   evtSource.addEventListener("game_finished", processBoard, false);
   evtSource.addEventListener("serpent_added", function(e) {
     var player = JSON.parse(e.data);
