@@ -22,7 +22,7 @@
 -type event()       :: {integer(), iodata()}.
 -type position()    :: {integer(), integer()}.
 -type game_state()  :: {[position()], [position()]}.
--type game()        :: {id(), spts_games:id(), [{user(), [event()]}], game_state()}.
+-type game()    :: {id(), spts_games:id(), [{user(), [event()]}], game_state()}.
 
 -record(state, {tick = 0           :: integer(),
                 users = []         :: [user()],
