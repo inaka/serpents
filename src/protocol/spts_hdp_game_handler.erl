@@ -1,4 +1,4 @@
--module(spts_udp_game_handler).
+-module(spts_hdp_game_handler).
 -author('hernanrivasacosta@gmail.com').
 
 -behavior(gen_server).
@@ -193,7 +193,7 @@ handle_get_games(KnownGames) ->
   lists:foldl(fun({GameId, GameName}, Acc) ->
                 NewGame = case lists:keytake(GameName, 2, KnownGames) of
                             false ->
-                              spts_udp_event_handler:subscribe(GameName),
+                              spts_hdp_event_handler:subscribe(GameName),
                               {GameId, GameName, []};
                             {value, Game, _Tail} ->
                               Game
@@ -227,7 +227,7 @@ update_user(CurrentTick, {{_Id, _Name, {Ip, Port}}, Events}) ->
   Messages = [EventBinaries || {_Tick, EventBinaries} <- Events],
   NumMessages = length(Events),
   UpdateMessage = [<<NumMessages:?UCHAR>>, Messages],
-  ok = spts_udp_handler:send_update(CurrentTick, UpdateMessage, Ip, Port).
+  ok = spts_hdp_handler:send_update(CurrentTick, UpdateMessage, Ip, Port).
 
 get_ms_per_update()      -> 1000 / get_updates_per_second().
 get_updates_per_second() -> 50.

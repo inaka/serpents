@@ -4,7 +4,7 @@ Multi-Player Game on top of HDP protocol
 
 ## The Protocol ##
 
-The UDP protocol consists on 5 different messages types that share a common header with some basic user information. The protocol is defined with [BNF](http://en.wikipedia.org/wiki/Backus%E2%80%93Naur_Form)s where ALL_CAPS_IMPLY_CONSTANTS, camelCaseImplyPrimitives and the '&' is used to denote "bitwise or" (super intuitive right?) while '|' denotes that one of multiple options can be chosen.
+The HDP protocol consists on 5 different messages types that share a common header with some basic user information. The protocol is defined with [BNF](http://en.wikipedia.org/wiki/Backus%E2%80%93Naur_Form)s where ALL_CAPS_IMPLY_CONSTANTS, camelCaseImplyPrimitives and the '&' is used to denote "bitwise or" (super intuitive right?) while '|' denotes that one of multiple options can be chosen.
 
 ### The Client Message Header ###
 
