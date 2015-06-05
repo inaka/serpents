@@ -54,7 +54,7 @@ ping(Config) ->
 hdp_recv(Config) ->
   {socket, UdpSocket} = lists:keyfind(socket, 1, Config),
   Port = application:get_env(serpents, udp_port, 8584),
-  {ok, {{127,0,0,1}, Port, Packet}} =
+  {ok, {{127, 0, 0, 1}, Port, Packet}} =
     gen_udp:recv(UdpSocket, ?HEADER_LENGTH, 1000),
   <<Flags:?UCHAR, MsgId:?UINT, Time:?USHORT>> = Packet,
   ct:pal(
