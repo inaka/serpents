@@ -71,7 +71,7 @@ In that structure:
 The currently supported events are:
 
 ###### ``game_status``
-The event data is a json representation of a game, like the result from `GET /games/:game_id`
+The event data is a json representation of a game (see below)
 
 ###### ``serpent_added``
 The event data is a json representation of a serpent (see below)
@@ -100,7 +100,6 @@ The event data is a json representation of a game (see below)
 , "ticktime": [#-OF-TICKTIME-MILLISECONDS]
 , "countdown": [#-OF-COUNTDOWN-TICKS]
 , "rounds": [MAX-#-OF-GAME-TICKS]
-, "with": [LIST-OF-EXTRA-FLAGS]
 , "initial_food": [INITIAL-FOOD-COUNT]
 , "flags": [LIST-OF-FLAGS]
 , "max_serpents": [MAX-#-OF-SERPENTS]
@@ -117,6 +116,7 @@ The event data is a json representation of a game (see below)
   - `"fruit"`, in which case `[VALUE]` will be the amount of food it provides
   - `"wall"`, in which case `"value"` will not be there
 * `[ROW#]` and `[COL#]` are 1-based
+* `[FLAGS]` can include `walls`, `random_food` and/or `increasing_food`
 
 ###### Serpent
 ```json

@@ -35,7 +35,7 @@
 new(Name, NumericId, Position, Direction, Food) ->
   #{ name       => Name
    , numeric_id => NumericId
-   , token      => ktn_random:generate()
+   , token      => iolist_to_binary(ktn_random:generate())
    , direction  => Direction
    , body       => [Position]
    , food       => Food

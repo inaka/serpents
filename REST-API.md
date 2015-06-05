@@ -101,7 +101,6 @@ All parameters are optional
 , "ticktime": [#-OF-TICKTIME-MILLISECONDS]
 , "countdown": [#-OF-COUNTDOWN-TICKS]
 , "rounds": [MAX-#-OF-GAME-TICKS]
-, "with": [LIST-OF-EXTRA-FLAGS]
 , "initial_food": [INITIAL-FOOD-COUNT]
 , "flags": [LIST-OF-FLAGS]
 , "max_serpents": [MAX-#-OF-SERPENTS]
