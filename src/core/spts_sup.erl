@@ -23,10 +23,10 @@ init(noargs) ->
   GameSup =
     {spts_game_sup, {spts_game_sup, start_link, []},
       permanent, 5000, supervisor, [spts_game_sup]},
-  UDPSup1 =
-    {spts_udp_game_handler, {spts_udp_game_handler, start_link, []},
-      permanent, 5000, worker, [spts_udp_game_handler]},
-  UDPSup2 =
-    {spts_udp_handler, {spts_udp_handler, start_link, []},
-      permanent, 5000, worker, [spts_udp_handler]},
-  {ok, {{one_for_one, 5, 10}, [KatanaRandom, GameSup, UDPSup1, UDPSup2]}}.
+  HDPSup1 =
+    {spts_hdp_game_handler, {spts_hdp_game_handler, start_link, []},
+      permanent, 5000, worker, [spts_hdp_game_handler]},
+  HDPSup2 =
+    {spts_hdp_handler, {spts_hdp_handler, start_link, []},
+      permanent, 5000, worker, [spts_hdp_handler]},
+  {ok, {{one_for_one, 5, 10}, [KatanaRandom, GameSup, HDPSup1, HDPSup2]}}.

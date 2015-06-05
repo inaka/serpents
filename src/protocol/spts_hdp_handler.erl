@@ -1,4 +1,4 @@
--module(spts_udp_handler).
+-module(spts_hdp_handler).
 -author('hernanrivasacosta@gmail.com').
 
 % API
@@ -22,7 +22,7 @@
 %%==============================================================================
 -spec start_link() -> {ok, pid()}.
 start_link() ->
-  Port = application:get_env(serpents, udp_port, 1234),
+  Port = application:get_env(serpents, hdp_port, 1234),
   {ok, UdpSocket} = gen_udp:open(Port, udp_opts()),
   UdpHandler = spawn_link(?MODULE, loop, [UdpSocket]),
   register(?MODULE, UdpHandler),
@@ -90,7 +90,7 @@ handle_message(ping, _Ignored, Metadata = #metadata{messageId = MessageId,
 %% INFO REQUESTS
 handle_message(info, <<>>, Metadata = #metadata{messageId = MessageId,
                                                 userTime  = UserTime}) ->
-  AllGames = spts_udp_game_handler:get_games(),
+  AllGames = spts_hdp_game_handler:get_games(),
   NumGames = length(AllGames),
   Flags = set_flags([info, success]),
   send([<<Flags:?UCHAR,
@@ -113,7 +113,7 @@ handle_message(join,
   try
     % Tell the game handler that the user connected
     Address = get_address_from_metadata(Metadata),
-    {ok, PlayerId} = spts_udp_game_handler:user_connected(Name,
+    {ok, PlayerId} = spts_hdp_game_handler:user_connected(Name,
                                                           Address,
                                                           GameId),
 
@@ -123,7 +123,7 @@ handle_message(join,
     Cols = spts_games:cols(Game),
 
     % Retrieve the game data that's stored on the game handler
-    Players = spts_udp_game_handler:get_game_users(GameId),
+    Players = spts_hdp_game_handler:get_game_users(GameId),
     NumPlayers = length(Players),
     BinPlayersInfo = [[<<Id:?UINT, (length(PlayerName)):?UCHAR>>, PlayerName] ||
                       {Id, PlayerName} <- Players],
@@ -156,7 +156,7 @@ handle_message(join,
   end;
 handle_message(action, <<LastUpdate:?USHORT, Direction:?UCHAR>>, Metadata) ->
   Address = get_address_from_metadata(Metadata),
-  spts_udp_game_handler:user_update(Address, LastUpdate, Direction);
+  spts_hdp_game_handler:user_update(Address, LastUpdate, Direction);
 handle_message(_MessageType, _Garbage, _Metadata) ->
   undefined.
 

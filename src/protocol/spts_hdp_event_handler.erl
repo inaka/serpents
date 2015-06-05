@@ -1,4 +1,4 @@
--module(spts_udp_event_handler).
+-module(spts_hdp_event_handler).
 -author('elbrujohalcon@inaka.net').
 
 -behaviour(gen_event).
@@ -36,13 +36,13 @@ init(noargs) -> {ok, #state{}}.
 
 -spec handle_event(spts_core:event(), state()) -> {ok, state()}.
 handle_event(Event, State) ->
-  spts_udp_game_handler ! {event, Event}, {ok, State}.
+  spts_hdp_game_handler ! {event, Event}, {ok, State}.
 
 -spec handle_call(remove, state()) -> {remove_handler, ok}.
 handle_call(remove, _State) -> {remove_handler, ok}.
 
 -spec handle_info(term(), state()) -> {ok, state()}.
-handle_info(Info, State) -> spts_udp_game_handler ! {info, Info}, {ok, State}.
+handle_info(Info, State) -> spts_hdp_game_handler ! {info, Info}, {ok, State}.
 
 -spec terminate(term(), state()) -> ok.
 terminate(_Reason, _State) -> ok.
