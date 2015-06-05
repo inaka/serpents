@@ -14,12 +14,13 @@
         , end_per_testcase/2
         ]).
 -export([ ping/1
+        , games/1
         ]).
 
 -define(UCHAR,  8/unsigned-integer).
 -define(USHORT, 16/unsigned-integer).
 -define(UINT,   32/unsigned-integer).
--define(HEADER_LENGTH, 56).
+-define(VERY_MUCH, 9999999).
 
 -spec all() -> [atom()].
 all() -> spts_test_utils:all(?MODULE).
@@ -45,7 +46,32 @@ ping(Config) ->
   ok = hdp_send(hdp_ping(1), Config),
 
   ct:comment("A ping is received"),
-  {ping_response, 1, _, <<>>} = hdp_recv(Config),
+  {ping_response, 1, _, pong} = hdp_recv(Config),
+
+  ct:comment("A new ping is sent"),
+  ok = hdp_send(hdp_ping(2), Config),
+
+  ct:comment("A new ping is received"),
+  {ping_response, 2, _, pong} = hdp_recv(Config),
+  {comment, ""}.
+
+-spec games(spts_test_utils:config()) -> {comment, []}.
+games(Config) ->
+  ct:comment("A games request is sent"),
+  ok = hdp_send(hdp_games(1), Config),
+
+  ct:comment("A games list is received"),
+  {info_response, 1, _, {0, []}} = hdp_recv(Config),
+
+  ct:comment("A game is started"),
+  GameId = spts_games:numeric_id(spts_core:create_game()),
+
+  ct:comment("A games request is sent"),
+  ok = hdp_send(hdp_games(2), Config),
+
+  ct:comment("A games list is received"),
+  {info_response, 2, _, {1, [{GameId, 250, 0, 255}]}} = hdp_recv(Config),
+
   {comment, ""}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -55,28 +81,36 @@ hdp_recv(Config) ->
   {socket, UdpSocket} = lists:keyfind(socket, 1, Config),
   Port = application:get_env(serpents, udp_port, 8584),
   {ok, {{127, 0, 0, 1}, Port, Packet}} =
-    gen_udp:recv(UdpSocket, ?HEADER_LENGTH, 1000),
-  <<Flags:?UCHAR, MsgId:?UINT, Time:?USHORT>> = Packet,
+    gen_udp:recv(UdpSocket, ?VERY_MUCH, 1000),
+  <<Flags:?UCHAR, MsgId:?UINT, Time:?USHORT, Message/binary>> = Packet,
   ct:pal(
     "Flags: ~p / MsgId: ~p, Time: ~p, Pckt: ~p",
     [Flags, MsgId, Time, Packet]),
   Type =
     case Flags of
-      0 -> throw(error);
       129 -> ping_response;
       130 -> info_response;
       131 -> join_response;
-      132 -> game_update
+      132 -> game_update;
+      Other when Other band 128 == 0 -> throw(error)
     end,
-  Message = hdp_recv_msg(Type, Config),
-  {Type, MsgId, Time, Message}.
+  {Type, MsgId, Time, hdp_parse(Type, Message)}.
 
-hdp_recv_msg(ping_response, _Config) -> <<>>.
+hdp_parse(ping_response, <<>>) -> pong;
+hdp_parse(info_response, <<GameCount:?UCHAR, Games/binary>>) ->
+  { GameCount
+  , [ {GameId, TickRate, Players, MaxP}
+    || <<GameId:?USHORT, TickRate:?UCHAR, Players:?UCHAR, MaxP:?UCHAR>> <= Games
+    ]
+  }.
 
 hdp_send(Message, Config) ->
   {socket, UdpSocket} = lists:keyfind(socket, 1, Config),
   Port = application:get_env(serpents, udp_port, 8584),
   gen_udp:send(UdpSocket, localhost, Port, Message).
+
+
+hdp_games(MsgId) -> hdp_head(2, MsgId).
 
 hdp_ping(MsgId) -> hdp_head(1, MsgId).
 
