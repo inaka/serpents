@@ -51,8 +51,8 @@ handle_post(Req, State) ->
     Serpent = spts_core:add_serpent(GameId, Name),
 
     RespBody = spts_json:encode(spts_serpents:to_json(Serpent, private)),
-    Req2 = cowboy_req:set_resp_body(RespBody, Req1),
-    {{true, <<"/api/games/", Name/binary>>}, Req2, State}
+    Req3 = cowboy_req:set_resp_body(RespBody, Req2),
+    {{true, <<"/api/games/", Name/binary>>}, Req3, State}
   catch
     _:Exception ->
       spts_web_utils:handle_exception(Exception, Req, State)
