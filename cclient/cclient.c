@@ -4,9 +4,15 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <sys/time.h>
+#include <unistd.h>
+#include <arpa/inet.h>
 
 unsigned int getTimestamp();
 void sendPing();
+void getIp(const char *ipString, struct in_addr *out);
+void writeChar(unsigned char value, char *out);
+void writeShort(unsigned short value, char *out);
+void writeInt(unsigned int value, char *out);
 
 int main()
 {
@@ -65,6 +71,7 @@ int main()
   if (bind(fd, (struct sockaddr *)&myaddr, sizeof(myaddr)) < 0)
   {
     printf("unable to bind socket\n");
+    close(fd);
     return 0;
   }
 
@@ -76,6 +83,7 @@ int main()
 
   printf("connected with ping: %d at %u\n", ping, timestamp);
 
+  close(fd);
   return 0;
 }
 
@@ -94,8 +102,45 @@ void sendPing(int socket, const char *ip, int port)
   memset((char*)&servaddr, 0, sizeof(servaddr));
   servaddr.sin_family = AF_INET;
   servaddr.sin_port = htons(port);
-  memcpy((void *)&servaddr.sin_addr, ip, strlen(ip));
+  unsigned char myIp[4];
+  getIp(ip, &servaddr.sin_addr);
 
-  char *pingMessage[7];
+  char pingMessage[7];
+  writeChar(1, pingMessage);
+  writeShort(258, pingMessage + 1);
+  writeShort(41, pingMessage + 3);
+
   sendto(socket, pingMessage, 7, 0, (struct sockaddr *)&servaddr, sizeof(servaddr));
+}
+
+//==============================================================================
+// UTILS
+//==============================================================================
+void writeChar(unsigned char value, char *out)
+{
+  memcpy(out, &value, 1);
+}
+
+void writeShort(unsigned short value, char *out)
+{
+  unsigned short v = htons(value);
+  memcpy(out, &v, 2);
+}
+
+void writeInt(unsigned int value, char *out)
+{
+  unsigned int v = htonl(value);
+  memcpy(out, &value, 4);
+}
+
+void getIp(const char *ipString, struct in_addr *out)
+{
+  if(strcmp(ipString, "localhost") == 0)
+  {
+    inet_aton("127.0.0.1", out);
+  }
+  else
+  {
+    inet_aton(ipString, out);
+  }
 }
