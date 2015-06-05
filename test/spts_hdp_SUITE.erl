@@ -19,6 +19,7 @@
 -define(UCHAR,  8/unsigned-integer).
 -define(USHORT, 16/unsigned-integer).
 -define(UINT,   32/unsigned-integer).
+-define(HEADER_LENGTH, 56).
 
 -spec all() -> [atom()].
 all() -> spts_test_utils:all(?MODULE).
@@ -27,7 +28,8 @@ all() -> spts_test_utils:all(?MODULE).
   spts_test_utils:config().
 init_per_testcase(_Test, Config) ->
   Port = application:get_env(serpents, udp_port, 8584) - 1,
-  {ok, UdpSocket} = gen_udp:open(Port, [{mode, binary}, {reuseaddr, true}]),
+  {ok, UdpSocket} =
+    gen_udp:open(Port, [{mode, binary}, {reuseaddr, true}, {active, false}]),
   [{socket, UdpSocket} | Config].
 
 -spec end_per_testcase(atom(), spts_test_utils:config()) ->
@@ -41,11 +43,36 @@ end_per_testcase(_Test, Config) ->
 ping(Config) ->
   ct:comment("A ping is sent"),
   ok = hdp_send(hdp_ping(1), Config),
+
+  ct:comment("A ping is received"),
+  {ping_response, 1, _, <<>>} = hdp_recv(Config),
   {comment, ""}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Message parsing/handling
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+hdp_recv(Config) ->
+  {socket, UdpSocket} = lists:keyfind(socket, 1, Config),
+  Port = application:get_env(serpents, udp_port, 8584),
+  {ok, {{127,0,0,1}, Port, Packet}} =
+    gen_udp:recv(UdpSocket, ?HEADER_LENGTH, 1000),
+  <<Flags:?UCHAR, MsgId:?UINT, Time:?USHORT>> = Packet,
+  ct:pal(
+    "Flags: ~p / MsgId: ~p, Time: ~p, Pckt: ~p",
+    [Flags, MsgId, Time, Packet]),
+  Type =
+    case Flags of
+      0 -> throw(error);
+      129 -> ping_response;
+      130 -> info_response;
+      131 -> join_response;
+      132 -> game_update
+    end,
+  Message = hdp_recv_msg(Type, Config),
+  {Type, MsgId, Time, Message}.
+
+hdp_recv_msg(ping_response, _Config) -> <<>>.
+
 hdp_send(Message, Config) ->
   {socket, UdpSocket} = lists:keyfind(socket, 1, Config),
   Port = application:get_env(serpents, udp_port, 8584),
