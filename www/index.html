@@ -9,7 +9,7 @@
 <script>
   function updateListing() {
     $.getJSON('/api/games', function(results) {
-      $('ul.game-list').empty();
+      $('table.game-list tbody').empty();
       results.forEach(function(element) {
         $('table.game-list tbody').append(
             '<tr id="game_' + element.id + '">' +
