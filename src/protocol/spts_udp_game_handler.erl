@@ -88,11 +88,11 @@ handle_info(update, State = #state{tick = Tick, games = Games}) ->
   _Pid = spawn(fun() -> update_all_users(CurrentTick, Games) end),
   {noreply, State#state{tick = CurrentTick}};
 handle_info({event, {serpent_added, _Serpent}}, State) ->
-  lager:critical("serpent_added"),
   % Do nothing, we already know this (we joined the guy!)
   {noreply, State};
-handle_info({event, {game_started, _Game}}, State) ->
-  lager:critical("game_started"),
+handle_info({event, {game_started, Game}}, State) ->
+  lager:critical("game_started: ~p", [Game]),
+  %NewGameUsers = send_event(NewEvents, GameUsers),
   {noreply, State};
 handle_info({event, {game_finished, Game}}, State = #state{games = Games}) ->
   lager:critical("game_finished"),
@@ -163,22 +163,22 @@ handle_user_update(User, KnownServerTick, CurrentTick, Direction, Games) ->
       Games;
     {value, {GameId, GameName, GameUsers}, Tail} ->
       % Update the direction (if needed)
-      ok = case get_direction_atom(Direction) of
-             ignore ->
-               ok;
-             DirectionAtom ->
-               spts_core:turn(GameId, UserName, DirectionAtom)
-           end,
-      % Notify everyone of the move event, also call the function to clear the
-      % old events
-      NewEvents = [build_moved(UserId, CurrentTick, Direction)],
-      NewGameUsers = [{TheUser,
-                       clear_messages_older_than(UserId,
-                                                 TheUser,
-                                                 Events,
-                                                 KnownServerTick) ++ NewEvents}
-                      || {TheUser, Events} <- GameUsers],
-      [{GameId, GameName, NewGameUsers} | Tail]
+      NewEvents = case get_direction_atom(Direction) of
+                    ignore ->
+                      [];
+                    DirectionAtom ->
+                      spts_core:turn(GameId, UserName, DirectionAtom),
+                      [build_moved(UserId, CurrentTick, Direction)]
+                  end,
+      NewGameUsers = send_event(NewEvents, GameUsers),
+      % TODO: Optimize calling this more than once
+      NewGameUsers2 = [{TheUser,
+                        clear_messages_older_than(UserId,
+                                                  TheUser,
+                                                  Events,
+                                                  KnownServerTick)} ||
+                        {TheUser, Events} <- NewGameUsers],
+      [{GameId, GameName, NewGameUsers2} | Tail]
   end.
 
 handle_get_games(KnownGames) ->
@@ -194,6 +194,7 @@ handle_get_games(KnownGames) ->
                 [NewGame | Acc]
               end, [], AllGameNames).
 
+-spec handle_event(any(), any()) -> {ok, any()}.
 handle_event(Event, State) ->
   ?MODULE ! {event, Event},
   {ok, State}.
@@ -201,6 +202,14 @@ handle_event(Event, State) ->
 %%==============================================================================
 %% Utils
 %%==============================================================================
+send_event([], GameUsers) ->
+  GameUsers;
+send_event([_|_] = NewEvents, GameUsers) ->
+  [{TheUser, Events ++ NewEvents} ||
+   {TheUser, Events} <- GameUsers];
+send_event(Event, GameUsers) ->
+  send_event([Event], GameUsers).
+
 subscribe_to(GameName) ->
   spts_core:subscribe(GameName, ?MODULE, gen_event).
 
@@ -289,7 +298,9 @@ get_user_name(UserId, [_User | Users]) ->
 get_command(left)  -> 0;
 get_command(join)  -> 1;
 get_command(moved) -> 2;
-get_command(died)  -> 3.
+get_command(died)  -> 3;
+get_command(start) -> 4;
+get_command(step)  -> 5.
 
 build_user_joined(User, Tick) ->
   {Id, Name, _Adress} = User,
@@ -304,6 +315,11 @@ build_user_joined(User, Tick) ->
 %build_user_left(UserId, Tick) ->
 %  LeftCommand = get_command(left),
 %  {Tick, <<Tick:?USHORT, LeftCommand:?UCHAR, UserId:?UINT>>}.
+
+build_simulation_step(Tick) ->
+  SimulationStepCommand = get_command(step),
+  {Tick, <<Tick:?USHORT,
+           SimulationStepCommand:?UCHAR>>}.
 
 build_moved(UserId, Tick, Direction) ->
   MovedCommand = get_command(moved),
