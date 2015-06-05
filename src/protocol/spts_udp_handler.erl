@@ -2,7 +2,7 @@
 -author('hernanrivasacosta@gmail.com').
 
 % API
--export([start_link/1, send_update/4]).
+-export([start_link/0, send_update/4]).
 % For internal use only
 -export([loop/1, handle_udp/4]).
 
@@ -20,8 +20,9 @@
 %%==============================================================================
 %% API
 %%==============================================================================
--spec start_link(integer()) -> {ok, pid()}.
-start_link(Port) ->
+-spec start_link() -> {ok, pid()}.
+start_link() ->
+  Port = application:get_env(serpents, udp_port, 1234),
   {ok, UdpSocket} = gen_udp:open(Port, udp_opts()),
   UdpHandler = spawn_link(?MODULE, loop, [UdpSocket]),
   register(?MODULE, UdpHandler),
