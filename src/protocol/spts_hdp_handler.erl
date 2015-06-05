@@ -60,7 +60,7 @@ handle_udp(<<Flags:?UCHAR,
              UserId:?USHORT,
              Message/binary>> = Data,
            UdpSocket, Ip, Port) ->
-  case get_message_type(Flags) of
+  case get_message_type(Flags band 7) of
     undefined ->
       lager:info("received bad type from ~p: ~p", [Ip, Data]);
     MessageType ->
