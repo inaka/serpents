@@ -15,6 +15,7 @@
         , spts_news_handler/1
         , spts_news_event_handler/1
         , spts_core/1
+        , spts_games/1
         ]).
 
 -spec all() -> [atom()].
@@ -47,6 +48,20 @@ spts_news_event_handler(_Config) ->
   ct:comment("spts_news_event_handler:code_change"),
   {ok, state} = spts_news_event_handler:code_change(oldvsn, state, extra),
   {comment, ""}.
+
+-spec spts_games(spts_test_utils:config()) -> {comment, []}.
+spts_games(_Config) ->
+  ct:comment("a game is created"),
+  Game1NumId = spts_games:numeric_id(spts_core:create_game()),
+
+  ct:comment("a new game is created, num id should not be ~p", [Game1NumId]),
+  case spts_games:numeric_id(spts_core:create_game()) of
+    Game1NumId -> ct:fail("Duplicated numeric_id: ~p", [Game1NumId]);
+    _Game2NumId -> ok
+  end,
+
+  {comment, ""}.
+
 
 -spec spts_core(spts_test_utils:config()) -> {comment, []}.
 spts_core(_Config) ->

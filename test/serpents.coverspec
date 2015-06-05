@@ -14,6 +14,8 @@
  , spts_games
  , spts_games_repo
  , spts_serpents
+ , spts_hdp_game_handler
+ , spts_hdp_handler
  , spts_json
  , spts_web_utils
  ]

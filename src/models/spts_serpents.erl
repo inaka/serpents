@@ -4,16 +4,18 @@
 
 -type status() :: alive | dead.
 -type name() :: binary().
--opaque serpent() :: #{ name      => name()
-                      , body      => [spts_games:position()]
-                      , direction => spts_games:direction()
-                      , food      => pos_integer()
-                      , status    => status()
+-opaque serpent() :: #{ name       => name()
+                      , numeric_id => pos_integer()
+                      , body       => [spts_games:position()]
+                      , direction  => spts_games:direction()
+                      , food       => pos_integer()
+                      , status     => status()
                       }.
 -export_type([serpent/0, status/0, name/0]).
 
--export([new/4]).
+-export([new/5]).
 -export([ name/1
+        , numeric_id/1
         , direction/1
         , direction/2
         , body/1
@@ -25,10 +27,11 @@
         ]).
 
 -spec new(
-  name(), spts_games:position(), spts_games:direction(), non_neg_integer()) ->
-  serpent().
-new(Name, Position, Direction, Food) ->
+  name(), pos_integer(), spts_games:position(), spts_games:direction(),
+  non_neg_integer()) -> serpent().
+new(Name, NumericId, Position, Direction, Food) ->
   #{ name       => Name
+   , numeric_id => NumericId
    , direction  => Direction
    , body       => [Position]
    , food       => Food
@@ -37,6 +40,9 @@ new(Name, Position, Direction, Food) ->
 
 -spec name(serpent()) -> name().
 name(#{name := Name}) -> Name.
+
+-spec numeric_id(serpent()) -> pos_integer().
+numeric_id(#{numeric_id := NumericId}) -> NumericId.
 
 -spec direction(serpent()) -> spts_games:direction().
 direction(#{direction := Direction}) -> Direction.
