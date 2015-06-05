@@ -16,7 +16,7 @@
 %% @doc Creates a new game
 -spec create(spts_core:options()) -> spts_games:game().
 create(Options) ->
-  Name = random_name(),
+  {NumericId, Name} = random_name(),
   Rows = maps:get(rows, Options, 20),
   Cols = maps:get(cols, Options, 20),
   TickTime = maps:get(ticktime, Options, 250),
@@ -29,8 +29,8 @@ create(Options) ->
     Rows, Cols, TickTime, Countdown, Rounds, InitialFood, MaxSerpents, Flags),
   Game0 =
     spts_games:new(
-      Name, Rows, Cols, TickTime, Countdown, Rounds, InitialFood, MaxSerpents,
-      Flags),
+      Name, NumericId, Rows, Cols, TickTime, Countdown, Rounds, InitialFood,
+      MaxSerpents, Flags),
   add_initial_cells(Game0).
 
 %% @doc Adds a serpent to a game
@@ -41,8 +41,10 @@ add_serpent(Game, SerpentName) ->
       Position = find_empty_position(Game, fun is_proper_starting_point/2),
       Direction = random_direction(Game, Position),
       InitialFood = spts_games:initial_food(Game),
+      NumericId = length(spts_games:serpents(Game)) + 1,
       Serpent =
-        spts_serpents:new(SerpentName, Position, Direction, InitialFood),
+        spts_serpents:new(
+          SerpentName, NumericId, Position, Direction, InitialFood),
       spts_games:add_serpent(Game, Serpent);
     _ -> throw(already_in)
   end.
@@ -167,10 +169,11 @@ random_name() ->
   try_random_name(Names).
 
 try_random_name(Names) ->
-  Name = lists:nth(random:uniform(length(Names)), Names),
+  NumericId = random:uniform(length(Names)),
+  Name = lists:nth(NumericId, Names),
   case spts_core:is_game(Name) of
-    false -> Name;
-    true -> try_random_name(Names -- [Name])
+    false -> {NumericId, Name};
+    true -> try_random_name(Names)
   end.
 
 %% @todo wait for ktn_random:uniform/1 and replace random:uniform here
