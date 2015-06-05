@@ -80,7 +80,7 @@ single_game(Config) ->
   ct:comment("A game request is sent for an unexistent game"),
   ok = hdp_send(hdp_game(1, 1), Config),
 
-  ct:comment("A games list is received"),
+  ct:comment("A game description is received"),
   try hdp_recv(Config) of
     X -> ct:fail("Unexpected result: ~p", [X])
   catch
