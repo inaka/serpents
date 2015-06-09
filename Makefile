@@ -8,7 +8,7 @@ DEPS = eper mixer lager cowboy jiffy katana lasse
 SELL_DEPS = sync
 TEST_DEPS = xref_runner shotgun
 
-dep_lasse = git https://github.com/inaka/lasse.git 1.0.0
+dep_lasse = git https://github.com/inaka/lasse.git 1.0.1
 dep_katana = git https://github.com/inaka/erlang-katana.git 0.2.5
 dep_cowboy = git https://github.com/extend/cowboy.git 1.0.1
 dep_jiffy = git https://github.com/davisp/jiffy.git 0.13.3
