@@ -32,9 +32,9 @@ init([], _LastEventId, Req) ->
     true ->
       Game = spts_core:fetch_game(GameId),
       FirstEvent =
-        [ {data, spts_json:encode(spts_games:to_json(Game))}
-        , {name, <<"game_status">>}
-        ],
+        #{ data => spts_json:encode(spts_games:to_json(Game))
+         , event => <<"game_status">>
+         },
       ok = spts_news_event_handler:subscribe(GameId, self()),
       {ok, Req1, [FirstEvent], #{game => GameId}}
   end.
@@ -43,18 +43,18 @@ init([], _LastEventId, Req) ->
 handle_notify({Type, Serpent}, State) when Type == serpent_added;
                                            Type == collision_detected ->
   Event =
-    [ {name, atom_to_binary(Type, utf8)}
-    , {data, spts_json:encode(spts_serpents:to_json(Serpent))}
-    ],
+    #{ event => atom_to_binary(Type, utf8)
+     , data => spts_json:encode(spts_serpents:to_json(Serpent))
+     },
   {send, Event, State};
 handle_notify({Type, Game}, State) when Type == game_countdown;
                                         Type == game_started;
                                         Type == game_updated;
                                         Type == game_finished ->
   Event =
-    [ {name, atom_to_binary(Type, utf8)}
-    , {data, spts_json:encode(spts_games:to_json(Game))}
-    ],
+    #{ event => atom_to_binary(Type, utf8)
+     , data => spts_json:encode(spts_games:to_json(Game))
+     },
   {send, Event, State};
 handle_notify(Event, State) ->
   lager:warning("Ignored Event: ~p on ~p", [Event, State]),
