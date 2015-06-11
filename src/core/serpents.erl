@@ -64,8 +64,3 @@ start_phase(start_cowboy_listeners, _StartType, []) ->
 %% @private
 -spec stop([]) -> ok.
 stop([]) -> ok.
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Core functions
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% @todo Add them all here!

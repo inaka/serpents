@@ -382,6 +382,5 @@ cast(GameId, Event) ->
 
 tick(Game) -> erlang:send_after(spts_games:ticktime(Game), self(), tick).
 
-%% @todo consider using sync_notify
 notify(Event, State) ->
   ok = gen_event:notify(State#state.dispatcher, Event).
