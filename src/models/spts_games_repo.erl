@@ -99,9 +99,7 @@ advance(Game) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% INTERNAL FUNCTIONS
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% @todo wait for ktn_random:uniform/1 and remove the seeding
 ensure_fruit(OldGame, Game) ->
-  random:seed(erlang:now()),
   case spts_games:fruit(Game) of
     notfound ->
       OldFruitValue =
@@ -116,17 +114,15 @@ ensure_fruit(OldGame, Game) ->
              } of
           {false, false} -> 1;
           {false, true} -> OldFruitValue + 1;
-          {true, false} -> random:uniform(10);
-          {true, true} -> OldFruitValue + random:uniform(5)
+          {true, false} -> ktn_random:uniform(10);
+          {true, true} -> ktn_random:uniform(OldFruitValue, OldFruitValue + 5)
         end,
       spts_games:content(Game, Position, {fruit, Food});
     _ ->
       Game
   end.
 
-%% @todo wait for ktn_random:uniform/1 and remove the seeding
 find_empty_position(Game, Validator) ->
-  random:seed(erlang:now()),
   Rows = spts_games:rows(Game),
   Cols = spts_games:cols(Game),
   case try_random_fep(Game, Rows, Cols, Validator, 10) of
@@ -134,11 +130,10 @@ find_empty_position(Game, Validator) ->
     Position -> Position
   end.
 
-%% @todo wait for ktn_random:uniform/1 and replace random:uniform here
 try_random_fep(_Game, _Rows, _Cols, _Validator, 0) ->
   notfound;
 try_random_fep(Game, Rows, Cols, Validator, Attempts) ->
-  Position = {random:uniform(Rows), random:uniform(Cols)},
+  Position = {ktn_random:uniform(Rows), ktn_random:uniform(Cols)},
   case Validator(Game, Position) of
     true -> Position;
     _ -> try_random_fep(Game, Rows, Cols, Validator, Attempts - 1)
@@ -161,29 +156,25 @@ try_walkthrough_fep(Game, Rows, Cols, Validator, Position, NextPosition) ->
     _ -> walkthrough_fep(Game, Rows, Cols, Validator, NextPosition)
   end.
 
-%% @todo wait for ktn_random:uniform/1 and replace random:uniform here
 random_name() ->
-  random:seed(erlang:now()),
   {ok, Names} =
     file:consult(filename:join(code:priv_dir(serpents), "game-names")),
   try_random_name(Names).
 
 try_random_name(Names) ->
-  NumericId = random:uniform(length(Names)),
+  NumericId = ktn_random:uniform(length(Names)),
   Name = lists:nth(NumericId, Names),
   case spts_core:is_game(Name) of
     false -> {NumericId, Name};
     true -> try_random_name(Names)
   end.
 
-%% @todo wait for ktn_random:uniform/1 and replace random:uniform here
 random_direction(Game, {Row, Col}) ->
-  random:seed(erlang:now()),
   Candidates =
     surrounding_positions(
       Row, Col, spts_games:rows(Game), spts_games:cols(Game)),
   {_, Direction} =
-    lists:nth(random:uniform(length(Candidates)), Candidates),
+    lists:nth(ktn_random:uniform(length(Candidates)), Candidates),
   Direction.
 
 check(Rows, _, _, _, _, _, _, _) when Rows < 5 -> throw(invalid_rows);
@@ -217,14 +208,12 @@ surrounding_positions(Row, Col, Rows, Cols) ->
     ],
   [{{R, C}, D} || {R, C, D} <- Candidates, R > 0, C > 0, R =< Rows, C =< Cols].
 
-%% @todo wait for ktn_random:uniform/1 and replace random:uniform here
 add_initial_cells(Game) ->
-  random:seed(erlang:now()),
   case spts_games:is_flag_on(Game, walls) of
     false -> Game;
     true ->
       CellCount = spts_games:rows(Game) * spts_games:cols(Game),
-      WallCount = 1 + random:uniform(trunc(CellCount / 10)),
+      WallCount = 1 + ktn_random:uniform(trunc(CellCount / 10)),
       add_initial_cells(Game, WallCount)
   end.
 

@@ -458,8 +458,6 @@ rounds(Config) ->
 
   {comment, ""}.
 
-%% @todo avoid fruits and test that, after the third turn, the serpent stopped
-%%       growing
 -spec initial_food(spts_test_utils:config()) -> {comment, []}.
 initial_food(Config) ->
   {game, GameId} = lists:keyfind(game, 1, Config),
