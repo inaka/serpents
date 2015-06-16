@@ -235,7 +235,6 @@ set_flags(Flags) ->
 set_flags(Flags, Value) ->
   lists:foldl(fun set_flag/2, Value, Flags).
 
-set_flag(Flag) -> set_flag(Flag, 0).
 set_flag(ping, Value) -> (Value band 248) bor 1;
 set_flag(info, Value) -> (Value band 248) bor 2;
 set_flag(join, Value) -> (Value band 248) bor 3;

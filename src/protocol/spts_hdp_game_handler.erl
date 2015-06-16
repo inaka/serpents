@@ -226,21 +226,21 @@ handle_game_updated(Game, CurrentTick, Games) ->
   case lists:keytake(GameId, 1, Games) of
     false ->
       Games;
-    {value, {GameId, GameName, GameUsers, {OldFruits, OldWalls}}, Tail} ->
+    {value, {GameId, GameName, GameUsers, {OldFruit, OldWalls}}, Tail} ->
       % Get the new cell data
-      NewFruits = spts_games:fruits(Game),
+      NewFruit = spts_games:fruit(Game),
       NewWalls = spts_games:walls(Game),
       NewSerpentCells = get_serpent_cells(spts_games:serpents(Game)),
       NewWalls = NewWalls + NewSerpentCells,
       % Find the diffs
-      FruitDiff = get_cell_diff(OldFruits, NewFruits),
+      FruitDiff = get_fruit_diff(OldFruit, NewFruit),
       CellDiff = get_cell_diff(OldWalls, NewWalls),
       % Make the event
       NewEvents = [build_simulation_step(CurrentTick, FruitDiff, CellDiff)],
       NewGameUsers = [{User, Events ++ NewEvents} ||
                       {User, Events} <- GameUsers],
       % Build the new state
-      NewGameState = {NewFruits, NewWalls},
+      NewGameState = {NewFruit, NewWalls},
       % Compose the new game
       NewGame = {GameId, GameName, NewGameUsers, NewGameState},
       % Return the new game list
@@ -298,6 +298,11 @@ get_serpent_cells([], Cells) ->
 get_serpent_cells([Serpent | T], Cells) ->
   NewWalls = spts_serpents:body(Serpent),
   get_serpent_cells(T, Cells ++ NewWalls).
+
+%% @todo USE the food, Luke!
+get_fruit_diff(Fruit, Fruit) -> [];
+get_fruit_diff({{OldX, OldY}, _OldF}, {{NewX, NewY}, _NewF}) ->
+  [{removed, OldX, OldY}, {added, NewX, NewY}].
 
 get_cell_diff(PreviousCells, CurrentCells) ->
   AddedCells = CurrentCells -- PreviousCells,
@@ -378,13 +383,6 @@ get_direction_atom(2) -> right;
 get_direction_atom(4) -> up;
 get_direction_atom(8) -> down;
 get_direction_atom(_) -> ignore.
-
-get_user_name(_UserId, []) ->
-  undefined;
-get_user_name(UserId, [{{UserId, UserName, _Address}, _Events} | _Users]) ->
-  UserName;
-get_user_name(UserId, [_User | Users]) ->
-  get_user_name(UserId, Users).
 
 %%==============================================================================
 %% Message building
