@@ -21,4 +21,4 @@ $ make && _rel/serpents/bin/serpents start
 ```
 
 ## The Website
-Once the server is started you can open http://localhost:8585 and start creating and watching games.
+Once the server is started you can open [http://localhost:8585](http://localhost:8585) and start creating and watching games.
