@@ -4,7 +4,7 @@ CONFIG ?= test/test.config
 
 RELX_URL := https://github.com/erlware/relx/releases/download/v2.0.0/relx
 
-DEPS = eper mixer lager cowboy jiffy katana lasse
+DEPS = recon mixer lager cowboy jiffy katana lasse
 SELL_DEPS = sync
 TEST_DEPS = xref_runner shotgun
 
@@ -12,11 +12,11 @@ dep_lasse = git https://github.com/inaka/lasse.git 1.0.1
 dep_katana = git https://github.com/inaka/erlang-katana.git 0.2.6
 dep_cowboy = git https://github.com/extend/cowboy.git 1.0.1
 dep_jiffy = git https://github.com/davisp/jiffy.git 0.13.3
-dep_eper = git https://github.com/massemanet/eper.git 0.90.0
 dep_mixer = git https://github.com/inaka/mixer.git 0.1.2
 dep_sync = git https://github.com/inaka/sync.git 0.1
 dep_shotgun = git https://github.com/inaka/shotgun.git 0.1.11
 dep_xref_runner = git https://github.com/inaka/xref_runner.git 0.2.2
+dep_recon = git https://github.com/ferd/recon.git 2.2.1
 
 DIALYZER_DIRS := ebin/
 DIALYZER_OPTS := --verbose --statistics -Werror_handling \
@@ -32,7 +32,7 @@ ERLC_OPTS += +warn_export_vars +warn_exported_vars +warn_missing_spec +warn_unty
 TEST_ERLC_OPTS += +'{parse_transform, lager_transform}'
 CT_OPTS += -cover test/${PROJECT}.coverspec -vvv -erl_args -config ${CONFIG}
 
-SHELL_OPTS += -name ${PROJECT}@`hostname` -config ${CONFIG} -s lager -s sync
+SHELL_OPTS += -name ${PROJECT}@`hostname` -config ${CONFIG} -s lager -s sync -s ${PROJECT}
 
 quicktests: app
 	@$(MAKE) --no-print-directory app-build test-dir ERLC_OPTS="$(TEST_ERLC_OPTS)"
