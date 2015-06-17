@@ -32,7 +32,7 @@ ERLC_OPTS += +warn_export_vars +warn_exported_vars +warn_missing_spec +warn_unty
 TEST_ERLC_OPTS += +'{parse_transform, lager_transform}'
 CT_OPTS += -cover test/${PROJECT}.coverspec -vvv -erl_args -config ${CONFIG}
 
-SHELL_OPTS += -name ${PROJECT}@`hostname` -config ${CONFIG} -s lager -s sync -s ${PROJECT}
+SHELL_OPTS += -name ${PROJECT}@`hostname` -config ${CONFIG} -boot start_sasl -s lager -s sync -s ${PROJECT}
 
 quicktests: app
 	@$(MAKE) --no-print-directory app-build test-dir ERLC_OPTS="$(TEST_ERLC_OPTS)"

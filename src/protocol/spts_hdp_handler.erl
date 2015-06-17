@@ -1,14 +1,25 @@
 -module(spts_hdp_handler).
 -author('hernanrivasacosta@gmail.com').
+-author('elbrujohalcon@inaka.net').
 
-% API
+-behaviour(gen_server).
+
+%%% gen_server callbacks
+-export([
+         init/1, handle_call/3, handle_cast/2,
+         handle_info/2, terminate/2, code_change/3
+        ]).
+%%% API
 -export([start_link/0, send_update/4]).
-% For internal use only
--export([loop/1, handle_udp/4]).
+%%% For internal use only
+-export([handle_udp/4]).
 
 -define(UCHAR,  8/unsigned-integer).
 -define(USHORT, 16/unsigned-integer).
 -define(UINT,   32/unsigned-integer).
+
+-record(state, {socket :: port()}).
+-type state() :: #state{}.
 
 -record(metadata, {messageId      = 0 :: integer(),
                    userTime       = 0 :: integer(),
@@ -17,42 +28,58 @@
                    ip     = undefined :: inet:ip_address() | undefined,
                    port   = undefined :: integer() | undefined}).
 
-%%==============================================================================
-%% API
-%%==============================================================================
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% External API functions
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 -spec start_link() -> {ok, pid()}.
 start_link() ->
-  Port = application:get_env(serpents, udp_port, 8584),
-  {ok, UdpSocket} = gen_udp:open(Port, udp_opts()),
-  UdpHandler = spawn_link(?MODULE, loop, [UdpSocket]),
-  register(?MODULE, UdpHandler),
-  gen_udp:controlling_process(UdpSocket, UdpHandler),
-  {ok, UdpHandler}.
+  gen_server:start_link(
+    {local, ?MODULE}, ?MODULE, noargs, [{debug, [trace, log]}]).
 
 -spec send_update(integer(), iodata(), inet:ip_address(), integer()) -> ok.
 send_update(Tick, Message, Ip, Port) ->
+  gen_server:cast(?MODULE, {send, Ip, Port, Tick, Message}).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Callback implementation
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+-spec init(noargs) -> {ok, state()}.
+init(noargs) ->
+  Port = application:get_env(serpents, udp_port, 8584),
+  {ok, UdpSocket} = gen_udp:open(Port, [{mode, binary}, {reuseaddr, true}]),
+  {ok, #state{socket = UdpSocket}}.
+
+-spec handle_cast(term(), state()) -> {noreply, state()}.
+handle_cast({send, Ip, Port, Tick, Message}, State) ->
+  #state{socket = UdpSocket} = State,
   Flags = set_flags([update, success]),
-  ?MODULE ! {send_update, [<<Flags:?UCHAR, Tick:?UINT, Tick:?USHORT>>,
-                           Message], Ip, Port}.
+  send(
+    [<<Flags:?UCHAR, Tick:?UINT, Tick:?USHORT>>, Message], UdpSocket, Ip, Port),
+  {noreply, State};
+handle_cast(Msg, State) ->
+  lager:warning("Unexpected message: ~p", [Msg]),
+  {noreply, State}.
 
--spec loop(port()) -> _.
-loop(UdpSocket) ->
-  receive
-    {udp, UdpSocket, Ip, Port, Bin} ->
-      _Pid = spawn(?MODULE, handle_udp, [Bin, UdpSocket, Ip, Port]),
-      loop(UdpSocket);
-    {send_update, Message, Ip, Port} ->
-      ok = send(Message, UdpSocket, Ip, Port),
-      loop(UdpSocket);
-    Other ->
-      % Prevent the message queue from filling
-      lager:warning("unexpected message received: ~p", [Other]),
-      loop(UdpSocket)
-  end.
+-spec handle_info(term(), state()) -> {noreply, state()}.
+handle_info(
+  {udp, UdpSocket, Ip, Port, Bin}, State = #state{socket = UdpSocket}) ->
+  _Pid = spawn(?MODULE, handle_udp, [Bin, UdpSocket, Ip, Port]),
+  {noreply, State};
+handle_info(_Info, State) -> {noreply, State}.
 
-%%==============================================================================
-%% Message parsing/handling
-%%==============================================================================
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Unused Callbacks
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+-spec handle_call(X, term(), state()) -> {reply, {unknown, X}, state()}.
+handle_call(X, _From, State) -> {reply, {unknown, X}, State}.
+-spec terminate(term(), state()) -> ok.
+terminate(_Reason, _State) -> ok.
+-spec code_change(term(), state(), term()) -> {ok, state()}.
+code_change(_OldVsn, State, _Extra) -> {ok, State}.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Internal Functions
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 -spec handle_udp(binary(), port(), inet:ip_address(), integer()) -> any().
 handle_udp(<<Flags:?UCHAR,
              MessageId:?USHORT,
@@ -221,9 +248,6 @@ handle_message(_MessageType, _Garbage, _Metadata) ->
 %%==============================================================================
 %% Utils
 %%==============================================================================
-udp_opts() ->
-  [{mode, binary}, {reuseaddr, true}].
-
 get_message_type(1) -> ping;
 get_message_type(2) -> info;
 get_message_type(3) -> join;
