@@ -5,7 +5,7 @@ The HDP protocol consists on 5 different messages types that share a common head
 
 Prefixes all client originated messages
 
-    ClientHeader => Flags MessageID UserTime UserId Message
+    ClientHeader => Flags MessageID ClientTime SerpentId Message
     Flags => uchar => MessageType
     MessageType => PING | INFO | JOIN | ACTION
     PING => 1
@@ -13,16 +13,16 @@ Prefixes all client originated messages
     JOIN => 3
     ACTION => 4
     MessageID => ushort
-    UserTime => ushort
-    UserId => ushort
+    ClientTime => ushort
+    SerpentId => ushort
     Message => PingRequest | GamesInfoRequest | GameInfoRequest
 
 Field     | Description
 ----------|-------------
 Flags     | For now, only used to specify the message type
 MessageID | If the command requires a reply, the game will resend this ID to the client. During the game, this ID is expected to be the current tick of the client's game
-UserTime  | The game will return this value as is on every response
-UserId    | The UserId the game provides when joining a game, 0 otherwise
+ClientTime| The game will return this value as is on every response
+SerpentId | The SerpentId the game provides when joining a game, 0 otherwise
 
 ### The Server Message Header ###
 
@@ -45,7 +45,7 @@ Prefixes all server messages, both server originated and the replies.
 Field     | Description
 ----------|-------------
 Flags     | For now, only used to specify the message type
-MessageID | The same message ID the user sent if a reply or an unique server generated ID
+MessageID | The same message ID the client sent if a reply or an unique server generated ID
 Time      | In the case of a response, the value sent by the client, otherwise, this is the current tick
 
 ### Ping Request ###
