@@ -126,11 +126,12 @@ all_games() ->
       Result
     end, Processes).
 
-%% @doc Subscribes to the game gen_event dispatcher.
+%% @doc Subscribes to the game gen_event dispatcher using gen_event:swap_handler
 -spec subscribe(spts_games:id(), module() | {module(), term()}, term()) ->
   ok.
 subscribe(GameId, Handler, Args) ->
-  gen_event:add_handler(call(GameId, dispatcher), Handler, Args).
+  gen_event:swap_handler(
+    call(GameId, dispatcher), {Handler, Args}, {Handler, Args}).
 
 %% @doc Calls the game gen_event dispatcher.
 -spec call_handler(spts_games:id(), module() | {module(), term()}, term()) ->

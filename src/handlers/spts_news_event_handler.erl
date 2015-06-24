@@ -34,8 +34,8 @@ unsubscribe(GameId, TestProcess) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% EVENT CALLBACKS
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
--spec init(pid()) -> {ok, state()}.
-init(Process) -> {ok, #state{process = Process}}.
+-spec init({pid(), ok|error}) -> {ok, state()}.
+init({Process, _TerminateResult}) -> {ok, #state{process = Process}}.
 
 -spec handle_event(spts_core:event(), state()) -> {ok, state()}.
 handle_event(Event, State) ->

@@ -31,8 +31,8 @@ unsubscribe(GameId) -> spts_core:call_handler(GameId, ?MODULE, remove).
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% EVENT CALLBACKS
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
--spec init(noargs) -> {ok, state()}.
-init(noargs) -> {ok, #state{}}.
+-spec init({noargs, ok | error}) -> {ok, state()}.
+init({noargs, _TerminateResult}) -> {ok, #state{}}.
 
 -spec handle_event(spts_core:event(), state()) -> {ok, state()}.
 handle_event(Event, State) ->
