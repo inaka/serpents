@@ -13,7 +13,7 @@
         , spts_web_utils/1
         , spts_single_game_handler/1
         , spts_news_handler/1
-        , spts_news_event_handler/1
+        , spts_gen_event_handler/1
         , spts_core/1
         , spts_games/1
         ]).
@@ -43,10 +43,10 @@ spts_news_handler(_Config) ->
   state = spts_news_handler:handle_error(event, error, state),
   {comment, ""}.
 
--spec spts_news_event_handler(spts_test_utils:config()) -> {comment, []}.
-spts_news_event_handler(_Config) ->
-  ct:comment("spts_news_event_handler:code_change"),
-  {ok, state} = spts_news_event_handler:code_change(oldvsn, state, extra),
+-spec spts_gen_event_handler(spts_test_utils:config()) -> {comment, []}.
+spts_gen_event_handler(_Config) ->
+  ct:comment("spts_gen_event_handler:code_change"),
+  {ok, state} = spts_gen_event_handler:code_change(oldvsn, state, extra),
   {comment, ""}.
 
 -spec spts_games(spts_test_utils:config()) -> {comment, []}.

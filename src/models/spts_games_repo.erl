@@ -115,7 +115,7 @@ ensure_fruit(OldGame, Game) ->
           {false, false} -> 1;
           {false, true} -> OldFruitValue + 1;
           {true, false} -> ktn_random:uniform(10);
-          {true, true} -> ktn_random:uniform(OldFruitValue, OldFruitValue + 5)
+          {true, true} -> ktn_random:uniform(OldFruitValue+1, OldFruitValue+5)
         end,
       spts_games:content(Game, Position, {fruit, Food});
     _ ->
