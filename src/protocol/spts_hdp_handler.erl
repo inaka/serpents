@@ -120,38 +120,36 @@ handle_message(ping, _Ignored, Metadata = #metadata{messageId = MessageId,
 %% INFO REQUESTS
 handle_message(info, <<>>, Metadata = #metadata{messageId = MessageId,
                                                 userTime  = UserTime}) ->
-  AllGames = spts_hdp_game_handler:get_games(),
+  AllGames =
+    [game_to_binary(Game) || Game <- spts_core:all_games()],
+
   NumGames = length(AllGames),
   Flags = set_flags([info, success]),
   send([<<Flags:?UCHAR,
           MessageId:?UINT,
           UserTime:?USHORT,
           NumGames:?UCHAR>>,
-        [<<Id:?USHORT, TickRate:?UCHAR, NumPlayers:?UCHAR, MaxPlayers:?UCHAR>>
-         || {Id, TickRate, NumPlayers, MaxPlayers} <- AllGames]],
-       Metadata);
+        AllGames], Metadata);
 handle_message(info,
                <<GameId:?USHORT>>,
                Metadata = #metadata{messageId = MessageId,
                                     userTime  = UserTime}) ->
   try
     % Retrieve the game data
-    GameName = spts_hdp_game_handler:get_game_name(GameId),
-    Game = spts_core:fetch_game(GameName),
+    Game = spts_core:fetch_game(GameId),
     Rows = spts_games:rows(Game),
     Cols = spts_games:cols(Game),
     Tickrate = spts_games:ticktime(Game),
-    MaxPlayers =
+    MaxSerpents =
       case spts_games:max_serpents(Game) of
         infinity -> 255;
         MaxS -> MaxS
       end,
 
     % Retrieve the game data that's stored on the game handler
-    Players = spts_hdp_game_handler:get_game_users(GameId),
-    NumPlayers = length(Players),
-    BinPlayersInfo = [[<<Id:?UINT, (size(PlayerName)):?UCHAR>>, PlayerName] ||
-                      {Id, PlayerName} <- Players],
+    Serpents = spts_games:serpents(Game),
+    NumSerpents = length(Serpents),
+    BinSerpentsInfo = [serpent_to_binary(Serpent) || Serpent <- Serpents],
 
     SuccessFlags = set_flags([info, success]),
     send([<<SuccessFlags:?UCHAR,
@@ -161,9 +159,9 @@ handle_message(info,
             Tickrate:?UCHAR,
             Cols:?UCHAR,
             Rows:?UCHAR,
-            NumPlayers:?UCHAR,
-            MaxPlayers:?UCHAR>>,
-            BinPlayersInfo],
+            NumSerpents:?UCHAR,
+            MaxSerpents:?UCHAR>>,
+            BinSerpentsInfo],
            Metadata)
   catch
     A:B -> lager:warning(
@@ -189,8 +187,8 @@ handle_message(join,
                                     userTime  = UserTime}) ->
   try
     % Tell the game handler that the user connected
-    Address = get_address_from_metadata(Metadata),
-    {ok, PlayerId, GameName} =
+    Address = {Metadata#metadata.socket, Metadata#metadata.port},
+    {ok, SerpentId, GameName} =
       spts_hdp_game_handler:user_connected(Name, Address, GameId),
 
     % Retrieve the game data
@@ -198,32 +196,30 @@ handle_message(join,
     Rows = spts_games:rows(Game),
     Cols = spts_games:cols(Game),
     Tickrate = spts_games:ticktime(Game),
-    MaxPlayers =
+    MaxSerpents =
       case spts_games:max_serpents(Game) of
         infinity -> 255;
         MaxS -> MaxS
       end,
 
     % Retrieve the game data that's stored on the game handler
-    Players = spts_hdp_game_handler:get_game_users(GameId),
-    NumPlayers = length(Players),
-    BinPlayersInfo = [[<<Id:?UINT, (size(PlayerName)):?UCHAR>>, PlayerName] ||
-                      {Id, PlayerName} <- Players],
+    Serpents = spts_games:serpents(Game),
+    NumSerpents = length(Serpents),
+    BinSerpentsInfo = [serpent_to_binary(Serpent) || Serpent <- Serpents],
 
     % Build the response
     SuccessFlags = set_flags([join, success]),
-    ct:pal("~p: ~w", [NumPlayers, BinPlayersInfo]),
     send([<<SuccessFlags:?UCHAR,
             MessageId:?UINT,
             UserTime:?USHORT,
-            PlayerId:?UINT,
+            SerpentId:?UINT,
             GameId:?USHORT,
             Tickrate:?UCHAR,
             Cols:?UCHAR,
             Rows:?UCHAR,
-            NumPlayers:?UCHAR,
-            MaxPlayers:?UCHAR>>,
-          BinPlayersInfo],
+            NumSerpents:?UCHAR,
+            MaxSerpents:?UCHAR>>,
+          BinSerpentsInfo],
          Metadata)
   catch
     A:B -> lager:warning(
@@ -240,7 +236,7 @@ handle_message(join,
                 Metadata)
   end;
 handle_message(action, <<LastUpdate:?USHORT, Direction:?UCHAR>>, Metadata) ->
-  Address = get_address_from_metadata(Metadata),
+  Address = {Metadata#metadata.socket, Metadata#metadata.port},
   spts_hdp_game_handler:user_update(Address, LastUpdate, Direction);
 handle_message(_MessageType, _Garbage, _Metadata) ->
   undefined.
@@ -274,5 +270,17 @@ send(Message, #metadata{socket = UdpSocket, ip = Ip, port = Port}) ->
 send(Message, UdpSocket, Ip, Port) ->
   gen_udp:send(UdpSocket, Ip, Port, Message).
 
-get_address_from_metadata(Metadata) ->
-  {Metadata#metadata.socket, Metadata#metadata.port}.
+game_to_binary(Game) ->
+  MaxSerpents = case spts_games:max_serpents(Game) of
+                  infinity -> 255;
+                  Value -> Value
+                end,
+  Id = spts_games:numeric_id(Game),
+  TickRate = spts_games:ticktime(Game),
+  NumSerpents = length(spts_games:serpents(Game)),
+  <<Id:?USHORT, TickRate:?UCHAR, NumSerpents:?UCHAR, MaxSerpents:?UCHAR>>.
+
+serpent_to_binary(Serpent) ->
+  Id = spts_serpents:numeric_id(Serpent),
+  Name = spts_serpents:name(Serpent),
+  [<<Id:?UINT, (size(Name)):?UCHAR>>, Name].

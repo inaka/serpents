@@ -106,7 +106,8 @@ turn(GameId, SerpentName, Direction) ->
   cast(GameId, {turn, SerpentName, Direction}).
 
 %% @doc Retrieves the status of a game
--spec fetch_game(spts_games:id()) -> spts_games:game().
+-spec fetch_game(spts_games:numeric_id() | spts_games:id()) ->
+  spts_games:game().
 fetch_game(GameId) ->
   call(GameId, fetch).
 
@@ -354,16 +355,36 @@ finished(Request, State) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% INTERNAL FUNCTIONS
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+call(GameId, Event) when is_integer(GameId) ->
+  Children = supervisor:which_children(spts_game_sup),
+  Processes = [Pid || {undefined, Pid, worker, [?MODULE]} <- Children],
+  NotGameId =
+    fun(Process) ->
+      {ok, Game} = do_call(Process, fetch),
+      spts_games:numeric_id(Game) =/= GameId
+    end,
+  case lists:dropwhile(NotGameId, Processes) of
+    [] ->
+      lager:error(
+        "Couldn't send ~p to ~p: not a game~nStack: ~p",
+        [Event, GameId, erlang:get_stacktrace()]),
+      throw({badgame, GameId});
+    [Process|_] ->
+      try_call(Process, Event)
+  end;
 call(GameId, Event) ->
   Process = spts_games:process_name(GameId),
+  try_call(Process, Event).
+
+try_call(Process, Event) ->
   try do_call(Process, Event) of
     {ok, Result} -> Result;
     {error, Error} -> throw(Error)
   catch
     _:Exception ->
       lager:error(
-        "Couldn't send ~p to ~p (~p): ~p~nStack: ~p",
-        [Event, GameId, Process, Exception, erlang:get_stacktrace()]),
+        "Couldn't send ~p to ~p: ~p~nStack: ~p",
+        [Event, Process, Exception, erlang:get_stacktrace()]),
       throw(Exception)
   end.
 

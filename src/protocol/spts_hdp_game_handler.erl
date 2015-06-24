@@ -4,8 +4,7 @@
 -behavior(gen_server).
 
 %% API
--export([user_connected/3, get_game_users/1, timestamp/0, user_update/3,
-         get_games/0, get_game_name/1]).
+-export([user_connected/3, timestamp/0, user_update/3]).
 % Supervisors
 -export([start_link/0]).
 % gen_server callbacks
@@ -48,21 +47,9 @@ timestamp() ->
 user_connected(Name, Address, GameId) ->
   gen_server:call(?MODULE, {user_connected, Name, Address, GameId}).
 
--spec get_game_users(id()) -> [{id(), spts_serpents:name()}].
-get_game_users(GameId) ->
-  gen_server:call(?MODULE, {get_game_users, GameId}).
-
--spec get_game_name(id()) -> spts_games:id().
-get_game_name(GameId) ->
-  gen_server:call(?MODULE, {get_game_name, GameId}).
-
 -spec user_update(address(), integer(), integer()) -> ok.
 user_update(Address, KnownServerTick, Direction) ->
   gen_server:cast(?MODULE, {user_update, Address, KnownServerTick, Direction}).
-
--spec get_games() -> [{id(), integer(), integer(), integer()}].
-get_games() ->
-  gen_server:call(?MODULE, {get_games}).
 
 %%==============================================================================
 %% gen_server callbacks
@@ -91,15 +78,7 @@ handle_call({user_connected, Name, Address, GameId}, _From,
            {ok, Id, GameName},
            State#state{users = NewUsers, games = NewGames}}
       end
-  end;
-handle_call({get_games}, _From, State = #state{games = Games}) ->
-  NewGames = handle_get_games(Games),
-  Reply = [get_basic_info(Game) || Game <- NewGames],
-  {reply, Reply, State#state{games = NewGames}};
-handle_call({get_game_users, GameId}, _From, State = #state{games = Games}) ->
-  {reply, handle_get_game_users(GameId, Games), State};
-handle_call({get_game_name, GameId}, _From, State = #state{games = Games}) ->
-  {reply, handle_get_game_name(GameId, Games), State}.
+  end.
 
 -spec handle_info(any(), state()) -> {noreply, state()}.
 handle_info(update, State = #state{tick = Tick, games = Games}) ->
@@ -162,23 +141,6 @@ handle_user_connected(Name, Address, GameName) ->
       ignored
   end.
 
-handle_get_game_users(GameId, Games) ->
-  case lists:keyfind(GameId, 1, Games) of
-    false ->
-      [];
-    {GameId, _GameName, GameUsers, _GameState} ->
-      [{UserId, UserName} ||
-       {{UserId, UserName, _Address} = _User, _Events} <- GameUsers]
-  end.
-
-handle_get_game_name(GameId, Games) ->
-  case lists:keyfind(GameId, 1, Games) of
-    false ->
-      [];
-    {GameId, GameName, _GameUsers, _GameState} ->
-      GameName
-  end.
-
 handle_user_update(User, KnownServerTick, CurrentTick, Direction, Games) ->
   {UserId, UserName, _Address} = User,
   GameId = get_game_id(UserId, Games),
@@ -205,21 +167,6 @@ handle_user_update(User, KnownServerTick, CurrentTick, Direction, Games) ->
                         {TheUser, Events} <- NewGameUsers],
       [{GameId, GameName, NewGameUsers2, GameState} | Tail]
   end.
-
-handle_get_games(KnownGames) ->
-  AllGameIds =
-    [ {spts_games:numeric_id(Game), spts_games:id(Game)}
-    || Game <- spts_core:all_games()],
-  lists:foldl(fun({GameId, GameName}, Acc) ->
-                NewGame = case lists:keytake(GameName, 2, KnownGames) of
-                            false ->
-                              spts_hdp_event_handler:subscribe(GameName),
-                              {GameId, GameName, [], {[], []}};
-                            {value, Game, _Tail} ->
-                              Game
-                          end,
-                [NewGame | Acc]
-              end, [], AllGameIds).
 
 handle_game_updated(Game, CurrentTick, Games) ->
   GameId = spts_games:numeric_id(Game),
@@ -360,14 +307,6 @@ get_game_id(UserId, [{GameId, _GameName, GameUsers} | T]) ->
     false -> get_game_id(UserId, T);
     _     -> GameId
   end.
-
-get_basic_info({GameId, GameName, Users, _Ignore}) ->
-  Game = spts_core:fetch_game(GameName),
-  MaxUsers = case spts_games:max_serpents(Game) of
-               infinity -> 255;
-               Value -> Value
-             end,
-  {GameId, spts_games:ticktime(Game), length(Users), MaxUsers}.
 
 handle_game_finished(Game, Games) ->
   GameName = spts_games:id(Game),
