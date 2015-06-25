@@ -188,11 +188,10 @@ handle_message(join,
   try
     % Tell the game handler that the user connected
     Address = {Metadata#metadata.socket, Metadata#metadata.port},
-    {ok, SerpentId, GameName} =
-      spts_hdp_game_handler:user_connected(Name, Address, GameId),
+    SerpentId = spts_hdp_game_handler:user_connected(Name, Address, GameId),
 
     % Retrieve the game data
-    Game = spts_core:fetch_game(GameName),
+    Game = spts_core:fetch_game(GameId),
     Rows = spts_games:rows(Game),
     Cols = spts_games:cols(Game),
     Tickrate = spts_games:ticktime(Game),
@@ -235,9 +234,11 @@ handle_message(join,
                  ErrorReason],
                 Metadata)
   end;
-handle_message(action, <<LastUpdate:?USHORT, Direction:?UCHAR>>, Metadata) ->
+handle_message(
+  action, <<LastServerTick:?USHORT, Direction:?UCHAR>>, Metadata) ->
   Address = {Metadata#metadata.socket, Metadata#metadata.port},
-  spts_hdp_game_handler:user_update(Address, LastUpdate, Direction);
+  spts_hdp_game_handler:user_update(
+    Metadata#metadata.userId, Address, LastServerTick, Direction);
 handle_message(_MessageType, _Garbage, _Metadata) ->
   undefined.
 

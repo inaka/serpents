@@ -106,7 +106,7 @@ turn(GameId, SerpentName, Direction) ->
   cast(GameId, {turn, SerpentName, Direction}).
 
 %% @doc Retrieves the status of a game
--spec fetch_game(spts_games:numeric_id() | spts_games:id()) ->
+-spec fetch_game(pos_integer() | spts_games:id()) ->
   spts_games:game().
 fetch_game(GameId) ->
   call(GameId, fetch).
