@@ -126,7 +126,7 @@ Returns information on a single game.
     Rows => uchar
     TickRate => uchar
     Countdown => uchar
-    Rounds => uchar
+    Rounds => uint
     InitialFood => uchar
     MaxSerpents => uchar
     CurrentSerpents => uchar
@@ -140,7 +140,7 @@ Field           | Description
 GameId          | The game's id
 State           | The game state
 Cols/Rows       | Indicate the size of the map
-TickRate        | The game's tick rate
+TickRate        | The game's tick rate (i.e. the # of updates per second, regardless of the actual game speed)
 Countdown       | The game's countdown length (in ticks)
 Rounds          | The game max length (in ticks) - `0` means `no limit`
 InitialFood     | How much food is in the serpents belly when they join

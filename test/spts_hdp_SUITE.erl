@@ -66,26 +66,34 @@ games(Config) ->
   {info_response, 1, _, {0, []}} = hdp_recv(Config),
 
   ct:comment("A game is created"),
-  GameId = spts_games:numeric_id(spts_core:create_game()),
+  Game = spts_core:create_game(),
+  GameId = spts_games:numeric_id(Game),
+  GameName = spts_games:id(Game),
 
   ct:comment("A games request is sent"),
   ok = hdp_send(hdp_games(2), Config),
 
   ct:comment("A games list is received"),
-  {info_response, 2, _, {1, [{GameId, 250, 0, 255}]}} = hdp_recv(Config),
+  {info_response, 2, _, {1, [GameInfo]}} = hdp_recv(Config),
+  #{ id := GameId
+   , name := GameName
+   , state := created
+   , current_serpents := 0
+   , max_serpents := 255
+   } = GameInfo,
 
   {comment, ""}.
 
 -spec single_game(spts_test_utils:config()) -> {comment, []}.
 single_game(Config) ->
   ct:comment("A game request is sent for an unexistent game"),
-  ok = hdp_send(hdp_game(1, 1), Config),
+  ok = hdp_send(hdp_game(1, 10), Config),
 
   ct:comment("A game description is not received"),
-  hdp_fail(Config),
+  {error_info_response, 1, _, {10, <<"badgame">>}} = hdp_recv(Config),
 
-  ct:comment("A game is created"),
-  Game = spts_core:create_game(#{max_serpents => 2}),
+  ct:comment("A defaul game is created"),
+  Game = spts_core:create_game(),
   GameId = spts_games:numeric_id(Game),
   GameName = spts_games:id(Game),
 
@@ -94,7 +102,20 @@ single_game(Config) ->
 
   ct:comment("A game description is received"),
   {info_response, 2, _, GD1} = hdp_recv(Config, detail),
-  {GameId, 250, 20, 20, 2, []} = GD1,
+  #{ id := GameId
+   , name := GameName
+   , state := created
+   , flags := []
+   , cols := 20
+   , rows := 20
+   , tickrate := 50
+   , countdown := 10
+   , rounds := 0
+   , initial_food := 1
+   , current_serpents := 0
+   , max_serpents := 255
+   , serpents := []
+   } = GD1,
 
   ct:comment("A player joins"),
   S1Id = spts_serpents:numeric_id(spts_core:add_serpent(GameName, <<"s1">>)),
@@ -104,7 +125,10 @@ single_game(Config) ->
 
   ct:comment("A game description is received"),
   {info_response, 3, _, GD2} = hdp_recv(Config, detail),
-  {GameId, 250, 20, 20, 2, [{S1Id, <<"s1">>}]} = GD2,
+  #{ id := GameId
+   , current_serpents := 1
+   , serpents := [{S1Id, <<"s1">>}]
+   } = GD2,
 
   ct:comment("A second player joins"),
   S2Id = spts_serpents:numeric_id(spts_core:add_serpent(GameName, <<"s2">>)),
@@ -114,7 +138,42 @@ single_game(Config) ->
 
   ct:comment("A game description is received"),
   {info_response, 4, _, GD3} = hdp_recv(Config, detail),
-  {GameId, 250, 20, 20, 2, [{S2Id, <<"s2">>}]} = GD3,
+  #{ id := GameId
+   , current_serpents := 2
+   , serpents := [{S2Id, <<"s2">>}, {S1Id, <<"s1">>}]
+   } = GD3,
+
+  ct:comment("A game with different options is created"),
+  Options =
+    #{ rows => 100
+     , cols => 200
+     , ticktime => 345
+     , countdown => 5
+     , rounds => 654
+     , initial_food => 3
+     , max_serpents => 12
+     , flags => [walls, random_food, increasing_food]
+     },
+  Game2Id = spts_games:numeric_id(spts_core:create_game(Options)),
+
+  ct:comment("A game request is sent"),
+  ok = hdp_send(hdp_game(5, Game2Id), Config),
+
+  ct:comment("A game description is received"),
+  {info_response, 5, _, GD5} = hdp_recv(Config, detail),
+  #{ id := Game2Id
+   , state := created
+   , flags := [increasing_food, random_food, walls]
+   , cols := 200
+   , rows := 100
+   , tickrate := 50
+   , countdown := 5
+   , rounds := 654
+   , initial_food := 3
+   , current_serpents := 0
+   , max_serpents := 12
+   , serpents := []
+   } = GD5,
 
   {comment, ""}.
 
@@ -165,13 +224,6 @@ join(Config) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Message parsing/handling
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-hdp_fail(Config) ->
-  try hdp_recv(Config) of
-    X -> ct:fail("Unexpected result: ~p", [X])
-  catch
-    throw:error -> ok
-  end.
-
 hdp_recv(Config) ->
   hdp_recv(Config, default).
 hdp_recv(Config, Parser) ->
@@ -190,27 +242,61 @@ hdp_recv(Config, Parser) ->
       131 -> join_response;
       132 -> game_update;
       003 -> error_join_response;
-      Other when Other band 128 == 0 -> throw(error)
+      002 -> error_info_response;
+      Other when Other band 128 == 0 -> throw({error, Other})
     end,
   {Type, MsgId, Time, hdp_parse(Type, Parser, Message)}.
 
 hdp_parse(ping_response, _, <<>>) -> pong;
 hdp_parse(info_response, default, <<GameCount:?UCHAR, Games/binary>>) ->
   { GameCount
-  , [ {GameId, TickRate, Players, MaxP}
-    || <<GameId:?USHORT, TickRate:?UCHAR, Players:?UCHAR, MaxP:?UCHAR>> <= Games
+  , [ #{ id => GameId
+       , name => Name
+       , state => hdp_parse_state(State)
+       , current_serpents => CurrentSerpents
+       , max_serpents => MaxSerpents
+       }
+    || << GameId:?USHORT
+        , NameSize:?UCHAR, Name:NameSize/binary
+        , State:?UCHAR
+        , CurrentSerpents:?UCHAR
+        , MaxSerpents:?UCHAR
+        >> <= Games
     ]
   };
 hdp_parse(info_response, detail, GameDesc) ->
   << GameId:?USHORT
-   , TickRate:?UCHAR
+   , NameSize:?UCHAR, Name:NameSize/binary
+   , State:?UCHAR
+   , Flags:?UCHAR
    , Cols:?UCHAR
    , Rows:?UCHAR
-   , CurrP:?UCHAR
-   , MaxP:?UCHAR
-   , Players/binary>> = GameDesc,
-  {GameId, TickRate, Cols, Rows, MaxP, hdp_parse_players(CurrP, Players)};
+   , TickRate:?UCHAR
+   , Countdown:?UCHAR
+   , Rounds:?UINT
+   , InitialFood:?UCHAR
+   , MaxSerpents:?UCHAR
+   , CurrentSerpents:?UCHAR
+   , Serpents/binary
+   >> = GameDesc,
+  #{ id => GameId
+   , name => Name
+   , state => hdp_parse_state(State)
+   , flags => hdp_parse_flags(Flags)
+   , cols => Cols
+   , rows => Rows
+   , tickrate => TickRate
+   , countdown => Countdown
+   , rounds => Rounds
+   , initial_food => InitialFood
+   , max_serpents => MaxSerpents
+   , current_serpents => CurrentSerpents
+   , serpents => hdp_parse_serpents(Serpents)
+   };
 hdp_parse(error_join_response, _, Error) ->
+  <<GameId:?USHORT, ReasonSize:?UCHAR, Reason:ReasonSize/binary>> = Error,
+  {GameId, Reason};
+hdp_parse(error_info_response, _, Error) ->
   <<GameId:?USHORT, ReasonSize:?UCHAR, Reason:ReasonSize/binary>> = Error,
   {GameId, Reason};
 hdp_parse(join_response, _, GameDesc) ->
@@ -219,21 +305,29 @@ hdp_parse(join_response, _, GameDesc) ->
    , TickRate:?UCHAR
    , Cols:?UCHAR
    , Rows:?UCHAR
-   , CurrP:?UCHAR
+   , _CurrP:?UCHAR
    , MaxP:?UCHAR
-   , Players/binary>> = GameDesc,
+   , Players/binary
+   >> = GameDesc,
   {PlayerId, GameId, TickRate, Cols, Rows, MaxP,
-   hdp_parse_players(CurrP, Players)}.
+   hdp_parse_serpents(Players)}.
 
-hdp_parse_players(CurrP, Players) ->
-  PlayerIds =
-    [ {Id, Name}
-    || <<Id:?UINT, NameSize:?UCHAR, Name:NameSize/binary>> <= Players
-    ],
-  case length(PlayerIds) of
-    CurrP -> PlayerIds;
-    _ -> ct:fail("Bad list of players (not ~p): ~p", [CurrP, Players])
-  end.
+hdp_parse_state(0) -> created;
+hdp_parse_state(1) -> countdown;
+hdp_parse_state(2) -> started;
+hdp_parse_state(4) -> finished.
+
+hdp_parse_flags(Flags) when Flags rem 2 == 1 ->
+  lists:sort([walls | hdp_parse_flags(Flags - 1)]);
+hdp_parse_flags(0) -> [];
+hdp_parse_flags(2) -> [random_food];
+hdp_parse_flags(4) -> [increasing_food];
+hdp_parse_flags(6) -> [increasing_food, random_food].
+
+hdp_parse_serpents(Serpents) ->
+  [ {Id, Name}
+  || <<Id:?UINT, NameSize:?UCHAR, Name:NameSize/binary>> <= Serpents
+  ].
 
 hdp_send(Message, Config) ->
   {socket, UdpSocket} = lists:keyfind(socket, 1, Config),

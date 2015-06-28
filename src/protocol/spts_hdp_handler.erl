@@ -121,7 +121,7 @@ handle_message(ping, _Ignored, Metadata = #metadata{messageId = MessageId,
 handle_message(info, <<>>, Metadata = #metadata{messageId = MessageId,
                                                 userTime  = UserTime}) ->
   AllGames =
-    [game_to_binary(Game) || Game <- spts_core:all_games()],
+    [game_to_binary(Game, reduced) || Game <- spts_core:all_games()],
 
   NumGames = length(AllGames),
   Flags = set_flags([info, success]),
@@ -137,33 +137,22 @@ handle_message(info,
   try
     % Retrieve the game data
     Game = spts_core:fetch_game(GameId),
-    Rows = spts_games:rows(Game),
-    Cols = spts_games:cols(Game),
-    Tickrate = spts_games:ticktime(Game),
-    MaxSerpents =
-      case spts_games:max_serpents(Game) of
-        infinity -> 255;
-        MaxS -> MaxS
-      end,
+    GameDesc = game_to_binary(Game, complete),
 
-    % Retrieve the game data that's stored on the game handler
-    Serpents = spts_games:serpents(Game),
-    NumSerpents = length(Serpents),
-    BinSerpentsInfo = [serpent_to_binary(Serpent) || Serpent <- Serpents],
-
-    SuccessFlags = set_flags([info, success]),
-    send([<<SuccessFlags:?UCHAR,
+    Flags = set_flags([info, success]),
+    send([<<Flags:?UCHAR,
             MessageId:?UINT,
-            UserTime:?USHORT,
-            GameId:?USHORT,
-            Tickrate:?UCHAR,
-            Cols:?UCHAR,
-            Rows:?UCHAR,
-            NumSerpents:?UCHAR,
-            MaxSerpents:?UCHAR>>,
-            BinSerpentsInfo],
+            UserTime:?USHORT>>,
+            GameDesc],
            Metadata)
   catch
+    throw:{badgame, GameId} ->
+      lager:warning("Game ~p doesn't exist", [GameId]),
+      ErrorFlags = set_flags([info, error]),
+      ErrorReason = pascal_string(<<"badgame">>),
+      send(
+        <<ErrorFlags:?UCHAR, MessageId:?UINT, UserTime:?USHORT,
+          GameId:?USHORT, ErrorReason/binary>>, Metadata);
     A:B -> lager:warning(
             "Unexpected error ~p:~p~n~p", [A, B, erlang:get_stacktrace()]),
            ErrorFlags = set_flags([info, error]),
@@ -194,7 +183,7 @@ handle_message(join,
     Game = spts_core:fetch_game(GameId),
     Rows = spts_games:rows(Game),
     Cols = spts_games:cols(Game),
-    Tickrate = spts_games:ticktime(Game),
+    Tickrate = application:get_env(serpents, hdp_updates_per_second, 50),
     MaxSerpents =
       case spts_games:max_serpents(Game) of
         infinity -> 255;
@@ -271,17 +260,77 @@ send(Message, #metadata{socket = UdpSocket, ip = Ip, port = Port}) ->
 send(Message, UdpSocket, Ip, Port) ->
   gen_udp:send(UdpSocket, Ip, Port, Message).
 
-game_to_binary(Game) ->
+game_to_binary(Game, complete) ->
+  Id = spts_games:numeric_id(Game),
+  Name = pascal_string(spts_games:id(Game)),
+  State = case spts_games:state(Game) of
+            created -> 0;
+            countdown -> 1;
+            started -> 2;
+            finished -> 4
+          end,
+  Flags = flags_to_binary(spts_games:flags(Game)),
+  Cols = spts_games:cols(Game),
+  Rows = spts_games:rows(Game),
+  TickRate = application:get_env(serpents, hdp_updates_per_second, 50),
+  Countdown = spts_games:countdown(Game),
+  Rounds = case spts_games:rounds(Game) of
+             infinity -> 0;
+             Rs -> Rs
+           end,
+  InitialFood = spts_games:initial_food(Game),
   MaxSerpents = case spts_games:max_serpents(Game) of
                   infinity -> 255;
                   Value -> Value
                 end,
+  Serpents = serpents_to_binary(spts_games:serpents(Game)),
+  [ << Id:?USHORT
+     , Name/binary
+     , State:?UCHAR
+     , Flags:?UCHAR
+     , Cols:?UCHAR
+     , Rows:?UCHAR
+     , TickRate:?UCHAR
+     , Countdown:?UCHAR
+     , Rounds:?UINT
+     , InitialFood:?UCHAR
+     , MaxSerpents:?UCHAR
+     >>
+  | Serpents
+  ];
+game_to_binary(Game, reduced) ->
   Id = spts_games:numeric_id(Game),
-  TickRate = spts_games:ticktime(Game),
+  Name = pascal_string(spts_games:id(Game)),
+  State = case spts_games:state(Game) of
+            created -> 0;
+            countdown -> 1;
+            started -> 2;
+            finished -> 4
+          end,
+  MaxSerpents = case spts_games:max_serpents(Game) of
+                  infinity -> 255;
+                  Value -> Value
+                end,
   NumSerpents = length(spts_games:serpents(Game)),
-  <<Id:?USHORT, TickRate:?UCHAR, NumSerpents:?UCHAR, MaxSerpents:?UCHAR>>.
+  <<Id:?USHORT, Name/binary, State:?UCHAR,
+    NumSerpents:?UCHAR, MaxSerpents:?UCHAR>>.
+
+serpents_to_binary(Serpents) ->
+  NumSerpents = length(Serpents),
+  [ <<NumSerpents:?UCHAR>> | [serpent_to_binary(S) || S <- Serpents] ].
 
 serpent_to_binary(Serpent) ->
   Id = spts_serpents:numeric_id(Serpent),
   Name = spts_serpents:name(Serpent),
   [<<Id:?UINT, (size(Name)):?UCHAR>>, Name].
+
+flags_to_binary(Flags) ->
+  lists:sum([flag_to_binary(Flag) || Flag <- Flags]).
+
+flag_to_binary(walls) -> 1;
+flag_to_binary(random_food) -> 2;
+flag_to_binary(increasing_food) -> 4.
+
+pascal_string(String) ->
+  Length = erlang:size(String),
+  <<Length:?UCHAR, String/binary>>.
