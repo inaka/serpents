@@ -209,7 +209,7 @@ join(Config) ->
    , serpents := [{S1Id, <<"s1">>}]
    } = GD1,
   [Serpent1] = spts_games:serpents(spts_core:fetch_game(GameName)),
-  {S1Id, S1Id} = {S1Id, GameId * 10000 + spts_serpents:numeric_id(Serpent1)},
+  S1Id = spts_serpents:numeric_id(Serpent1),
 
   ct:comment("A player tries to join again"),
   ok = hdp_send(hdp_join(3, GameId, <<"s1">>), Config),
@@ -218,10 +218,11 @@ join(Config) ->
 
   ct:comment("Another player joins"),
   ok = hdp_send(hdp_join(3, GameId, <<"s2">>), Config),
-  {join_response, 3, _, GD2} = hdp_recv(Config),
-  {S2Id, GameId, 250, 20, 20, 255, [{S2Id, <<"s2">>}, {S1Id, <<"s1">>}]} = GD2,
-  Serpent2 = spts_games:serpent(spts_core:fetch_game(GameName), <<"s2">>),
-  {S2Id, S2Id} = {S2Id, GameId * 10000 + spts_serpents:numeric_id(Serpent2)},
+  {join_response, 3, _, {S2Id, GD2}} = hdp_recv(Config),
+  #{ current_serpents := 2
+   , serpents := [{S2Id, <<"s2">>}, {S1Id, <<"s1">>}]
+   } = GD2,
+  [_, _] = spts_games:serpents(spts_core:fetch_game(GameName)),
 
   ct:comment("The game starts"),
   spts_core:start_game(GameName),
