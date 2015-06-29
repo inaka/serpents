@@ -136,8 +136,7 @@ handle_message(info,
                                     userTime  = UserTime}) ->
   try
     % Retrieve the game data
-    Game = spts_core:fetch_game(GameId),
-    GameDesc = game_to_binary(Game, complete),
+    GameDesc = game_to_binary(spts_core:fetch_game(GameId), complete),
 
     Flags = set_flags([info, success]),
     send([<<Flags:?UCHAR,
@@ -175,41 +174,28 @@ handle_message(join,
                Metadata = #metadata{messageId = MessageId,
                                     userTime  = UserTime}) ->
   try
-    % Tell the game handler that the user connected
     Address = {Metadata#metadata.socket, Metadata#metadata.port},
     SerpentId = spts_hdp_game_handler:user_connected(Name, Address, GameId),
 
     % Retrieve the game data
-    Game = spts_core:fetch_game(GameId),
-    Rows = spts_games:rows(Game),
-    Cols = spts_games:cols(Game),
-    Tickrate = application:get_env(serpents, hdp_updates_per_second, 50),
-    MaxSerpents =
-      case spts_games:max_serpents(Game) of
-        infinity -> 255;
-        MaxS -> MaxS
-      end,
-
-    % Retrieve the game data that's stored on the game handler
-    Serpents = spts_games:serpents(Game),
-    NumSerpents = length(Serpents),
-    BinSerpentsInfo = [serpent_to_binary(Serpent) || Serpent <- Serpents],
+    GameDesc = game_to_binary(spts_core:fetch_game(GameId), complete),
 
     % Build the response
-    SuccessFlags = set_flags([join, success]),
-    send([<<SuccessFlags:?UCHAR,
+    Flags = set_flags([join, success]),
+    send([<<Flags:?UCHAR,
             MessageId:?UINT,
             UserTime:?USHORT,
-            SerpentId:?UINT,
-            GameId:?USHORT,
-            Tickrate:?UCHAR,
-            Cols:?UCHAR,
-            Rows:?UCHAR,
-            NumSerpents:?UCHAR,
-            MaxSerpents:?UCHAR>>,
-          BinSerpentsInfo],
+            SerpentId:?UINT>>,
+          GameDesc],
          Metadata)
   catch
+    throw:{badgame, GameId} ->
+      lager:warning("Game ~p doesn't exist", [GameId]),
+      ErrorFlags = set_flags([join, error]),
+      ErrorReason = pascal_string(<<"badgame">>),
+      send(
+        <<ErrorFlags:?UCHAR, MessageId:?UINT, UserTime:?USHORT,
+          GameId:?USHORT, ErrorReason/binary>>, Metadata);
     A:B -> lager:warning(
             "Unexpected error ~p:~p~n~p", [A, B, erlang:get_stacktrace()]),
            ErrorFlags = set_flags([join, error]),

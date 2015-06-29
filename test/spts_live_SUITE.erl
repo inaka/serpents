@@ -219,10 +219,11 @@ collision_detection_wall(Direction, Config) ->
   {comment, []}.
 collision_with_serpent_body(Config) ->
   {game, Game} = lists:keyfind(game, 1, Config),
+  GameNumericId = spts_games:numeric_id(Game),
 
   ct:comment("Serpents are placed in proper positions"),
-  Serpent1 = spts_serpents:new(<<"serp1">>, 1, {2, 2}, down, 1),
-  Serpent2 = spts_serpents:new(<<"serp2">>, 2, {2, 3}, left, 0),
+  Serpent1 = spts_serpents:new(<<"serp1">>, GameNumericId, 1, {2, 2}, down, 1),
+  Serpent2 = spts_serpents:new(<<"serp2">>, GameNumericId, 2, {2, 3}, left, 0),
   GameWithSerpents =
     spts_games:add_serpent(spts_games:add_serpent(Game, Serpent1), Serpent2),
 
@@ -241,9 +242,10 @@ collision_with_serpent_body(Config) ->
   {comment, []}.
 collision_with_serpent_self(Config) ->
   {game, Game} = lists:keyfind(game, 1, Config),
+  GameNumericId = spts_games:numeric_id(Game),
 
   ct:comment("Serpents are placed in proper positions"),
-  Serpent1 = spts_serpents:new(<<"serp1">>, 1, {2, 2}, right, 2),
+  Serpent1 = spts_serpents:new(<<"serp1">>, GameNumericId, 1, {2, 2}, right, 2),
   GameWithSerpent = spts_games:add_serpent(Game, Serpent1),
 
   ct:comment("When serpent move it grows"),
@@ -268,10 +270,11 @@ collision_with_serpent_self(Config) ->
   {comment, []}.
 collision_with_serpent_head(Config) ->
   {game, Game} = lists:keyfind(game, 1, Config),
+  GameNumericId = spts_games:numeric_id(Game),
 
   ct:comment("Serpents are placed in proper positions"),
-  Serpent1 = spts_serpents:new(<<"serp1">>, 1, {2, 2}, right, 1),
-  Serpent2 = spts_serpents:new(<<"serp2">>, 2, {2, 4}, left, 1),
+  Serpent1 = spts_serpents:new(<<"serp1">>, GameNumericId, 1, {2, 2}, right, 1),
+  Serpent2 = spts_serpents:new(<<"serp2">>, GameNumericId, 2, {2, 4}, left, 1),
   GameWithSerpents =
     spts_games:add_serpent(
       spts_games:add_serpent(Game, Serpent1), Serpent2),
@@ -324,9 +327,10 @@ always_a_fruit(Config) ->
   {comment, []}.
 fruit_reapears(Config) ->
   {game, Game} = lists:keyfind(game, 1, Config),
+  GameNumericId = spts_games:numeric_id(Game),
 
   ct:comment("Serpent and fruit are placed in proper positions"),
-  Serpent1 = spts_serpents:new(<<"serp1">>, 1, {2, 2}, right, 0),
+  Serpent1 = spts_serpents:new(<<"serp1">>, GameNumericId, 1, {2, 2}, right, 0),
   GameWithSerpentAndFruit =
     spts_games:add_serpent(
       spts_games:content(Game, {2, 3}, {fruit, 1}), Serpent1),
@@ -352,9 +356,10 @@ fruit_reapears(Config) ->
   {comment, []}.
 fruit_feeds(Config) ->
   {game, Game} = lists:keyfind(game, 1, Config),
+  GameNumericId = spts_games:numeric_id(Game),
 
   ct:comment("Serpent and fruit are placed in proper positions"),
-  Serpent1 = spts_serpents:new(<<"serp1">>, 1, {2, 2}, right, 0),
+  Serpent1 = spts_serpents:new(<<"serp1">>, GameNumericId, 1, {2, 2}, right, 0),
   [{2, 2}] = spts_serpents:body(Serpent1),
   GameWithSerpentAndFruit =
     spts_games:add_serpent(
@@ -488,9 +493,10 @@ initial_food(Config) ->
 -spec increasing_food(spts_test_utils:config()) -> {comment, []}.
 increasing_food(Config) ->
   {game, Game} = lists:keyfind(game, 1, Config),
+  GameNumericId = spts_games:numeric_id(Game),
 
   ct:comment("Serpent and fruit are placed in proper positions"),
-  Serpent1 = spts_serpents:new(<<"serp1">>, 1, {2, 2}, right, 1),
+  Serpent1 = spts_serpents:new(<<"serp1">>, GameNumericId, 1, {2, 2}, right, 1),
   GameWithSerpentAndFruit =
     spts_games:add_serpent(
       spts_games:content(Game, {2, 3}, {fruit, 10}), Serpent1),
@@ -510,9 +516,10 @@ increasing_food(Config) ->
 -spec random_increasing_food(spts_test_utils:config()) -> {comment, []}.
 random_increasing_food(Config) ->
   {game, Game} = lists:keyfind(game, 1, Config),
+  GameNumericId = spts_games:numeric_id(Game),
 
   ct:comment("Serpent and fruit are placed in proper positions"),
-  Serpent1 = spts_serpents:new(<<"serp1">>, 1, {2, 2}, right, 1),
+  Serpent1 = spts_serpents:new(<<"serp1">>, GameNumericId, 1, {2, 2}, right, 1),
   GameWithSerpentAndFruit =
     spts_games:add_serpent(
       spts_games:content(Game, {2, 3}, {fruit, 1}), Serpent1),
@@ -532,9 +539,10 @@ random_increasing_food(Config) ->
 -spec random_food(spts_test_utils:config()) -> {comment, []}.
 random_food(Config) ->
   {game, Game} = lists:keyfind(game, 1, Config),
+  GameNumericId = spts_games:numeric_id(Game),
 
   ct:comment("Serpent and fruit are placed in proper positions"),
-  Serpent1 = spts_serpents:new(<<"serp1">>, 1, {2, 2}, right, 1),
+  Serpent1 = spts_serpents:new(<<"serp1">>, GameNumericId, 1, {2, 2}, right, 1),
   GameWithSerpentAndFruit =
     spts_games:add_serpent(
       spts_games:content(Game, {2, 3}, {fruit, 10}), Serpent1),

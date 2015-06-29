@@ -41,10 +41,12 @@ add_serpent(Game, SerpentName) ->
       Position = find_empty_position(Game, fun is_proper_starting_point/2),
       Direction = random_direction(Game, Position),
       InitialFood = spts_games:initial_food(Game),
+      GameNumericId = spts_games:numeric_id(Game),
       NumericId = length(spts_games:serpents(Game)) + 1,
       Serpent =
         spts_serpents:new(
-          SerpentName, NumericId, Position, Direction, InitialFood),
+          SerpentName, GameNumericId, NumericId, Position, Direction,
+          InitialFood),
       spts_games:add_serpent(Game, Serpent);
     _ -> throw(already_in)
   end.

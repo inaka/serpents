@@ -35,10 +35,11 @@ user_connected(Name, Address, GameId) ->
   Process =
     case spts_hdp_game_sup:start_child(GameId) of
       {ok, undefined} -> process_name(GameId); % already started
-      {ok, Pid} -> Pid % just started now
+      {ok, Pid} -> Pid; % just started now
+      {error, InitError} -> throw(InitError)
     end,
   try gen_server:call(Process, {user_connected, Name, Address}) of
-    {ok, InGameId} -> join_user_id(GameId, InGameId);
+    {ok, SerpentId} -> SerpentId;
     {error, Error} -> throw(Error)
   catch
     _:Exception ->
@@ -49,11 +50,11 @@ user_connected(Name, Address, GameId) ->
   end.
 
 -spec user_update(pos_integer(), address(), integer(), integer()) -> ok.
-user_update(UserId, Address, LastServerTick, Direction) ->
-  {GameId, InGameId} = split_user_id(UserId),
+user_update(SerpentId, Address, LastServerTick, Direction) ->
+  GameId = spts_serpents:game_id(SerpentId),
   Process = process_name(GameId),
   gen_server:cast(
-    Process, {user_update, InGameId, Address, LastServerTick, Direction}).
+    Process, {user_update, SerpentId, Address, LastServerTick, Direction}).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% PRIVATELY EXPORTED FUNCTIONS
@@ -75,7 +76,7 @@ start_link(GameId) ->
 -spec notify(pid(), spts_core:event()) -> ok.
 notify(Pid, Event) -> Pid ! {event, Event}.
 
--spec init(pos_integer()) -> {ok, state()} | {error, badgame}.
+-spec init(pos_integer()) -> {ok, state()} | {stop, badgame}.
 init(GameNumericId) ->
   try spts_core:fetch_game(GameNumericId) of
     Game ->
@@ -95,7 +96,7 @@ init(GameNumericId) ->
   catch
     _:{badgame, GameId} ->
       lager:warning("Not a game: ~p", [GameId]),
-      {error, badgame}
+      {stop, {badgame, GameId}}
   end.
 
 -spec handle_call(
@@ -163,6 +164,3 @@ code_change(_OldVsn, State, _Extra) -> {ok, State}.
 process_name(GameId) ->
   binary_to_atom(
     iolist_to_binary([?MODULE_STRING, $-, integer_to_list(GameId)]), utf8).
-
-join_user_id(GameId, InGameId) -> GameId * 10000 + InGameId.
-split_user_id(UserId) -> {UserId div 10000, UserId rem 10000}.

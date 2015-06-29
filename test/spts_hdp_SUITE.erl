@@ -180,10 +180,10 @@ single_game(Config) ->
 -spec join(spts_test_utils:config()) -> {comment, []}.
 join(Config) ->
   ct:comment("A join request is sent for an unexistent game"),
-  ok = hdp_send(hdp_join(1, 1, <<"s1">>), Config),
+  ok = hdp_send(hdp_join(1, 10, <<"s1">>), Config),
 
-  ct:comment("It fails"),
-  {error_join_response, 1, _, {1, <<"unspecified">>}} = hdp_recv(Config),
+  ct:comment("A game description is not received"),
+  {error_join_response, 1, _, {10, <<"badgame">>}} = hdp_recv(Config),
 
   ct:comment("A game is created"),
   Game = spts_core:create_game(),
@@ -193,8 +193,21 @@ join(Config) ->
 
   ct:comment("A player joins"),
   ok = hdp_send(hdp_join(2, GameId, <<"s1">>), Config),
-  {join_response, 2, _, GD1} = hdp_recv(Config),
-  {S1Id, GameId, 250, 20, 20, 255, [{S1Id, <<"s1">>}]} = GD1,
+  {join_response, 2, _, {S1Id, GD1}} = hdp_recv(Config),
+  #{ id := GameId
+   , name := GameName
+   , state := created
+   , flags := []
+   , cols := 20
+   , rows := 20
+   , tickrate := 50
+   , countdown := 10
+   , rounds := 0
+   , initial_food := 1
+   , current_serpents := 1
+   , max_serpents := 255
+   , serpents := [{S1Id, <<"s1">>}]
+   } = GD1,
   [Serpent1] = spts_games:serpents(spts_core:fetch_game(GameName)),
   {S1Id, S1Id} = {S1Id, GameId * 10000 + spts_serpents:numeric_id(Serpent1)},
 
@@ -299,18 +312,11 @@ hdp_parse(error_join_response, _, Error) ->
 hdp_parse(error_info_response, _, Error) ->
   <<GameId:?USHORT, ReasonSize:?UCHAR, Reason:ReasonSize/binary>> = Error,
   {GameId, Reason};
-hdp_parse(join_response, _, GameDesc) ->
-  << PlayerId:?UINT
-   , GameId:?USHORT
-   , TickRate:?UCHAR
-   , Cols:?UCHAR
-   , Rows:?UCHAR
-   , _CurrP:?UCHAR
-   , MaxP:?UCHAR
-   , Players/binary
-   >> = GameDesc,
-  {PlayerId, GameId, TickRate, Cols, Rows, MaxP,
-   hdp_parse_serpents(Players)}.
+hdp_parse(join_response, _, Response) ->
+  << SerpentId:?UINT
+   , GameDesc/binary
+   >> = Response,
+  {SerpentId, hdp_parse(info_response, detail, GameDesc)}.
 
 hdp_parse_state(0) -> created;
 hdp_parse_state(1) -> countdown;

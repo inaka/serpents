@@ -14,9 +14,10 @@
                       }.
 -export_type([serpent/0, status/0, name/0]).
 
--export([new/5]).
+-export([new/6]).
 -export([ name/1
         , numeric_id/1
+        , game_id/1
         , token/1
         , direction/1
         , direction/2
@@ -30,11 +31,11 @@
         ]).
 
 -spec new(
-  name(), pos_integer(), spts_games:position(), spts_games:direction(),
-  non_neg_integer()) -> serpent().
-new(Name, NumericId, Position, Direction, Food) ->
+  name(), pos_integer(), pos_integer(), spts_games:position(),
+  spts_games:direction(), non_neg_integer()) -> serpent().
+new(Name, GameNumericId, NumericId, Position, Direction, Food) ->
   #{ name       => Name
-   , numeric_id => NumericId
+   , numeric_id => join_id(GameNumericId, NumericId)
    , token      => iolist_to_binary(ktn_random:generate())
    , direction  => Direction
    , body       => [Position]
@@ -47,6 +48,9 @@ name(#{name := Name}) -> Name.
 
 -spec numeric_id(serpent()) -> pos_integer().
 numeric_id(#{numeric_id := NumericId}) -> NumericId.
+
+-spec game_id(pos_integer()) -> pos_integer().
+game_id(NumericId) -> NumericId div 10000.
 
 -spec token(serpent()) -> binary().
 token(#{token := Token}) -> Token.
@@ -107,3 +111,6 @@ advance({Row, Col}, up) -> {Row-1, Col};
 advance({Row, Col}, down) -> {Row+1, Col};
 advance({Row, Col}, left) -> {Row, Col-1};
 advance({Row, Col}, right) -> {Row, Col+1}.
+
+join_id(GameNumericId, NumericId) ->
+  GameNumericId * 10000 + NumericId.
