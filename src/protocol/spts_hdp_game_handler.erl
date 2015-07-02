@@ -6,7 +6,7 @@
 -behaviour(spts_gen_event_handler).
 
 -export([user_connected/3, user_update/4]).
--export([start_link/1]).
+-export([start_link/1, process_name/1]).
 -export([init/1, terminate/2, code_change/3,
          handle_call/3, handle_cast/2, handle_info/2]).
 -export([notify/2]).
@@ -16,12 +16,18 @@
 -define(UINT,   32/unsigned-integer).
 
 -type address() :: {inet:ip_address(), pos_integer()}.
--type user() :: {pos_integer(), address()}.
--record(state, { game_id    :: spts_games:id()
-               , tick = 0   :: pos_integer()
-               , ticktime   :: pos_integer()
-               , users = [] :: [user()]
-               , tref       :: timer:tref()
+-record(user, { serpent_id  :: pos_integer()
+              , tick        :: pos_integer()
+              , address     :: address()
+              }).
+-type user() :: #user{}.
+-type step() :: no_changes | spts_games:game().
+-record(state, { game_id      :: spts_games:id()
+               , tick = 0     :: pos_integer()
+               , ticktime     :: pos_integer()
+               , users = []   :: [user()]
+               , tref         :: timer:tref()
+               , history = [] :: [{pos_integer(), step()}]
                }).
 -type state() :: #state{}.
 -export_type([address/0]).
@@ -69,6 +75,11 @@ start_link(GameId) ->
     {error, Error} -> Error
   end.
 
+-spec process_name(pos_integer()) -> atom().
+process_name(GameId) ->
+  binary_to_atom(
+    iolist_to_binary([?MODULE_STRING, $-, integer_to_list(GameId)]), utf8).
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Callback implementation
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -86,12 +97,13 @@ init(GameNumericId) ->
         application:get_env(serpents, hdp_updates_per_second, 50),
       TickTime =
         erlang:min(1000 div UpdatesPerSecond, spts_games:ticktime(Game)),
-      TRef = timer:send_interval(TickTime, ?MODULE, update),
+      TRef = timer:send_interval(TickTime, ?MODULE, tick),
       {ok, #state{ game_id = GameId
                  , ticktime = TickTime
                  , tick = 0
                  , users = []
                  , tref = TRef
+                 , history = [{0, Game}]
                  }}
   catch
     _:{badgame, GameId} ->
@@ -105,12 +117,25 @@ init(GameNumericId) ->
 handle_call({user_connected, Name, Address}, _From, State) ->
   #state{ users   = Users
         , game_id = GameId
+        , tick    = Tick
+        , history = History
         } = State,
   try spts_core:add_serpent(GameId, Name) of
     Serpent ->
       SerpentId = spts_serpents:numeric_id(Serpent),
-      NewUsers = [{SerpentId, Address} | Users],
-      {reply, {ok, SerpentId}, State#state{users = NewUsers}}
+      User = #user{ serpent_id  = SerpentId
+                  , address     = Address
+                  , tick        = undefined
+                  },
+      NewUsers = [User | Users],
+      CurrentTick = Tick + 1,
+      Game = spts_core:fetch_game(GameId),
+      NewState =
+        State#state{ users    = NewUsers
+                   , tick     = CurrentTick
+                   , history  = [{CurrentTick, Game} | History]
+                   },
+      {reply, {ok, SerpentId}, NewState}
   catch
     _:Reason ->
       lager:warning("Unable to join game, reason: ~p", [Reason]),
@@ -118,11 +143,24 @@ handle_call({user_connected, Name, Address}, _From, State) ->
   end.
 
 -spec handle_info(any(), state()) -> {noreply, state()}.
-handle_info(update, State) ->
-  #state{tick = Tick} = State,
+handle_info(tick, State) ->
+  #state{ tick    = Tick
+        , history = History
+        , game_id = GameId
+        } = State,
   CurrentTick = Tick + 1,
-  % @todo  _Pid = spawn(fun() -> update_all_users(CurrentTick, State) end),
-  {noreply, State#state{tick = CurrentTick}};
+  Game = spts_core:fetch_game(GameId),
+  Step =
+    case latest_game(History) of
+      Game -> no_changes;
+      _OldGame -> Game
+    end,
+  NewState =
+    State#state{ tick = CurrentTick
+               , history = [{CurrentTick, Step} | History]
+               },
+  spawn(fun() -> update_all_users(NewState) end),
+  {noreply, NewState};
 handle_info({event, {serpent_added, _Serpent}}, State) ->
   % @todo
   {noreply, State};
@@ -155,12 +193,41 @@ terminate(Reason, #state{game_id = GameId}) ->
   catch spts_gen_event_handler:unsubscribe(GameId, ?MODULE, self()),
   ok.
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Unused callbacks
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 -spec code_change(string(), state(), any()) -> {ok, state()}.
 code_change(_OldVsn, State, _Extra) -> {ok, State}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Internal Functions
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-process_name(GameId) ->
-  binary_to_atom(
-    iolist_to_binary([?MODULE_STRING, $-, integer_to_list(GameId)]), utf8).
+latest_game([{_Tick, no_changes} | History]) -> latest_game(History);
+latest_game([{_Tick, Game} | _History]) -> Game.
+
+historic_game(Tick, [{Tick, no_changes} | History]) -> latest_game(History);
+historic_game(Tick, [{Tick, Game} | _History]) -> Game;
+historic_game(_Tick, [{_NewTick, _} | History]) -> latest_game(History).
+
+update_all_users(State) ->
+  #state{users = Users} = State,
+  lists:foreach(
+    fun(User) ->
+      spawn(fun() -> update_user(User, State) end)
+    end, Users).
+
+update_user(User, State) ->
+  #user{ tick    = UserTick
+       , address = Address
+       } = User,
+  #state{ tick    = Tick
+        , history = History
+        } = State,
+  UserGame = historic_game(UserTick, History),
+  CurrentGame = latest_game(History),
+  Diffs =
+    [ spts_games:diff_to_binary(Diff)
+    || Diff <- spts_games:diffs(UserGame, CurrentGame)],
+  NumDiffs = length(Diffs),
+  Message = [<<Tick:?USHORT, NumDiffs:?UCHAR>>, Diffs],
+  spts_hdp_handler:send_update(Tick, Message, Address).

@@ -14,6 +14,8 @@
                       }.
 -export_type([serpent/0, status/0, name/0]).
 
+-define(UINT, 32/unsigned-integer).
+
 -export([new/6]).
 -export([ name/1
         , numeric_id/1
@@ -28,6 +30,7 @@
         , feed/2
         , to_json/1
         , to_json/2
+        , to_binary/1
         ]).
 
 -spec new(
@@ -102,6 +105,11 @@ to_json(Serpent, private) ->
    , body => [[Row, Col] || {Row, Col} <- body(Serpent)]
    , status => status(Serpent)
    }.
+
+-spec to_binary(serpent()) -> iodata().
+to_binary(Serpent) ->
+  #{numeric_id := Id, name := Name} = Serpent,
+  [<<Id:?UINT>>, spts_binary:pascal_string(Name)].
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% INTERNAL FUNCTIONS

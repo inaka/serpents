@@ -17,6 +17,7 @@
         , games/1
         , single_game/1
         , join/1
+        , first_server_update/1
         ]).
 
 -define(UCHAR,  8/unsigned-integer).
@@ -30,6 +31,7 @@ all() -> spts_test_utils:all(?MODULE).
 -spec init_per_testcase(atom(), spts_test_utils:config()) ->
   spts_test_utils:config().
 init_per_testcase(_Test, Config) ->
+  application:set_env(serpents, hdp_updates_per_second, 1),
   Port = application:get_env(serpents, udp_port, 8584) - 1,
   {ok, UdpSocket} =
     gen_udp:open(Port, [{mode, binary}, {reuseaddr, true}, {active, false}]),
@@ -38,6 +40,7 @@ init_per_testcase(_Test, Config) ->
 -spec end_per_testcase(atom(), spts_test_utils:config()) ->
   spts_test_utils:config().
 end_per_testcase(_Test, Config) ->
+  application:unset_env(serpents, hdp_updates_per_second),
   {value, {socket, UdpSocket}, NewConfig} = lists:keytake(socket, 1, Config),
   catch gen_udp:close(UdpSocket),
   NewConfig.
@@ -108,7 +111,7 @@ single_game(Config) ->
    , flags := []
    , cols := 20
    , rows := 20
-   , tickrate := 50
+   , tickrate := 1
    , countdown := 10
    , rounds := 0
    , initial_food := 1
@@ -166,7 +169,7 @@ single_game(Config) ->
    , flags := [increasing_food, random_food, walls]
    , cols := 200
    , rows := 100
-   , tickrate := 50
+   , tickrate := 1
    , countdown := 5
    , rounds := 654
    , initial_food := 3
@@ -189,7 +192,6 @@ join(Config) ->
   Game = spts_core:create_game(),
   GameId = spts_games:numeric_id(Game),
   GameName = spts_games:id(Game),
-  update_game_list(Config),
 
   ct:comment("A player joins"),
   ok = hdp_send(hdp_join(2, GameId, <<"s1">>), Config),
@@ -200,7 +202,7 @@ join(Config) ->
    , flags := []
    , cols := 20
    , rows := 20
-   , tickrate := 50
+   , tickrate := 1
    , countdown := 10
    , rounds := 0
    , initial_food := 1
@@ -234,6 +236,26 @@ join(Config) ->
 
   {comment, ""}.
 
+-spec first_server_update(spts_test_utils:config()) -> {comment, []}.
+first_server_update(Config) ->
+  ct:comment("A game is created"),
+  Game = spts_core:create_game(#{ticktime => 60000}),
+  GameId = spts_games:numeric_id(Game),
+  GameName = spts_games:id(Game),
+  Process = spts_hdp_game_handler:process_name(GameId),
+
+  ct:comment("A player joins"),
+  ok = hdp_send(hdp_join(2, GameId, <<"s1">>), Config),
+
+  ct:comment("The response is received"),
+  {join_response, 2, _, {S1Id, GD1}} = hdp_recv(Config),
+  #{tickrate := 1} = GD1,
+
+  ct:comment("After an tick, the server sends an update with no diffs"),
+  Process ! tick,
+  {server_update, Tick, Tick, {Tick, 0, []}} = hdp_recv(Config),
+
+  {comment , ""}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Message parsing/handling
@@ -361,11 +383,3 @@ hdp_head(Flags, MsgId, UserId) ->
   hdp_head(Flags, MsgId, Nanos rem 65536, UserId).
 hdp_head(Flags, MsgId, UserTime, UserId) ->
   <<Flags:?UCHAR, MsgId:?USHORT, UserTime:?USHORT, UserId:?USHORT>>.
-
-update_game_list(Config) ->
-  ct:comment("A games request is sent"),
-  ok = hdp_send(hdp_games(99), Config),
-
-  ct:comment("A games list is received"),
-  {info_response, 99, _, {_, _}} = hdp_recv(Config),
-  ok.

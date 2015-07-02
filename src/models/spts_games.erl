@@ -32,6 +32,10 @@
 -export_type([
   game/0, state/0, id/0, content/0, position/0, direction/0, flag/0]).
 
+-define(UCHAR,  8/unsigned-integer).
+-define(USHORT, 16/unsigned-integer).
+-define(UINT,   32/unsigned-integer).
+
 -export(
   [ new/10
   , id/1
@@ -60,6 +64,7 @@
   , turn/3
   , advance_serpents/1
   , to_json/1
+  , to_binary/2
   ]).
 -export([process_name/1]).
 
@@ -231,9 +236,75 @@ to_json(Game) ->
    , cells => [cell_to_json(Cell) || Cell <- Cells]
    }.
 
+-spec to_binary(game(), complete | reduced) -> iodata().
+to_binary(Game, complete) ->
+  Id = numeric_id(Game),
+  Name = spts_binary:pascal_string(id(Game)),
+  State = case state(Game) of
+            created -> 0;
+            countdown -> 1;
+            started -> 2;
+            finished -> 4
+          end,
+  Flags = flags_to_binary(flags(Game)),
+  Cols = cols(Game),
+  Rows = rows(Game),
+  TickRate = application:get_env(serpents, hdp_updates_per_second, 50),
+  Countdown = countdown(Game),
+  Rounds = case rounds(Game) of
+             infinity -> 0;
+             Rs -> Rs
+           end,
+  InitialFood = initial_food(Game),
+  MaxSerpents = case max_serpents(Game) of
+                  infinity -> 255;
+                  Value -> Value
+                end,
+  Serpents = serpents(Game),
+  NumSerpents = length(Serpents),
+
+  [ << Id:?USHORT
+     , Name/binary
+     , State:?UCHAR
+     , Flags:?UCHAR
+     , Cols:?UCHAR
+     , Rows:?UCHAR
+     , TickRate:?UCHAR
+     , Countdown:?UCHAR
+     , Rounds:?UINT
+     , InitialFood:?UCHAR
+     , MaxSerpents:?UCHAR
+     , NumSerpents:?UCHAR
+     >>
+  | [spts_serpents:to_binary(S) || S <- Serpents]
+  ];
+to_binary(Game, reduced) ->
+  Id = numeric_id(Game),
+  Name = spts_binary:pascal_string(id(Game)),
+  State = case state(Game) of
+            created -> 0;
+            countdown -> 1;
+            started -> 2;
+            finished -> 4
+          end,
+  MaxSerpents = case max_serpents(Game) of
+                  infinity -> 255;
+                  Value -> Value
+                end,
+  NumSerpents = length(serpents(Game)),
+  <<Id:?USHORT, Name/binary, State:?UCHAR,
+    NumSerpents:?UCHAR, MaxSerpents:?UCHAR>>.
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% INTERNAL FUNCTIONS
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+flags_to_binary(Flags) ->
+  lists:sum([flag_to_binary(Flag) || Flag <- Flags]).
+
+flag_to_binary(walls) -> 1;
+flag_to_binary(random_food) -> 2;
+flag_to_binary(increasing_food) -> 4.
+
 cell_to_json(#{position := {Row, Col}, content := {fruit, Food}}) ->
   #{row => Row, col => Col, content => fruit, value => Food};
 cell_to_json(#{position := {Row, Col}, content := wall}) ->
