@@ -32,6 +32,26 @@
 -export_type([
   game/0, state/0, id/0, content/0, position/0, direction/0, flag/0]).
 
+-type diff_type() :: state | countdown | rounds | serpents | fruit.
+-opaque diff() ::
+    #{ type => state
+     , data => state()
+     }
+  | #{ type => countdown
+     , data => non_neg_integer()
+     }
+  | #{ type => rounds
+     , data => non_neg_integer()
+     }
+  | #{ type => serpents
+     , data => [spts_serpents:serpent()]
+     }
+  | #{ type => fruit
+     , data => {position(), pos_integer()}
+     }
+  .
+-export_type([diff_type/0, diff/0]).
+
 -define(UCHAR,  8/unsigned-integer).
 -define(USHORT, 16/unsigned-integer).
 -define(UINT,   32/unsigned-integer).
@@ -63,8 +83,10 @@
   , state/2
   , turn/3
   , advance_serpents/1
+  , diffs/2
   , to_json/1
   , to_binary/2
+  , diff_to_binary/1
   ]).
 -export([process_name/1]).
 
@@ -213,6 +235,25 @@ advance_serpents(Game) ->
     [_|_] -> FinalGame
   end.
 
+-spec diffs(game(), game()) -> [diff()].
+diffs(OldGame, NewGame) ->
+  lists:flatmap(
+    fun(DiffType) -> diffs(OldGame, NewGame, DiffType) end,
+    [state, countdown, rounds, serpents, fruit]).
+
+diffs(OldGame, NewGame, fruit) ->
+  OldFruit = fruit(OldGame),
+  case fruit(NewGame) of
+    OldFruit -> [];
+    NewFruit -> [#{type => fruit, data => NewFruit}]
+  end;
+diffs(OldGame, NewGame, Type) ->
+  OldData = maps:get(Type, OldGame),
+  case maps:get(Type, NewGame) of
+    OldData -> [];
+    NewData -> [#{type => Type, data => NewData}]
+  end.
+
 -spec to_json(game()) -> map().
 to_json(Game) ->
   #{cells := Cells} = Game,
@@ -240,12 +281,7 @@ to_json(Game) ->
 to_binary(Game, complete) ->
   Id = numeric_id(Game),
   Name = spts_binary:pascal_string(id(Game)),
-  State = case state(Game) of
-            created -> 0;
-            countdown -> 1;
-            started -> 2;
-            finished -> 4
-          end,
+  State = state_to_binary(state(Game)),
   Flags = flags_to_binary(flags(Game)),
   Cols = cols(Game),
   Rows = rows(Game),
@@ -295,9 +331,43 @@ to_binary(Game, reduced) ->
   <<Id:?USHORT, Name/binary, State:?UCHAR,
     NumSerpents:?UCHAR, MaxSerpents:?UCHAR>>.
 
+-spec diff_to_binary(diff()) -> binary().
+diff_to_binary(Diff) ->
+  #{type := Type} = Diff,
+  TypeBin =
+    case Type of
+      state     -> 0;
+      countdown -> 1;
+      rounds    -> 2;
+      serpents  -> 3;
+      fruit     -> 4
+    end,
+  [<<TypeBin:?UCHAR>> | diff_data_to_binary(Diff)].
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% INTERNAL FUNCTIONS
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+diff_data_to_binary(#{type := state, data := Data}) ->
+  State = state_to_binary(Data),
+  [<<State:?UCHAR>>];
+diff_data_to_binary(#{type := countdown, data := Countdown}) ->
+  [<<Countdown:?USHORT>>];
+diff_data_to_binary(#{type := rounds, data := Rounds}) ->
+  case Rounds of
+    infinity -> [<<0:?UINT>>];
+    Rounds -> [<<Rounds:?USHORT>>]
+  end;
+diff_data_to_binary(#{type := serpents, data := Serpents}) ->
+  NumSerpents = length(Serpents),
+  [<<NumSerpents:?UCHAR>> | [spts_serpents:to_binary(S) || S <- Serpents]];
+diff_data_to_binary(#{type := fruit, data := {{Row, Col}, Food}}) ->
+  [<<Food:?UCHAR, Row:?UCHAR, Col:?UCHAR>>].
+
+state_to_binary(created) -> 0;
+state_to_binary(countdown) -> 1;
+state_to_binary(started) -> 2;
+state_to_binary(finished) -> 4.
+
 flags_to_binary(Flags) ->
   lists:sum([flag_to_binary(Flag) || Flag <- Flags]).
 

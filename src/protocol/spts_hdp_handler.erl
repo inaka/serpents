@@ -51,6 +51,7 @@ init(noargs) ->
 
 -spec handle_cast(term(), state()) -> {noreply, state()}.
 handle_cast({send, Ip, Port, Tick, Message}, State) ->
+  ct:pal("Send update to ~p:~p: ~p/~p", [Ip, Port, Tick, Message]),
   #state{socket = UdpSocket} = State,
   Flags = set_flags([update, success]),
   send(
@@ -174,7 +175,7 @@ handle_message(join,
                Metadata = #metadata{messageId = MessageId,
                                     userTime  = UserTime}) ->
   try
-    Address = {Metadata#metadata.socket, Metadata#metadata.port},
+    Address = {Metadata#metadata.ip, Metadata#metadata.port},
     SerpentId = spts_hdp_game_handler:user_connected(Name, Address, GameId),
 
     % Retrieve the game data
@@ -244,4 +245,4 @@ send(Message, #metadata{socket = UdpSocket, ip = Ip, port = Port}) ->
   send(Message, UdpSocket, Ip, Port).
 
 send(Message, UdpSocket, Ip, Port) ->
-  gen_udp:send(UdpSocket, Ip, Port, Message).
+  ok = gen_udp:send(UdpSocket, Ip, Port, Message).

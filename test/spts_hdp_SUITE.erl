@@ -40,6 +40,10 @@ init_per_testcase(_Test, Config) ->
 -spec end_per_testcase(atom(), spts_test_utils:config()) ->
   spts_test_utils:config().
 end_per_testcase(_Test, Config) ->
+  lists:foreach(
+    fun(Game) -> spts_core:stop_game(spts_games:id(Game)) end,
+    spts_core:all_games()),
+  ktn_task:wait_for(fun spts_core:all_games/0, []),
   application:unset_env(serpents, hdp_updates_per_second),
   {value, {socket, UdpSocket}, NewConfig} = lists:keytake(socket, 1, Config),
   catch gen_udp:close(UdpSocket),
@@ -251,7 +255,7 @@ first_server_update(Config) ->
   {join_response, 2, _, {S1Id, GD1}} = hdp_recv(Config),
   #{tickrate := 1} = GD1,
 
-  ct:comment("After an tick, the server sends an update with no diffs"),
+  ct:comment("After a tick, the server sends an update with no diffs"),
   Process ! tick,
   {server_update, Tick, Tick, {Tick, 0, []}} = hdp_recv(Config),
 
@@ -276,7 +280,7 @@ hdp_recv(Config, Parser) ->
       129 -> ping_response;
       130 -> info_response;
       131 -> join_response;
-      132 -> game_update;
+      132 -> server_update;
       003 -> error_join_response;
       002 -> error_info_response;
       Other when Other band 128 == 0 -> throw({error, Other})
@@ -339,7 +343,31 @@ hdp_parse(join_response, _, Response) ->
   << SerpentId:?UINT
    , GameDesc/binary
    >> = Response,
-  {SerpentId, hdp_parse(info_response, detail, GameDesc)}.
+  {SerpentId, hdp_parse(info_response, detail, GameDesc)};
+hdp_parse(server_update, _, <<Tick:?USHORT, NumDiffs:?UCHAR, Diffs/binary>>) ->
+  {Tick, NumDiffs, hdp_parse_diffs(Diffs)}.
+
+hdp_parse_diffs(<<>>) -> [];
+hdp_parse_diffs(<<DiffType:?UCHAR, Rest/binary>>) ->
+  Type = hdp_parse_diff_type(DiffType),
+  {Data, Next} = hdp_parse_diff_data(DiffType, Rest),
+  [#{type => Type, data => Data} | hdp_parse_diffs(Next)].
+
+hdp_parse_diff_type(0) -> state;
+hdp_parse_diff_type(1) -> countdown;
+hdp_parse_diff_type(2) -> rounds;
+hdp_parse_diff_type(3) -> serpents;
+hdp_parse_diff_type(4) -> fruit.
+
+hdp_parse_diff_data(state, <<State:?UCHAR, Next/binary>>) ->
+  {hdp_parse_state(State), Next};
+hdp_parse_diff_data(countdown, <<Countdown:?USHORT, Next/binary>>) ->
+  {Countdown, Next};
+hdp_parse_diff_data(rounds, <<Rounds:?UINT, Next/binary>>) ->
+  {Rounds, Next};
+hdp_parse_diff_data(
+  fruit, <<Food:?UCHAR, Row:?UCHAR, Col:?UCHAR, Next/binary>>) ->
+  {{Food, Row, Col}, Next}.
 
 hdp_parse_state(0) -> created;
 hdp_parse_state(1) -> countdown;

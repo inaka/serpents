@@ -97,7 +97,7 @@ init(GameNumericId) ->
         application:get_env(serpents, hdp_updates_per_second, 50),
       TickTime =
         erlang:min(1000 div UpdatesPerSecond, spts_games:ticktime(Game)),
-      TRef = timer:send_interval(TickTime, ?MODULE, tick),
+      {ok, TRef} = timer:send_interval(TickTime, self(), tick),
       {ok, #state{ game_id = GameId
                  , ticktime = TickTime
                  , tick = 0
