@@ -227,13 +227,14 @@ Sent every server tick (50 times per second) with any updates the game had.
     Row => uchar
     Col => uchar
 
-Field     | Description
-----------|-------------
-Tick      | Am increasing value the client should use as `LastServerTick`
-NumDiffs  | Number of `GameDiff`s included in this update
-State     | The game state
-Countdown | Countdown rounds until the game starts
-Rounds    | # of Rounds until the game ends
-Food      | How many new cells will be added to the serpent body when a serpent eats this fruit
-Row       | 1-based row index
-Col       | 1-based col index
+Field      | Description
+-----------|-------------
+Tick       | Am increasing value the client should use as `LastServerTick`
+NumDiffs   | Number of `GameDiff`s included in this update
+State      | The game state
+Countdown  | Countdown rounds until the game starts
+Rounds     | # of Rounds until the game ends
+Food       | How many new cells will be added to the serpent body when a serpent eats this fruit
+BodyLength | The number of cells that compose the serpent body
+Row        | 1-based row index
+Col        | 1-based col index

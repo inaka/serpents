@@ -51,7 +51,6 @@ init(noargs) ->
 
 -spec handle_cast(term(), state()) -> {noreply, state()}.
 handle_cast({send, Ip, Port, Tick, Message}, State) ->
-  ct:pal("Send update to ~p:~p: ~p/~p", [Ip, Port, Tick, Message]),
   #state{socket = UdpSocket} = State,
   Flags = set_flags([update, success]),
   send(

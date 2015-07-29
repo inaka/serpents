@@ -17,7 +17,9 @@
         , games/1
         , single_game/1
         , join/1
-        , first_server_update/1
+        , state_server_update/1
+        , countdown_server_update/1
+        , serpents_server_update/1
         ]).
 
 -define(UCHAR,  8/unsigned-integer).
@@ -240,8 +242,8 @@ join(Config) ->
 
   {comment, ""}.
 
--spec first_server_update(spts_test_utils:config()) -> {comment, []}.
-first_server_update(Config) ->
+-spec state_server_update(spts_test_utils:config()) -> {comment, []}.
+state_server_update(Config) ->
   ct:comment("A game is created"),
   Game = spts_core:create_game(#{ticktime => 60000}),
   GameId = spts_games:numeric_id(Game),
@@ -252,12 +254,98 @@ first_server_update(Config) ->
   ok = hdp_send(hdp_join(2, GameId, <<"s1">>), Config),
 
   ct:comment("The response is received"),
+  {join_response, 2, _, {_S1Id, GD1}} = hdp_recv(Config),
+  #{tickrate := 1} = GD1,
+
+  ct:comment("The game starts"),
+  spts_core:start_game(GameName),
+
+  ct:comment("After a tick, the server sends an update with a state diff"),
+  Process ! tick,
+  {server_update, Tick, Tick, {Tick, Diffs}} = hdp_recv(Config),
+
+  [countdown] = [Data || #{data := Data, type := state} <- Diffs],
+
+  {comment , ""}.
+
+-spec countdown_server_update(spts_test_utils:config()) -> {comment, []}.
+countdown_server_update(Config) ->
+  ct:comment("A game is created"),
+  Game = spts_core:create_game(#{ticktime => 60000, countdown => 3}),
+  GameId = spts_games:numeric_id(Game),
+  GameName = spts_games:id(Game),
+  Process = spts_hdp_game_handler:process_name(GameId),
+
+  ct:comment("A player joins"),
+  ok = hdp_send(hdp_join(2, GameId, <<"s1">>), Config),
+
+  ct:comment("The response is received"),
+  {join_response, 2, _, {_S1Id, GD1}} = hdp_recv(Config),
+  #{tickrate := 1} = GD1,
+
+  ct:comment("The game starts"),
+  spts_core:start_game(GameName),
+
+  ct:comment("After every tick, the server sends an update with a c-down diff"),
+  Counts =
+    fun(I) ->
+      Process ! tick,
+      {server_update, Tick, Tick, {Tick, Diffs}} = hdp_recv(Config),
+      ct:pal("Diffs: ~p", [Diffs]),
+      [I] = [Data || #{data := Data, type := countdown} <- Diffs],
+      spts_games:process_name(GameName) ! tick
+    end,
+
+  lists:foreach(Counts, [2,1,0,0]),
+
+  {comment , ""}.
+
+-spec serpents_server_update(spts_test_utils:config()) -> {comment, []}.
+serpents_server_update(Config) ->
+  ct:comment("A game is created"),
+  Game = spts_core:create_game(#{ticktime => 60000}),
+  GameId = spts_games:numeric_id(Game),
+  Process = spts_hdp_game_handler:process_name(GameId),
+
+  ct:comment("A player joins"),
+  ok = hdp_send(hdp_join(2, GameId, <<"s1">>), Config),
+
+  ct:comment("The response is received"),
   {join_response, 2, _, {S1Id, GD1}} = hdp_recv(Config),
   #{tickrate := 1} = GD1,
 
-  ct:comment("After a tick, the server sends an update with no diffs"),
+  ct:comment(
+    "After a tick, the server sends an update with the player serpent"),
   Process ! tick,
-  {server_update, Tick, Tick, {Tick, 0, []}} = hdp_recv(Config),
+  {server_update, Tick1, Tick1, {Tick1, Diffs}} = hdp_recv(Config),
+
+  [[{Row, Col}]] =
+    [Body || #{data := Data, type := serpents} <- Diffs
+           , #{id := SId, body := Body} <- Data
+           , SId == S1Id
+           ],
+
+  ct:comment("Another player joins"),
+  ok = hdp_send(hdp_join(3, GameId, <<"s2">>), Config),
+  ct:comment("The response is received"),
+  {join_response, 3, _, {S2Id, _GD2}} = hdp_recv(Config),
+
+  ct:comment(
+    "After a tick, the server sends an update with both serpents"),
+  Process ! tick,
+  {server_update, Tick2, Tick2, {Tick2, Diffs2}} = hdp_recv(Config),
+  case Tick2 of
+    Tick2 when Tick2 =< Tick1 -> ct:fail("Wrong ticks: ~p, ~p", [Tick1, Tick2]);
+    Tick2 -> ok
+  end,
+
+  [SerpentsDiff] = [Data || #{data := Data, type := serpents} <- Diffs2],
+  [_,_] = SerpentsDiff,
+
+  [[{Row, Col}]] =
+    [Body || #{id := SId, body := Body} <- SerpentsDiff, SId == S1Id],
+  [[{_Row, _Col}]] =
+    [Body || #{id := SId, body := Body} <- SerpentsDiff, SId == S2Id],
 
   {comment , ""}.
 
@@ -344,13 +432,13 @@ hdp_parse(join_response, _, Response) ->
    , GameDesc/binary
    >> = Response,
   {SerpentId, hdp_parse(info_response, detail, GameDesc)};
-hdp_parse(server_update, _, <<Tick:?USHORT, NumDiffs:?UCHAR, Diffs/binary>>) ->
-  {Tick, NumDiffs, hdp_parse_diffs(Diffs)}.
+hdp_parse(server_update, _, <<Tick:?USHORT, _NumDiffs:?UCHAR, Diffs/binary>>) ->
+  {Tick, hdp_parse_diffs(Diffs)}.
 
 hdp_parse_diffs(<<>>) -> [];
 hdp_parse_diffs(<<DiffType:?UCHAR, Rest/binary>>) ->
   Type = hdp_parse_diff_type(DiffType),
-  {Data, Next} = hdp_parse_diff_data(DiffType, Rest),
+  {Data, Next} = hdp_parse_diff_data(Type, Rest),
   [#{type => Type, data => Data} | hdp_parse_diffs(Next)].
 
 hdp_parse_diff_type(0) -> state;
@@ -367,7 +455,26 @@ hdp_parse_diff_data(rounds, <<Rounds:?UINT, Next/binary>>) ->
   {Rounds, Next};
 hdp_parse_diff_data(
   fruit, <<Food:?UCHAR, Row:?UCHAR, Col:?UCHAR, Next/binary>>) ->
-  {{Food, Row, Col}, Next}.
+  {{Food, Row, Col}, Next};
+hdp_parse_diff_data(serpents, <<NumSerpents:?UCHAR, Next/binary>>) ->
+  hdp_parse_diff_serpents(NumSerpents, Next, []).
+
+hdp_parse_diff_serpents(0, Next, Acc) -> {lists:reverse(Acc), Next};
+hdp_parse_diff_serpents(
+  N,
+  << SerpentId:?UINT
+   , BodyLength:?USHORT
+   , Body1:BodyLength/binary
+   , Body2:BodyLength/binary
+   , Next/binary
+   >>,
+  Acc) ->
+  Body = <<Body1/binary, Body2/binary>>,
+  Serpent =
+    #{ id => SerpentId
+     , body => [{Row, Col} || <<Row:?UCHAR, Col:?UCHAR>> <= Body]
+     },
+  hdp_parse_diff_serpents(N-1, Next, [Serpent|Acc]).
 
 hdp_parse_state(0) -> created;
 hdp_parse_state(1) -> countdown;

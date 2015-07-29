@@ -312,7 +312,7 @@ to_binary(Game, complete) ->
      , MaxSerpents:?UCHAR
      , NumSerpents:?UCHAR
      >>
-  | [spts_serpents:to_binary(S) || S <- Serpents]
+  | [spts_serpents:to_binary(S, reduced) || S <- Serpents]
   ];
 to_binary(Game, reduced) ->
   Id = numeric_id(Game),
@@ -359,7 +359,7 @@ diff_data_to_binary(#{type := rounds, data := Rounds}) ->
   end;
 diff_data_to_binary(#{type := serpents, data := Serpents}) ->
   NumSerpents = length(Serpents),
-  [<<NumSerpents:?UCHAR>> | [spts_serpents:to_binary(S) || S <- Serpents]];
+  [<<NumSerpents:?UCHAR>> | [spts_serpents:to_binary(S, complete) || S <- Serpents]];
 diff_data_to_binary(#{type := fruit, data := {{Row, Col}, Food}}) ->
   [<<Food:?UCHAR, Row:?UCHAR, Col:?UCHAR>>].
 

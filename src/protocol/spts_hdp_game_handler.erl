@@ -207,7 +207,8 @@ latest_game([{_Tick, Game} | _History]) -> Game.
 
 historic_game(Tick, [{Tick, no_changes} | History]) -> latest_game(History);
 historic_game(Tick, [{Tick, Game} | _History]) -> Game;
-historic_game(_Tick, [{_NewTick, _} | History]) -> latest_game(History).
+historic_game(undefined, [{_FirstTick, Game}]) -> Game;
+historic_game(Tick, [{_NewTick, _} | History]) -> historic_game(Tick, History).
 
 update_all_users(State) ->
   #state{users = Users} = State,
@@ -225,6 +226,7 @@ update_user(User, State) ->
         } = State,
   UserGame = historic_game(UserTick, History),
   CurrentGame = latest_game(History),
+  ct:pal("~p vs. ~p / ~p vs. ~p\n~p", [UserTick, Tick, spts_games:countdown(UserGame), spts_games:countdown(CurrentGame), History]),
   Diffs =
     [ spts_games:diff_to_binary(Diff)
     || Diff <- spts_games:diffs(UserGame, CurrentGame)],
