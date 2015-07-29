@@ -19,12 +19,12 @@
         , join/1
         , state_server_update/1
         , countdown_server_update/1
+        , rounds_server_update/1
         , serpents_server_update/1
         ]).
 
--define(UCHAR,  8/unsigned-integer).
--define(USHORT, 16/unsigned-integer).
--define(UINT,   32/unsigned-integer).
+-include("binary-sizes.hrl").
+
 -define(VERY_MUCH, 9999999).
 
 -spec all() -> [atom()].
@@ -300,6 +300,46 @@ countdown_server_update(Config) ->
 
   {comment , ""}.
 
+-spec rounds_server_update(spts_test_utils:config()) -> {comment, []}.
+rounds_server_update(Config) ->
+  ct:comment("A game is created"),
+  Game =
+    spts_core:create_game(
+      #{ticktime => 60000, countdown => 0, rounds => 100}),
+  GameId = spts_games:numeric_id(Game),
+  GameName = spts_games:id(Game),
+  Process = spts_hdp_game_handler:process_name(GameId),
+
+  ct:comment("A player joins"),
+  ok = hdp_send(hdp_join(2, GameId, <<"s1">>), Config),
+
+  ct:comment("The response is received"),
+  {join_response, 2, _, {_S1Id, GD1}} = hdp_recv(Config),
+  #{tickrate := 1} = GD1,
+
+  ct:comment("The game starts"),
+  spts_core:start_game(GameName),
+  Process ! tick,
+  {server_update, _, _, {_, _}} = hdp_recv(Config),
+  spts_games:process_name(GameName) ! tick,
+
+  ct:comment("After every tick, the server sends an update with a rounds diff"),
+  Counts =
+    fun(I) ->
+      Process ! tick,
+      {server_update, Tick, Tick, {Tick, Diffs}} = hdp_recv(Config),
+      ct:pal("Diffs: ~p", [Diffs]),
+      case [Data || #{data := Data, type := state} <- Diffs] of
+        [finished] -> ok;
+        _ -> [I] = [Data || #{data := Data, type := rounds} <- Diffs]
+      end,
+      spts_games:process_name(GameName) ! tick
+    end,
+
+  lists:foreach(Counts, lists:seq(99, 0, -1)),
+
+  {comment , ""}.
+
 -spec serpents_server_update(spts_test_utils:config()) -> {comment, []}.
 serpents_server_update(Config) ->
   ct:comment("A game is created"),
@@ -437,6 +477,7 @@ hdp_parse(server_update, _, <<Tick:?USHORT, _NumDiffs:?UCHAR, Diffs/binary>>) ->
 
 hdp_parse_diffs(<<>>) -> [];
 hdp_parse_diffs(<<DiffType:?UCHAR, Rest/binary>>) ->
+  ct:pal("Diff: ~p", [<<DiffType:?UCHAR, Rest/binary>>]),
   Type = hdp_parse_diff_type(DiffType),
   {Data, Next} = hdp_parse_diff_data(Type, Rest),
   [#{type => Type, data => Data} | hdp_parse_diffs(Next)].
@@ -452,6 +493,7 @@ hdp_parse_diff_data(state, <<State:?UCHAR, Next/binary>>) ->
 hdp_parse_diff_data(countdown, <<Countdown:?USHORT, Next/binary>>) ->
   {Countdown, Next};
 hdp_parse_diff_data(rounds, <<Rounds:?UINT, Next/binary>>) ->
+  ct:pal("Next: ~p", [Next]),
   {Rounds, Next};
 hdp_parse_diff_data(
   fruit, <<Food:?UCHAR, Row:?UCHAR, Col:?UCHAR, Next/binary>>) ->

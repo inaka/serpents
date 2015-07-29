@@ -14,9 +14,7 @@
 %%% For internal use only
 -export([handle_udp/4]).
 
--define(UCHAR,  8/unsigned-integer).
--define(USHORT, 16/unsigned-integer).
--define(UINT,   32/unsigned-integer).
+-include("binary-sizes.hrl").
 
 -record(state, {socket :: port()}).
 -type state() :: #state{}.

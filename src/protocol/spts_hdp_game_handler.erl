@@ -11,9 +11,7 @@
          handle_call/3, handle_cast/2, handle_info/2]).
 -export([notify/2]).
 
--define(UCHAR,  8/unsigned-integer).
--define(USHORT, 16/unsigned-integer).
--define(UINT,   32/unsigned-integer).
+-include("binary-sizes.hrl").
 
 -type address() :: {inet:ip_address(), pos_integer()}.
 -record(user, { serpent_id  :: pos_integer()
@@ -226,7 +224,6 @@ update_user(User, State) ->
         } = State,
   UserGame = historic_game(UserTick, History),
   CurrentGame = latest_game(History),
-  ct:pal("~p vs. ~p / ~p vs. ~p\n~p", [UserTick, Tick, spts_games:countdown(UserGame), spts_games:countdown(CurrentGame), History]),
   Diffs =
     [ spts_games:diff_to_binary(Diff)
     || Diff <- spts_games:diffs(UserGame, CurrentGame)],

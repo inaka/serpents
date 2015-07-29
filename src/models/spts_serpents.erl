@@ -14,9 +14,7 @@
                       }.
 -export_type([serpent/0, status/0, name/0]).
 
--define(UINT, 32/unsigned-integer).
--define(USHORT, 16/unsigned-integer).
--define(UCHAR, 8/unsigned-integer).
+-include("binary-sizes.hrl").
 
 -export([new/6]).
 -export([ name/1

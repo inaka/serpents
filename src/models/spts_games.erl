@@ -52,9 +52,7 @@
   .
 -export_type([diff_type/0, diff/0]).
 
--define(UCHAR,  8/unsigned-integer).
--define(USHORT, 16/unsigned-integer).
--define(UINT,   32/unsigned-integer).
+-include("binary-sizes.hrl").
 
 -export(
   [ new/10
@@ -355,7 +353,7 @@ diff_data_to_binary(#{type := countdown, data := Countdown}) ->
 diff_data_to_binary(#{type := rounds, data := Rounds}) ->
   case Rounds of
     infinity -> [<<0:?UINT>>];
-    Rounds -> [<<Rounds:?USHORT>>]
+    Rounds -> [<<Rounds:?UINT>>]
   end;
 diff_data_to_binary(#{type := serpents, data := Serpents}) ->
   NumSerpents = length(Serpents),
