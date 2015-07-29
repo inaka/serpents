@@ -255,7 +255,7 @@ state_server_update(Config) ->
   ok = hdp_send(hdp_join(2, GameId, <<"s1">>), Config),
 
   ct:comment("The response is received"),
-  {join_response, 2, _, {_S1Id, GD1}} = hdp_recv(Config),
+  {join_response, 2, _, {S1Id, GD1}} = hdp_recv(Config),
   #{tickrate := 1} = GD1,
 
   ct:comment("The game starts"),
@@ -266,6 +266,13 @@ state_server_update(Config) ->
   {server_update, Tick, Tick, {Tick, Diffs}} = hdp_recv(Config),
 
   [countdown] = [Data || #{data := Data, type := state} <- Diffs],
+
+  ct:comment("The client acks the update"),
+  ok = hdp_send(hdp_update(3, S1Id, Tick, none), Config),
+
+  ct:comment("After a tick, the server sends an update with no diffs"),
+  Process ! tick,
+  {server_update, Tick2, Tick2, {Tick2, []}} = hdp_recv(Config),
 
   {comment , ""}.
 
@@ -281,7 +288,7 @@ countdown_server_update(Config) ->
   ok = hdp_send(hdp_join(2, GameId, <<"s1">>), Config),
 
   ct:comment("The response is received"),
-  {join_response, 2, _, {_S1Id, GD1}} = hdp_recv(Config),
+  {join_response, 2, _, {S1Id, GD1}} = hdp_recv(Config),
   #{tickrate := 1} = GD1,
 
   ct:comment("The game starts"),
@@ -292,12 +299,21 @@ countdown_server_update(Config) ->
     fun(I) ->
       Process ! tick,
       {server_update, Tick, Tick, {Tick, Diffs}} = hdp_recv(Config),
-      ct:pal("Diffs: ~p", [Diffs]),
       [I] = [Data || #{data := Data, type := countdown} <- Diffs],
       spts_games:process_name(GameName) ! tick
     end,
 
-  lists:foreach(Counts, [2,1,0,0]),
+  lists:foreach(Counts, [2,1,0]),
+
+  Process ! tick,
+  {server_update, Tick, Tick, {Tick, _}} = hdp_recv(Config),
+
+  ct:comment("The client acks the updates"),
+  ok = hdp_send(hdp_update(3, S1Id, Tick, left), Config),
+
+  ct:comment("After a tick, the server sends an update with no diffs"),
+  Process ! tick,
+  {server_update, Tick2, Tick2, {Tick2, []}} = hdp_recv(Config),
 
   {comment , ""}.
 
@@ -315,7 +331,7 @@ rounds_server_update(Config) ->
   ok = hdp_send(hdp_join(2, GameId, <<"s1">>), Config),
 
   ct:comment("The response is received"),
-  {join_response, 2, _, {_S1Id, GD1}} = hdp_recv(Config),
+  {join_response, 2, _, {S1Id, GD1}} = hdp_recv(Config),
   #{tickrate := 1} = GD1,
 
   ct:comment("The game starts"),
@@ -329,7 +345,6 @@ rounds_server_update(Config) ->
     fun(I) ->
       Process ! tick,
       {server_update, Tick, Tick, {Tick, Diffs}} = hdp_recv(Config),
-      ct:pal("Diffs: ~p", [Diffs]),
       case [Data || #{data := Data, type := state} <- Diffs] of
         [finished] -> ok;
         _ -> [I] = [Data || #{data := Data, type := rounds} <- Diffs]
@@ -338,6 +353,16 @@ rounds_server_update(Config) ->
     end,
 
   lists:foreach(Counts, lists:seq(99, 0, -1)),
+
+  Process ! tick,
+  {server_update, Tick, Tick, {Tick, _}} = hdp_recv(Config),
+
+  ct:comment("The client acks the updates"),
+  ok = hdp_send(hdp_update(3, S1Id, Tick, right), Config),
+
+  ct:comment("After a tick, the server sends an update with no diffs"),
+  Process ! tick,
+  {server_update, Tick2, Tick2, {Tick2, []}} = hdp_recv(Config),
 
   {comment , ""}.
 
@@ -388,6 +413,14 @@ serpents_server_update(Config) ->
   [[{_Row, _Col}]] =
     [Body || #{id := SId, body := Body} <- SerpentsDiff, SId == S2Id],
 
+  ct:comment("The client acks the update"),
+  ok = hdp_send(hdp_update(3, S1Id, Tick2, down), Config),
+  ok = hdp_send(hdp_update(3, S2Id, Tick2, down), Config),
+
+  ct:comment("After a tick, the server sends an update with no diffs"),
+  Process ! tick,
+  {server_update, Tick3, Tick3, {Tick3, []}} = hdp_recv(Config),
+
   {comment , ""}.
 
 -spec fruit_server_update(spts_test_utils:config()) -> {comment, []}.
@@ -404,7 +437,7 @@ fruit_server_update(Config) ->
   ok = hdp_send(hdp_join(2, GameId, <<"s1">>), Config),
 
   ct:comment("The response is received"),
-  {join_response, 2, _, {_S1Id, GD1}} = hdp_recv(Config),
+  {join_response, 2, _, {S1Id, GD1}} = hdp_recv(Config),
   #{tickrate := 1} = GD1,
 
   ct:comment("The game starts"),
@@ -416,13 +449,19 @@ fruit_server_update(Config) ->
   ct:comment("After a tick, the server sends an update with a fruit diff"),
   Process ! tick,
   {server_update, Tick, Tick, {Tick, Diffs}} = hdp_recv(Config),
-  ct:pal("Diffs: ~p", [Diffs]),
   [{1, Row, Col}] = [Data || #{data := Data, type := fruit} <- Diffs],
   case {Row, Col} of
     {Row, _} when Row > 5; Row < 1 -> ct:fail("Invalid row: ~p", [Row]);
     {_, Col} when Col > 5; Col < 1 -> ct:fail("Invalid col: ~p", [Col]);
     {_, _} -> ok
   end,
+
+  ct:comment("The client acks the update"),
+  ok = hdp_send(hdp_update(3, S1Id, Tick, up), Config),
+
+  ct:comment("After a tick, the server sends an update with no diffs"),
+  Process ! tick,
+  {server_update, Tick2, Tick2, {Tick2, []}} = hdp_recv(Config),
 
   {comment , ""}.
 
@@ -514,7 +553,6 @@ hdp_parse(server_update, _, <<Tick:?USHORT, _NumDiffs:?UCHAR, Diffs/binary>>) ->
 
 hdp_parse_diffs(<<>>) -> [];
 hdp_parse_diffs(<<DiffType:?UCHAR, Rest/binary>>) ->
-  ct:pal("Diff: ~p", [<<DiffType:?UCHAR, Rest/binary>>]),
   Type = hdp_parse_diff_type(DiffType),
   {Data, Next} = hdp_parse_diff_data(Type, Rest),
   [#{type => Type, data => Data} | hdp_parse_diffs(Next)].
@@ -530,7 +568,6 @@ hdp_parse_diff_data(state, <<State:?UCHAR, Next/binary>>) ->
 hdp_parse_diff_data(countdown, <<Countdown:?USHORT, Next/binary>>) ->
   {Countdown, Next};
 hdp_parse_diff_data(rounds, <<Rounds:?UINT, Next/binary>>) ->
-  ct:pal("Next: ~p", [Next]),
   {Rounds, Next};
 hdp_parse_diff_data(
   fruit, <<Food:?UCHAR, Row:?UCHAR, Col:?UCHAR, Next/binary>>) ->
@@ -577,6 +614,17 @@ hdp_send(Message, Config) ->
   Port = application:get_env(serpents, udp_port, 8584),
   gen_udp:send(UdpSocket, localhost, Port, Message).
 
+hdp_update(MsgId, UserId, LastTick, Direction) ->
+  H = hdp_head(4, MsgId, UserId),
+  Action = hdp_action(Direction),
+  <<H/binary, LastTick:?USHORT, Action:?UCHAR>>.
+
+hdp_action(left)  -> 1;
+hdp_action(right) -> 2;
+hdp_action(up)    -> 4;
+hdp_action(down)  -> 8;
+hdp_action(none)  -> 0.
+
 hdp_join(MsgId, GameId, Name) ->
   H = hdp_head(3, MsgId),
   S = size(Name),
@@ -596,4 +644,4 @@ hdp_head(Flags, MsgId, UserId) ->
   {_, _, Nanos} = os:timestamp(),
   hdp_head(Flags, MsgId, Nanos rem 65536, UserId).
 hdp_head(Flags, MsgId, UserTime, UserId) ->
-  <<Flags:?UCHAR, MsgId:?USHORT, UserTime:?USHORT, UserId:?USHORT>>.
+  <<Flags:?UCHAR, MsgId:?UINT, UserTime:?USHORT, UserId:?UINT>>.

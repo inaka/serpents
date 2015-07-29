@@ -12,9 +12,9 @@ Prefixes all client originated messages
     INFO => 2
     JOIN => 3
     ACTION => 4
-    MessageID => ushort
+    MessageID => uint
     ClientTime => ushort
-    SerpentId => ushort
+    SerpentId => uint
     Message => PingRequest | GamesInfoRequest | GameInfoRequest
 
 Field     | Description

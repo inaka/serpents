@@ -53,7 +53,8 @@ user_connected(Name, Address, GameId) ->
       throw(Exception)
   end.
 
--spec user_update(pos_integer(), address(), integer(), integer()) -> ok.
+-spec user_update(
+  pos_integer(), address(), integer(), spts_games:direction()|undefined) -> ok.
 user_update(SerpentId, Address, LastServerTick, Direction) ->
   GameId = spts_serpents:game_id(SerpentId),
   Process = process_name(GameId),
@@ -90,7 +91,6 @@ init(GameNumericId) ->
   try spts_core:fetch_game(GameNumericId) of
     Game ->
       GameId = spts_games:id(Game),
-      ok = spts_gen_event_handler:subscribe(GameId, ?MODULE, self()),
       UpdatesPerSecond =
         application:get_env(serpents, hdp_updates_per_second, 50),
       TickTime =
@@ -159,36 +159,30 @@ handle_info(tick, State) ->
                },
   spawn(fun() -> update_all_users(NewState) end),
   {noreply, NewState};
-handle_info({event, {serpent_added, _Serpent}}, State) ->
-  % @todo
-  {noreply, State};
-handle_info({event, {game_started, _Game}}, State) ->
-  % @todo
-  {noreply, State};
-handle_info({event, {game_finished, _Game}}, State) ->
-  % @todo
-  {noreply, State};
-handle_info({event, {game_updated, _Game}}, State) ->
-  % @todo
-  {noreply, State};
-handle_info({event, {game_countdown, _Game}}, State) ->
-  % @todo
-  {noreply, State};
 handle_info(Msg, State) ->
   lager:notice("received unexpected info message: ~p", [Msg]),
   {noreply, State}.
 
 -spec handle_cast(
-  {user_update, address(), pos_integer(), spts_games:direction()}, state()) ->
-  {noreply, state()}.
-handle_cast({user_update, _Address, _LastServerTick, _Direction}, State) ->
-  % @todo
-  {noreply, State}.
+  {user_update, pos_integer(), address(), pos_integer(),
+   undefined | spts_games:direction()}, state()) -> {noreply, state()}.
+handle_cast({user_update, SerpentId, Address, LastTick, Direction}, State) ->
+  #state{users = Users} = State,
+  ct:pal("Update for user ~p: ~p, ~p, ~p", [SerpentId, Address, LastTick, Direction]),
+  NewState =
+    case lists:keytake(SerpentId, #user.serpent_id, Users) of
+      false ->
+        lager:warning("Invalid user ~p / Users: ~p", [SerpentId, Users]),
+        State;
+      {value, User, OtherUsers} ->
+        NewUsers = [User#user{address = Address, tick = LastTick} | OtherUsers],
+        clean_history(State#state{users = NewUsers})
+    end,
+  {noreply, NewState}.
 
 -spec terminate(atom(), state()) -> ok.
 terminate(Reason, #state{game_id = GameId}) ->
   lager:notice("HDP handler for ~p terminating: ~p", [GameId, Reason]),
-  catch spts_gen_event_handler:unsubscribe(GameId, ?MODULE, self()),
   ok.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -224,10 +218,23 @@ update_user(User, State) ->
         } = State,
   UserGame = historic_game(UserTick, History),
   CurrentGame = latest_game(History),
-  ct:pal("~p vs. ~p / ~p vs. ~p\n~p", [UserTick, Tick, spts_games:countdown(UserGame), spts_games:countdown(CurrentGame), History]),
+  ct:pal("User ~p: ~p vs. ~p\n~p", [User#user.serpent_id, UserTick, Tick, History]),
   Diffs =
     [ spts_games:diff_to_binary(Diff)
     || Diff <- spts_games:diffs(UserGame, CurrentGame)],
   NumDiffs = length(Diffs),
   Message = [<<Tick:?USHORT, NumDiffs:?UCHAR>>, Diffs],
   spts_hdp_handler:send_update(Tick, Message, Address).
+
+clean_history(State) ->
+  #state{users = Users, history = History} = State,
+  case lists:keyfind(undefined, #user.tick, Users) of
+    #user{} ->
+      %% NOTE: Can't clean, there is a user who needs the very first game, still
+      State;
+    false ->
+      [#user{tick = MinTick}|_] = lists:keysort(#user.tick, Users),
+      PurgedHistory =
+        lists:takewhile(fun({HistTick, _}) -> HistTick >= MinTick end, History),
+      State#state{history = PurgedHistory}
+  end.

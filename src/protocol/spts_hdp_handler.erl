@@ -80,9 +80,9 @@ code_change(_OldVsn, State, _Extra) -> {ok, State}.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 -spec handle_udp(binary(), port(), inet:ip_address(), integer()) -> any().
 handle_udp(<<Flags:?UCHAR,
-             MessageId:?USHORT,
+             MessageId:?UINT,
              UserTime:?USHORT,
-             UserId:?USHORT,
+             UserId:?UINT,
              Message/binary>> = Data,
            UdpSocket, Ip, Port) ->
   case get_message_type(Flags band 7) of
@@ -208,8 +208,9 @@ handle_message(join,
                 Metadata)
   end;
 handle_message(
-  action, <<LastServerTick:?USHORT, Direction:?UCHAR>>, Metadata) ->
-  Address = {Metadata#metadata.socket, Metadata#metadata.port},
+  action, <<LastServerTick:?USHORT, Action:?UCHAR>>, Metadata) ->
+  Address = {Metadata#metadata.ip, Metadata#metadata.port},
+  Direction = get_direction(Action),
   spts_hdp_game_handler:user_update(
     Metadata#metadata.userId, Address, LastServerTick, Direction);
 handle_message(_MessageType, _Garbage, _Metadata) ->
@@ -223,6 +224,12 @@ get_message_type(2) -> info;
 get_message_type(3) -> join;
 get_message_type(4) -> action;
 get_message_type(_Garbage) -> undefined.
+
+get_direction(1) -> left;
+get_direction(2) -> right;
+get_direction(4) -> up;
+get_direction(8) -> down;
+get_direction(_) -> undefined.
 
 set_flags(Flags) ->
   set_flags(Flags, 0).
