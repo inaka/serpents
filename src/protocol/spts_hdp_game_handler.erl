@@ -224,6 +224,7 @@ update_user(User, State) ->
         } = State,
   UserGame = historic_game(UserTick, History),
   CurrentGame = latest_game(History),
+  ct:pal("~p vs. ~p / ~p vs. ~p\n~p", [UserTick, Tick, spts_games:countdown(UserGame), spts_games:countdown(CurrentGame), History]),
   Diffs =
     [ spts_games:diff_to_binary(Diff)
     || Diff <- spts_games:diffs(UserGame, CurrentGame)],

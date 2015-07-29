@@ -21,6 +21,7 @@
         , countdown_server_update/1
         , rounds_server_update/1
         , serpents_server_update/1
+        , fruit_server_update/1
         ]).
 
 -include("binary-sizes.hrl").
@@ -386,6 +387,42 @@ serpents_server_update(Config) ->
     [Body || #{id := SId, body := Body} <- SerpentsDiff, SId == S1Id],
   [[{_Row, _Col}]] =
     [Body || #{id := SId, body := Body} <- SerpentsDiff, SId == S2Id],
+
+  {comment , ""}.
+
+-spec fruit_server_update(spts_test_utils:config()) -> {comment, []}.
+fruit_server_update(Config) ->
+  ct:comment("A game is created"),
+  Game =
+    spts_core:create_game(
+      #{ticktime => 60000, countdown => 0, rows => 5, cols => 5}),
+  GameId = spts_games:numeric_id(Game),
+  GameName = spts_games:id(Game),
+  Process = spts_hdp_game_handler:process_name(GameId),
+
+  ct:comment("A player joins"),
+  ok = hdp_send(hdp_join(2, GameId, <<"s1">>), Config),
+
+  ct:comment("The response is received"),
+  {join_response, 2, _, {_S1Id, GD1}} = hdp_recv(Config),
+  #{tickrate := 1} = GD1,
+
+  ct:comment("The game starts"),
+  spts_core:start_game(GameName),
+  Process ! tick,
+  {server_update, _, _, {_, _}} = hdp_recv(Config),
+  spts_games:process_name(GameName) ! tick,
+
+  ct:comment("After a tick, the server sends an update with a fruit diff"),
+  Process ! tick,
+  {server_update, Tick, Tick, {Tick, Diffs}} = hdp_recv(Config),
+  ct:pal("Diffs: ~p", [Diffs]),
+  [{1, Row, Col}] = [Data || #{data := Data, type := fruit} <- Diffs],
+  case {Row, Col} of
+    {Row, _} when Row > 5; Row < 1 -> ct:fail("Invalid row: ~p", [Row]);
+    {_, Col} when Col > 5; Col < 1 -> ct:fail("Invalid col: ~p", [Col]);
+    {_, _} -> ok
+  end,
 
   {comment , ""}.
 
