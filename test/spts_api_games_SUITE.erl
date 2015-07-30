@@ -193,7 +193,7 @@ get_game_wrong(_Config) ->
 -spec get_game_created(spts_test_utils:config()) -> {comment, []}.
 get_game_created(_Config) ->
   ct:comment("Create a game"),
-  Game = spts_core:create_game(),
+  Game = spts_core:create_game(#{rows => 50, cols => 50, rounds => 180}),
   GameId = spts_games:id(Game),
 
   #{status_code := 200,
@@ -201,11 +201,11 @@ get_game_created(_Config) ->
     spts_test_utils:api_call(get, <<"/games/", GameId/binary>>),
 
   #{ <<"id">> := GameId
-   , <<"rows">> := 20
-   , <<"cols">> := 20
+   , <<"rows">> := 50
+   , <<"cols">> := 50
    , <<"ticktime">> := 250
    , <<"countdown">> := 10
-   , <<"rounds">> := null
+   , <<"rounds">> := 180
    , <<"initial_food">> := 1
    , <<"max_serpents">> := null
    , <<"flags">> := []
@@ -222,7 +222,7 @@ get_game_countdown(_Config) ->
   Game = spts_core:create_game(#{ticktime => 60000}),
   GameId = spts_games:id(Game),
   SerpentName = <<"ggcd">>,
-  [{Row, Col}] = spts_serpents:body(spts_core:add_serpent(GameId, SerpentName)),
+  [{Row, Col}] = add_serpent(GameId, SerpentName),
   ok = spts_core:start_game(GameId),
 
   ct:comment("The game should be in countdown"),
@@ -257,7 +257,7 @@ get_game_started(_Config) ->
   Game = spts_core:create_game(#{ticktime => 60000, countdown => 0}),
   GameId = spts_games:id(Game),
   SerpentName = <<"ggs">>,
-  [{Row, Col}] = spts_serpents:body(spts_core:add_serpent(GameId, SerpentName)),
+  [{Row, Col}] = add_serpent(GameId, SerpentName),
   ok = spts_core:start_game(GameId),
 
   ct:comment("The game should be started"),
@@ -295,10 +295,10 @@ get_game_finished(_Config) ->
   GameId = spts_games:id(Game),
 
   Serpent1Name = <<"ggf1">>,
-  [{_, Col1}] = spts_serpents:body(spts_core:add_serpent(GameId, Serpent1Name)),
+  [{_, Col1}] = add_serpent(GameId, Serpent1Name),
 
   Serpent2Name = <<"ggf2">>,
-  [{_, Col2}] = spts_serpents:body(spts_core:add_serpent(GameId, Serpent2Name)),
+  [{_, Col2}] = add_serpent(GameId, Serpent2Name),
 
   case Col1 of
     Col1 when Col1 > Col2 ->
@@ -396,7 +396,7 @@ put_game_ok(_Config) ->
   GameId = spts_games:id(Game),
   Url = <<"/games/", GameId/binary>>,
   SerpentName = <<"pgo">>,
-  [{Row, Col}] = spts_serpents:body(spts_core:add_serpent(GameId, SerpentName)),
+  [{Row, Col}] = add_serpent(GameId, SerpentName),
 
   Headers = #{<<"content-type">> => <<"application/json">>},
 
@@ -406,14 +406,6 @@ put_game_ok(_Config) ->
     spts_test_utils:api_call(put, Url, Headers, "{\"state\":\"started\"}"),
 
   #{ <<"id">> := GameId
-   , <<"rows">> := 20
-   , <<"cols">> := 20
-   , <<"ticktime">> := 60000
-   , <<"countdown">> := 0
-   , <<"rounds">> := null
-   , <<"initial_food">> := 1
-   , <<"max_serpents">> := null
-   , <<"flags">> := []
    , <<"serpents">> := Serpents
    , <<"state">> := <<"started">>
    , <<"cells">> := []
@@ -447,3 +439,5 @@ delete_game_ok(_Config) ->
 
   {comment, ""}.
 
+add_serpent(GameId, SerpentName) ->
+  spts_serpents:body(spts_core:add_serpent(GameId, SerpentName)).

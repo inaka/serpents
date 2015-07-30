@@ -70,8 +70,7 @@ get_events_after(Uri, EventType, Task) ->
   {ok, Pid} = shotgun:open("localhost", Port),
   try
     ct:comment("Client connects"),
-    {ok, Ref} =
-      shotgun:get(Pid, "/api" ++ Uri, #{}, #{async => true, async_mode => sse}),
+    {ok, Ref} = open_request(Pid, Uri),
 
     ct:comment("Task is performed: ~p", [Task]),
     TaskResult = Task(),
@@ -97,8 +96,7 @@ no_events_after(Uri, Task) ->
   {ok, Pid} = shotgun:open("localhost", Port),
   try
     ct:comment("Client connects"),
-    {ok, Ref} =
-      shotgun:get(Pid, "/api" ++ Uri, #{}, #{async => true, async_mode => sse}),
+    {ok, Ref} = open_request(Pid, Uri),
 
     ct:comment("Initial events are collected"),
     ktn_task:wait_for_success(fun() -> [_|_] = shotgun:events(Pid) end),
@@ -131,3 +129,6 @@ check_bounds({_, 0}, _, _) -> out;
 check_bounds({Row, _}, Rows, _) when Row > Rows -> out;
 check_bounds({_, Col}, _, Cols) when Col > Cols -> out;
 check_bounds(_, _, _) -> in.
+
+open_request(Pid, Uri) ->
+  shotgun:get(Pid, "/api" ++ Uri, #{}, #{async => true, async_mode => sse}).

@@ -23,6 +23,7 @@
         , rounds_server_update/1
         , serpents_server_update/1
         , fruit_server_update/1
+        , user_update_changes_direction/1
         , wrong_input/1
         ]).
 
@@ -37,14 +38,12 @@ all() -> spts_test_utils:all(?MODULE).
   spts_test_utils:config().
 init_per_testcase(serpents_server_update, Config) ->
   Port = application:get_env(serpents, udp_port, 8584) - 2,
-  {ok, UdpSocket} =
-    gen_udp:open(Port, [{mode, binary}, {reuseaddr, true}, {active, false}]),
+  {ok, UdpSocket} = new_socket(Port),
   [{socket2, UdpSocket} | init_per_testcase(others, Config)];
 init_per_testcase(_Test, Config) ->
   application:set_env(serpents, hdp_updates_per_second, 1),
   Port = application:get_env(serpents, udp_port, 8584) - 1,
-  {ok, UdpSocket} =
-    gen_udp:open(Port, [{mode, binary}, {reuseaddr, true}, {active, false}]),
+  {ok, UdpSocket} = new_socket(Port),
   [{socket, UdpSocket} | Config].
 
 -spec end_per_testcase(atom(), spts_test_utils:config()) ->
@@ -313,11 +312,7 @@ state_server_update(Config) ->
   GameName = spts_games:id(Game),
   Process = spts_hdp_game_handler:process_name(GameId),
 
-  ct:comment("A player joins"),
-  ok = hdp_send(hdp_join(2, GameId, <<"s1">>), Config),
-
-  ct:comment("The response is received"),
-  {join_response, 2, _, {S1Id, GD1}} = hdp_recv(Config),
+  {S1Id, GD1} = do_join(GameId, <<"s1">>, Config),
   #{tickrate := 1} = GD1,
 
   ct:comment("The game starts"),
@@ -325,7 +320,7 @@ state_server_update(Config) ->
 
   ct:comment("After a tick, the server sends an update with a state diff"),
   Process ! tick,
-  {server_update, Tick, Tick, {Tick, Diffs}} = hdp_recv(Config),
+  {Tick, Diffs} = diffs(hdp_recv(Config)),
 
   [countdown] = [Data || #{data := Data, type := state} <- Diffs],
 
@@ -334,7 +329,7 @@ state_server_update(Config) ->
 
   ct:comment("After a tick, the server sends an update with no diffs"),
   Process ! tick,
-  {server_update, Tick2, Tick2, {Tick2, []}} = hdp_recv(Config),
+  no_diffs(hdp_recv(Config)),
 
   {comment , ""}.
 
@@ -346,11 +341,7 @@ countdown_server_update(Config) ->
   GameName = spts_games:id(Game),
   Process = spts_hdp_game_handler:process_name(GameId),
 
-  ct:comment("A player joins"),
-  ok = hdp_send(hdp_join(2, GameId, <<"s1">>), Config),
-
-  ct:comment("The response is received"),
-  {join_response, 2, _, {S1Id, GD1}} = hdp_recv(Config),
+  {S1Id, GD1} = do_join(GameId, <<"s1">>, Config),
   #{tickrate := 1} = GD1,
 
   ct:comment("The game starts"),
@@ -360,22 +351,22 @@ countdown_server_update(Config) ->
   Counts =
     fun(I) ->
       Process ! tick,
-      {server_update, Tick, Tick, {Tick, Diffs}} = hdp_recv(Config),
+      {_, Diffs} = diffs(hdp_recv(Config)),
       [I] = [Data || #{data := Data, type := countdown} <- Diffs],
       spts_games:process_name(GameName) ! tick
     end,
 
-  lists:foreach(Counts, [2,1,0]),
+  lists:foreach(Counts, [2, 1, 0]),
 
   Process ! tick,
-  {server_update, Tick, Tick, {Tick, _}} = hdp_recv(Config),
+  {Tick, [_|_]} = diffs(hdp_recv(Config)),
 
   ct:comment("The client acks the updates"),
-  ok = hdp_direct_send(hdp_update(3, S1Id, Tick, left), Config),
+  ok = hdp_direct_send(hdp_update(3, S1Id, Tick, none), Config),
 
   ct:comment("After a tick, the server sends an update with no diffs"),
   Process ! tick,
-  {server_update, Tick2, Tick2, {Tick2, []}} = hdp_recv(Config),
+  no_diffs(hdp_recv(Config)),
 
   {comment , ""}.
 
@@ -389,24 +380,20 @@ rounds_server_update(Config) ->
   GameName = spts_games:id(Game),
   Process = spts_hdp_game_handler:process_name(GameId),
 
-  ct:comment("A player joins"),
-  ok = hdp_send(hdp_join(2, GameId, <<"s1">>), Config),
-
-  ct:comment("The response is received"),
-  {join_response, 2, _, {S1Id, GD1}} = hdp_recv(Config),
+  {S1Id, GD1} = do_join(GameId, <<"s1">>, Config),
   #{tickrate := 1} = GD1,
 
   ct:comment("The game starts"),
   spts_core:start_game(GameName),
   Process ! tick,
-  {server_update, _, _, {_, _}} = hdp_recv(Config),
+  clean_queue(Config),
   spts_games:process_name(GameName) ! tick,
 
   ct:comment("After every tick, the server sends an update with a rounds diff"),
   Counts =
     fun(I) ->
       Process ! tick,
-      {server_update, Tick, Tick, {Tick, Diffs}} = hdp_recv(Config),
+      {_, Diffs} = diffs(hdp_recv(Config)),
       case [Data || #{data := Data, type := state} <- Diffs] of
         [finished] -> ok;
         _ -> [I] = [Data || #{data := Data, type := rounds} <- Diffs]
@@ -417,23 +404,23 @@ rounds_server_update(Config) ->
   lists:foreach(Counts, lists:seq(99, 0, -1)),
 
   Process ! tick,
-  {server_update, Tick, Tick, {Tick, _}} = hdp_recv(Config),
+  {Tick, _} = diffs(hdp_recv(Config)),
 
   clean_queue(Config),
 
   ct:comment("The client acks the updates"),
-  ok = hdp_direct_send(hdp_update(3, S1Id, Tick, right), Config),
+  ok = hdp_direct_send(hdp_update(3, S1Id, Tick, none), Config),
 
   ct:comment("After a tick, the server sends an update with no diffs"),
   Process ! tick,
-  {server_update, Tick2, Tick2, {Tick2, []}} = hdp_recv(Config),
+  {Tick2, []} = diffs(hdp_recv(Config)),
 
   ct:comment("The client acks the updates again"),
-  ok = hdp_direct_send(hdp_update(3, S1Id, Tick2, right), Config),
+  ok = hdp_direct_send(hdp_update(3, S1Id, Tick2, none), Config),
 
   ct:comment("After a tick, the server sends an update with no diffs (Again)"),
   Process ! tick,
-  {server_update, Tick3, Tick3, {Tick3, []}} = hdp_recv(Config),
+  no_diffs(hdp_recv(Config)),
 
   {comment , ""}.
 
@@ -445,21 +432,16 @@ serpents_server_update(Config) ->
   Process = spts_hdp_game_handler:process_name(GameId),
 
   %% Config for player 2
-  {value, {socket2, UdpSocket}, InterConfig} =
-    lists:keytake(socket2, 1, Config),
-  Config2 = [{socket, UdpSocket} | InterConfig],
+  {socket2, UdpSocket} = lists:keyfind(socket2, 1, Config),
+  Config2 = [{socket, UdpSocket} | Config],
 
-  ct:comment("A player joins"),
-  ok = hdp_send(hdp_join(2, GameId, <<"s1">>), Config),
-
-  ct:comment("The response is received"),
-  {join_response, 2, _, {S1Id, GD1}} = hdp_recv(Config),
+  {S1Id, GD1} = do_join(GameId, <<"s1">>, Config),
   #{tickrate := 1} = GD1,
 
   ct:comment(
     "After a tick, the server sends an update with the player serpent"),
   Process ! tick,
-  {server_update, Tick1, Tick1, {Tick1, Diffs}} = hdp_recv(Config),
+  {Tick1, Diffs} = diffs(hdp_recv(Config)),
 
   [[{Row, Col}]] =
     [Body || #{data := Data, type := serpents} <- Diffs
@@ -467,38 +449,33 @@ serpents_server_update(Config) ->
            , SId == S1Id
            ],
 
-  ct:comment("Another player joins"),
-  ok = hdp_send(hdp_join(3, GameId, <<"s2">>), Config2),
-  ct:comment("The response is received"),
-  {join_response, 3, _, {S2Id, _GD2}} = hdp_recv(Config2),
+  {S2Id, _GD2} = do_join(GameId, <<"s2">>, Config2),
 
   ct:comment(
     "After a tick, the server sends updates with both serpents to both users"),
   Process ! tick,
-  {server_update, Tick2, Tick2, {Tick2, Diffs2}} = hdp_recv(Config),
-  {server_update, Tick2, Tick2, {Tick2, Diffs2}} = hdp_recv(Config2),
+  {Tick2, Diffs2} = diffs(hdp_recv(Config)),
+  {Tick2, Diffs2} = diffs(hdp_recv(Config2)),
   case Tick2 of
     Tick2 when Tick2 =< Tick1 -> ct:fail("Wrong ticks: ~p, ~p", [Tick1, Tick2]);
     Tick2 -> ok
   end,
 
   [SerpentsDiff] = [Data || #{data := Data, type := serpents} <- Diffs2],
-  [_,_] = SerpentsDiff,
+  [_, _] = SerpentsDiff,
 
-  [[{Row, Col}]] =
-    [Body || #{id := SId, body := Body} <- SerpentsDiff, SId == S1Id],
-  [[{_Row, _Col}]] =
-    [Body || #{id := SId, body := Body} <- SerpentsDiff, SId == S2Id],
+  [{Row, Col}] = serpent_body(S1Id, SerpentsDiff),
+  [{_Row, _Col}] = serpent_body(S2Id, SerpentsDiff),
 
   ct:comment("The client 1 acks the update"),
-  ok = hdp_direct_send(hdp_update(3, S1Id, Tick2, down), Config),
+  ok = hdp_direct_send(hdp_update(3, S1Id, Tick2, none), Config),
 
   ct:pal("After a tick, the server sends an update with no diffs to user 1"),
   Process ! tick,
-  {server_update, Tick3, Tick3, {Tick3, []}} = hdp_recv(Config),
+  no_diffs(hdp_recv(Config)),
 
   ct:pal("After a tick, the server sends an update with diffs to user 2"),
-  {server_update, Tick3, Tick3, {Tick3, Diffs2}} = hdp_recv(Config2),
+  {_, Diffs2} = diffs(hdp_recv(Config2)),
 
   {comment , ""}.
 
@@ -512,22 +489,18 @@ fruit_server_update(Config) ->
   GameName = spts_games:id(Game),
   Process = spts_hdp_game_handler:process_name(GameId),
 
-  ct:comment("A player joins"),
-  ok = hdp_send(hdp_join(2, GameId, <<"s1">>), Config),
-
-  ct:comment("The response is received"),
-  {join_response, 2, _, {S1Id, GD1}} = hdp_recv(Config),
+  {S1Id, GD1} = do_join(GameId, <<"s1">>, Config),
   #{tickrate := 1} = GD1,
 
   ct:comment("The game starts"),
   spts_core:start_game(GameName),
   Process ! tick,
-  {server_update, _, _, {_, _}} = hdp_recv(Config),
+  clean_queue(Config),
   spts_games:process_name(GameName) ! tick,
 
   ct:comment("After a tick, the server sends an update with a fruit diff"),
   Process ! tick,
-  {server_update, Tick, Tick, {Tick, Diffs}} = hdp_recv(Config),
+  {Tick, Diffs} = diffs(hdp_recv(Config)),
   [{1, Row, Col}] = [Data || #{data := Data, type := fruit} <- Diffs],
   case {Row, Col} of
     {Row, _} when Row > 5; Row < 1 -> ct:fail("Invalid row: ~p", [Row]);
@@ -536,11 +509,11 @@ fruit_server_update(Config) ->
   end,
 
   ct:comment("The client acks the update"),
-  ok = hdp_direct_send(hdp_update(3, S1Id, Tick, up), Config),
+  ok = hdp_direct_send(hdp_update(3, S1Id, Tick, none), Config),
 
   ct:comment("After a tick, the server sends an update with no diffs"),
   Process ! tick,
-  {server_update, Tick2, Tick2, {Tick2, []}} = hdp_recv(Config),
+  no_diffs(hdp_recv(Config)),
 
   {comment , ""}.
 
@@ -564,8 +537,8 @@ wrong_input(Config) ->
   Game = spts_core:create_game(),
   GameId = spts_games:numeric_id(Game),
   GameName = spts_games:id(Game),
-  ok = hdp_send(hdp_join(2, GameId, <<"s1">>), Config),
-  {join_response, 2, _, {SId, _}} = hdp_recv(Config),
+
+  {SId, _} = do_join(GameId, <<"s1">>, Config),
 
   ct:comment("Bad SerpentId is ignored"),
   ok = hdp_direct_send(hdp_update(3, SId + 1, 1, none), Config),
@@ -581,8 +554,7 @@ wrong_input(Config) ->
   Game2 = spts_core:create_game(),
   Game2Id = spts_games:numeric_id(Game2),
   Game2Name = spts_games:id(Game2),
-  ok = hdp_send(hdp_join(1, Game2Id, <<"s1">>), Config),
-  {join_response, 1, _, _} = hdp_recv(Config),
+  do_join(Game2Id, <<"s1">>, Config),
   ok = spts_core:stop_game(Game2Name),
 
   ct:comment("The handler is still alive"),
@@ -595,6 +567,44 @@ wrong_input(Config) ->
 
   Process ! tick,
   ktn_task:wait_for(fun() -> whereis(Process) end, undefined),
+
+  {comment, ""}.
+
+-spec user_update_changes_direction(spts_test_utils:config()) -> {comment, []}.
+user_update_changes_direction(Config) ->
+  ct:comment("A game is created, a player joins"),
+  Game = spts_core:create_game(),
+  GameId = spts_games:numeric_id(Game),
+  GameName = spts_games:id(Game),
+
+  {SId, _} = do_join(GameId, <<"s1">>, Config),
+  CheckDir =
+    fun() ->
+      spts_serpents:direction(
+        spts_games:serpent(spts_core:fetch_game(GameName), <<"s1">>))
+    end,
+  Turn =
+    fun(Dir, Dir2) ->
+      hdp_direct_send(hdp_update(30, SId, 1, Dir), Config),
+      ktn_task:wait_for(CheckDir, Dir2),
+      CheckDir()
+    end,
+
+  ct:comment("Player moves right"),
+  right = Turn(right, right),
+  right = Turn(none, right),
+
+  ct:comment("Player moves left"),
+  left = Turn(left, left),
+  left = Turn(none, left),
+
+  ct:comment("Player moves up"),
+  up = Turn(up, up),
+  up = Turn(none, up),
+
+  ct:comment("Player moves down"),
+  down = Turn(down, down),
+  down = Turn(none, down),
 
   {comment, ""}.
 
@@ -747,7 +757,7 @@ hdp_direct_send(Message, Config) ->
   {socket, UdpSocket} = lists:keyfind(socket, 1, Config),
   Port = application:get_env(serpents, udp_port, 8584) - 1,
   Data = iolist_to_binary(Message),
-  spts_hdp_handler:handle_udp(Data, UdpSocket, {127,0,0,1}, Port).
+  spts_hdp_handler:handle_udp(Data, UdpSocket, {127, 0, 0, 1}, Port).
 
 hdp_send(Message, Config) ->
   {socket, UdpSocket} = lists:keyfind(socket, 1, Config),
@@ -785,3 +795,22 @@ hdp_head(Flags, MsgId, UserId) ->
   hdp_head(Flags, MsgId, Nanos rem 65536, UserId).
 hdp_head(Flags, MsgId, UserTime, UserId) ->
   <<Flags:?UCHAR, MsgId:?UINT, UserTime:?USHORT, UserId:?UINT>>.
+
+new_socket(Port) ->
+  gen_udp:open(Port, [{mode, binary}, {reuseaddr, true}, {active, false}]).
+
+serpent_body(SerpentId, SerpentsDiff) ->
+  [SBody] =
+    [Body || #{id := SId, body := Body} <- SerpentsDiff, SId == SerpentId],
+  SBody.
+
+no_diffs(Update) -> {_, []} = diffs(Update).
+
+diffs({server_update, Tick, Tick, {Tick, Diffs}}) -> {Tick, Diffs}.
+
+do_join(GameId, Name, Config) ->
+  ct:comment("~p joins ~p", [Name, GameId]),
+  ok = hdp_send(hdp_join(16, GameId, Name), Config),
+  ct:comment("The response is received"),
+  {join_response, 16, _, Response} = hdp_recv(Config),
+  Response.

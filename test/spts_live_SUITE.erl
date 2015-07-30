@@ -64,13 +64,13 @@ init_per_testcase(initial_food, Config) ->
          , countdown => 0
          , initial_food => 2
          })),
-  Serpent = spts_core:add_serpent(GameId, <<"serp1">>),
+  Serpent = spts_core:add_serpent(GameId, <<"if1">>),
   Direction =
     case spts_serpents:body(Serpent) of
       [{Row, _Col}] when Row < 25 -> down;
       [{Row, _Col}] when Row >= 25 -> up
     end,
-  ok = spts_core:turn(GameId, <<"serp1">>, Direction),
+  ok = spts_core:turn(GameId, <<"if1">>, Direction),
   [{game, GameId} | Config];
 init_per_testcase(rounds, Config) ->
   GameId =
@@ -82,13 +82,13 @@ init_per_testcase(rounds, Config) ->
          , countdown => 2
          , rounds => 100
          })),
-  Serpent = spts_core:add_serpent(GameId, <<"serp1">>),
+  Serpent = spts_core:add_serpent(GameId, <<"rounds1">>),
   Direction =
     case spts_serpents:body(Serpent) of
       [{Row, _Col}] when Row < 250 -> down;
       [{Row, _Col}] when Row >= 250 -> up
     end,
-  ok = spts_core:turn(GameId, <<"serp1">>, Direction),
+  ok = spts_core:turn(GameId, <<"rounds1">>, Direction),
   [{game, GameId} | Config];
 init_per_testcase(max_serpents, Config) ->
   GameId =
@@ -101,9 +101,9 @@ init_per_testcase(serpent_movement, Config) ->
     spts_games:id(
       spts_core:create_game(
         #{cols => 5, rows => 5, ticktime => 600000, countdown => 0})),
-  spts_core:add_serpent(GameId, <<"serp1">>),
-  spts_core:add_serpent(GameId, <<"serp2">>),
-  spts_core:add_serpent(GameId, <<"serp3">>),
+  spts_core:add_serpent(GameId, <<"sm1">>),
+  spts_core:add_serpent(GameId, <<"sm2">>),
+  spts_core:add_serpent(GameId, <<"sm3">>),
   [{game, GameId} | Config];
 init_per_testcase(Test, Config) when Test == collision_with_serpent_body;
                                      Test == collision_with_serpent_head;
@@ -117,7 +117,7 @@ init_per_testcase(countdown, Config) ->
     spts_games:id(
       spts_core:create_game(
         #{cols => 5, rows => 5, ticktime => 600000, countdown => 5})),
-  spts_core:add_serpent(GameId, <<"serp1">>),
+  spts_core:add_serpent(GameId, <<"cd1">>),
   [{game, GameId} | Config];
 init_per_testcase(_Test, Config) ->
   GameId =
@@ -222,8 +222,8 @@ collision_with_serpent_body(Config) ->
   GameNumericId = spts_games:numeric_id(Game),
 
   ct:comment("Serpents are placed in proper positions"),
-  Serpent1 = spts_serpents:new(<<"serp1">>, GameNumericId, 1, {2, 2}, down, 1),
-  Serpent2 = spts_serpents:new(<<"serp2">>, GameNumericId, 2, {2, 3}, left, 0),
+  Serpent1 = spts_serpents:new(<<"cwsb1">>, GameNumericId, 1, {2, 2}, down, 1),
+  Serpent2 = spts_serpents:new(<<"cwsb2">>, GameNumericId, 2, {2, 3}, left, 0),
   GameWithSerpents =
     spts_games:add_serpent(spts_games:add_serpent(Game, Serpent1), Serpent2),
 
@@ -231,10 +231,10 @@ collision_with_serpent_body(Config) ->
   NewGame = spts_games_repo:advance(GameWithSerpents),
 
   ct:comment("S1 should be alive and its body should be 2 cells long"),
-  alive = spts_serpents:status(spts_games:serpent(NewGame, <<"serp1">>)),
+  alive = spts_serpents:status(spts_games:serpent(NewGame, <<"cwsb1">>)),
 
   ct:comment("S2 should've died in ~p", [NewGame]),
-  dead = spts_serpents:status(spts_games:serpent(NewGame, <<"serp2">>)),
+  dead = spts_serpents:status(spts_games:serpent(NewGame, <<"cwsb2">>)),
 
   {comment, ""}.
 
@@ -245,7 +245,7 @@ collision_with_serpent_self(Config) ->
   GameNumericId = spts_games:numeric_id(Game),
 
   ct:comment("Serpents are placed in proper positions"),
-  Serpent1 = spts_serpents:new(<<"serp1">>, GameNumericId, 1, {2, 2}, right, 2),
+  Serpent1 = spts_serpents:new(<<"cwss1">>, GameNumericId, 1, {2, 2}, right, 2),
   GameWithSerpent = spts_games:add_serpent(Game, Serpent1),
 
   ct:comment("When serpent move it grows"),
@@ -254,12 +254,12 @@ collision_with_serpent_self(Config) ->
   ct:comment("If it now turns back, it dies"),
   NewerGame =
     spts_games_repo:advance(
-      spts_games_repo:turn(NewGame, <<"serp1">>, left)),
+      spts_games_repo:turn(NewGame, <<"cwss1">>, left)),
 
   ct:pal("Old: ~p~nNew: ~p~n", [NewGame, NewerGame]),
 
   ct:comment("The serpent is dead"),
-  dead = spts_serpents:status(spts_games:serpent(NewerGame, <<"serp1">>)),
+  dead = spts_serpents:status(spts_games:serpent(NewerGame, <<"cwss1">>)),
 
   ct:comment("The game finished"),
   finished = spts_games:state(NewerGame),
@@ -273,8 +273,8 @@ collision_with_serpent_head(Config) ->
   GameNumericId = spts_games:numeric_id(Game),
 
   ct:comment("Serpents are placed in proper positions"),
-  Serpent1 = spts_serpents:new(<<"serp1">>, GameNumericId, 1, {2, 2}, right, 1),
-  Serpent2 = spts_serpents:new(<<"serp2">>, GameNumericId, 2, {2, 4}, left, 1),
+  Serpent1 = spts_serpents:new(<<"cwsh1">>, GameNumericId, 1, {2, 2}, right, 1),
+  Serpent2 = spts_serpents:new(<<"cwsh2">>, GameNumericId, 2, {2, 4}, left, 1),
   GameWithSerpents =
     spts_games:add_serpent(
       spts_games:add_serpent(Game, Serpent1), Serpent2),
@@ -283,8 +283,8 @@ collision_with_serpent_head(Config) ->
   NewGame = spts_games_repo:advance(GameWithSerpents),
 
   ct:comment("Both serpents are dead"),
-  dead = spts_serpents:status(spts_games:serpent(NewGame, <<"serp1">>)),
-  dead = spts_serpents:status(spts_games:serpent(NewGame, <<"serp2">>)),
+  dead = spts_serpents:status(spts_games:serpent(NewGame, <<"cwsh1">>)),
+  dead = spts_serpents:status(spts_games:serpent(NewGame, <<"cwsh2">>)),
 
   ct:comment("The game finished"),
   finished = spts_games:state(NewGame),
@@ -312,7 +312,7 @@ always_a_fruit(Config) ->
   Advance =
     fun(Direction) ->
       ct:comment("Pick the serpent and get it to move ~p", [Direction]),
-      ok = spts_core:turn(GameId, <<"serp1">>, Direction),
+      ok = spts_core:turn(GameId, <<"aaf1">>, Direction),
       spts_games:process_name(GameId) ! tick,
       NewGame = spts_core:fetch_game(GameId),
       ct:comment("Fruit is still there: ~p / ~p", [NewGame, Cycle]),
@@ -330,16 +330,14 @@ fruit_reapears(Config) ->
   GameNumericId = spts_games:numeric_id(Game),
 
   ct:comment("Serpent and fruit are placed in proper positions"),
-  Serpent1 = spts_serpents:new(<<"serp1">>, GameNumericId, 1, {2, 2}, right, 0),
-  GameWithSerpentAndFruit =
-    spts_games:add_serpent(
-      spts_games:content(Game, {2, 3}, {fruit, 1}), Serpent1),
+  Serpent1 = spts_serpents:new(<<"fr1">>, GameNumericId, 1, {2, 2}, right, 0),
+  GameWithSerpentAndFruit = add_serpent_and_fruit(Game, 1, Serpent1),
 
   ct:comment("When serpent moves it feeds"),
   NewGame = spts_games_repo:advance(GameWithSerpentAndFruit),
 
   ct:comment("Serpent is alive and its head is where the fruit was"),
-  NewSerpent1 = spts_games:serpent(NewGame, <<"serp1">>),
+  NewSerpent1 = spts_games:serpent(NewGame, <<"fr1">>),
   alive = spts_serpents:status(NewSerpent1),
   [{2, 3}] = spts_serpents:body(NewSerpent1),
 
@@ -359,17 +357,15 @@ fruit_feeds(Config) ->
   GameNumericId = spts_games:numeric_id(Game),
 
   ct:comment("Serpent and fruit are placed in proper positions"),
-  Serpent1 = spts_serpents:new(<<"serp1">>, GameNumericId, 1, {2, 2}, right, 0),
+  Serpent1 = spts_serpents:new(<<"ff1">>, GameNumericId, 1, {2, 2}, right, 0),
   [{2, 2}] = spts_serpents:body(Serpent1),
-  GameWithSerpentAndFruit =
-    spts_games:add_serpent(
-      spts_games:content(Game, {2, 3}, {fruit, 1}), Serpent1),
+  GameWithSerpentAndFruit = add_serpent_and_fruit(Game, 1, Serpent1),
 
   ct:comment("When serpent moves it feeds"),
   NewGame = spts_games_repo:advance(GameWithSerpentAndFruit),
 
   ct:comment("Serpent is alive and its head is where the fruit was"),
-  NewSerpent1 = spts_games:serpent(NewGame, <<"serp1">>),
+  NewSerpent1 = spts_games:serpent(NewGame, <<"ff1">>),
   alive = spts_serpents:status(NewSerpent1),
   [{2, 3}] = spts_serpents:body(NewSerpent1),
 
@@ -383,15 +379,15 @@ fruit_feeds(Config) ->
 
   NewerGame =
     spts_games_repo:advance(
-      spts_games_repo:turn(NewGame, <<"serp1">>, Direction)),
-  NewerSerpent1 = spts_games:serpent(NewerGame, <<"serp1">>),
+      spts_games_repo:turn(NewGame, <<"ff1">>, Direction)),
+  NewerSerpent1 = spts_games:serpent(NewerGame, <<"ff1">>),
   alive = spts_serpents:status(NewerSerpent1),
   [NewerHead, {2, 3}] = spts_serpents:body(NewerSerpent1),
 
   ct:comment("Serpent advances yet again, it's body is not extended"),
   FinalGame = spts_games_repo:advance(NewerGame),
 
-  FinalSerpent1 = spts_games:serpent(FinalGame, <<"serp1">>),
+  FinalSerpent1 = spts_games:serpent(FinalGame, <<"ff1">>),
   alive = spts_serpents:status(FinalSerpent1),
   [FinalHead, NewerHead] = spts_serpents:body(FinalSerpent1),
 
@@ -459,7 +455,7 @@ rounds(Config) ->
   FinalGame = spts_core:fetch_game(GameId),
   ct:comment("~p", [FinalGame]),
   finished = spts_games:state(FinalGame),
-  alive = spts_serpents:status(spts_games:serpent(FinalGame, <<"serp1">>)),
+  alive = spts_serpents:status(spts_games:serpent(FinalGame, <<"rounds1">>)),
 
   {comment, ""}.
 
@@ -472,14 +468,14 @@ initial_food(Config) ->
   [_] =
     spts_serpents:body(
       spts_games:serpent(
-        spts_core:fetch_game(GameId), <<"serp1">>)),
+        spts_core:fetch_game(GameId), <<"if1">>)),
 
   Tick =
     fun() ->
       spts_games:process_name(GameId) ! tick,
       spts_serpents:body(
         spts_games:serpent(
-          spts_core:fetch_game(GameId), <<"serp1">>))
+          spts_core:fetch_game(GameId), <<"if1">>))
     end,
 
   ct:comment("After the first tick, the length should be 2"),
@@ -496,10 +492,8 @@ increasing_food(Config) ->
   GameNumericId = spts_games:numeric_id(Game),
 
   ct:comment("Serpent and fruit are placed in proper positions"),
-  Serpent1 = spts_serpents:new(<<"serp1">>, GameNumericId, 1, {2, 2}, right, 1),
-  GameWithSerpentAndFruit =
-    spts_games:add_serpent(
-      spts_games:content(Game, {2, 3}, {fruit, 10}), Serpent1),
+  Serpent1 = spts_serpents:new(<<"+f1">>, GameNumericId, 1, {2, 2}, right, 1),
+  GameWithSerpentAndFruit = add_serpent_and_fruit(Game, 10, Serpent1),
 
   ct:comment("When serpent moves it feeds"),
   NewGame = spts_games_repo:advance(GameWithSerpentAndFruit),
@@ -519,7 +513,7 @@ random_increasing_food(Config) ->
   GameNumericId = spts_games:numeric_id(Game),
 
   ct:comment("Serpent and fruit are placed in proper positions"),
-  Serpent1 = spts_serpents:new(<<"serp1">>, GameNumericId, 1, {2, 2}, right, 1),
+  Serpent1 = spts_serpents:new(<<"r+f1">>, GameNumericId, 1, {2, 2}, right, 1),
   GameWithSerpentAndFruit =
     spts_games:add_serpent(
       spts_games:content(Game, {2, 3}, {fruit, 1}), Serpent1),
@@ -542,7 +536,7 @@ random_food(Config) ->
   GameNumericId = spts_games:numeric_id(Game),
 
   ct:comment("Serpent and fruit are placed in proper positions"),
-  Serpent1 = spts_serpents:new(<<"serp1">>, GameNumericId, 1, {2, 2}, right, 1),
+  Serpent1 = spts_serpents:new(<<"rf1">>, GameNumericId, 1, {2, 2}, right, 1),
   GameWithSerpentAndFruit =
     spts_games:add_serpent(
       spts_games:content(Game, {2, 3}, {fruit, 10}), Serpent1),
@@ -564,11 +558,11 @@ max_serpents(Config) ->
   {game, GameId} = lists:keyfind(game, 1, Config),
 
   ct:comment("2 serpents can be added"),
-  spts_core:add_serpent(GameId, <<"serp1">>),
-  spts_core:add_serpent(GameId, <<"serp2">>),
+  spts_core:add_serpent(GameId, <<"ms1">>),
+  spts_core:add_serpent(GameId, <<"ms2">>),
 
   ct:comment("the 3rd one can not"),
-  try spts_core:add_serpent(GameId, <<"serp3">>) of
+  try spts_core:add_serpent(GameId, <<"ms3">>) of
     S -> ct:fail("Unexpected serpent addition: ~p", [S])
   catch
     throw:invalid_state -> ok
@@ -577,3 +571,7 @@ max_serpents(Config) ->
   [_, _] = spts_games:serpents(spts_core:fetch_game(GameId)),
 
   {comment, ""}.
+
+add_serpent_and_fruit(Game, Food, Serpent) ->
+  spts_games:add_serpent(
+    spts_games:content(Game, {2, 3}, {fruit, Food}), Serpent).

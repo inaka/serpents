@@ -3,7 +3,6 @@
 -author('elbrujohalcon@inaka.net').
 
 -behavior(gen_server).
--behaviour(spts_gen_event_handler).
 
 -export([user_connected/3, user_update/4]).
 -export([start_link/1, process_name/1]).
@@ -14,6 +13,7 @@
 
 -type address() :: {inet:ip_address(), pos_integer()}.
 -record(user, { serpent_id  :: pos_integer()
+              , serpent_name:: spts_serpents:name()
               , tick        :: pos_integer()
               , address     :: address()
               }).
@@ -33,7 +33,7 @@
 %%% External API functions
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 -spec user_connected(
-  binary(), address(), pos_integer()) -> {ok, pos_integer()} | error.
+  binary(), address(), pos_integer()) -> pos_integer().
 user_connected(Name, Address, GameId) ->
   Process =
     case spts_hdp_game_sup:start_child(GameId) of
@@ -111,9 +111,10 @@ handle_call({user_connected, Name, Address}, _From, State) ->
   try spts_core:add_serpent(GameId, Name) of
     Serpent ->
       SerpentId = spts_serpents:numeric_id(Serpent),
-      User = #user{ serpent_id  = SerpentId
-                  , address     = Address
-                  , tick        = undefined
+      User = #user{ serpent_id   = SerpentId
+                  , serpent_name = Name
+                  , address      = Address
+                  , tick         = undefined
                   },
       NewUsers = [User | Users],
       CurrentTick = Tick + 1,
@@ -167,7 +168,7 @@ handle_info(Msg, State) ->
   {user_update, pos_integer(), address(), pos_integer(),
    undefined | spts_games:direction()}, state()) -> {noreply, state()}.
 handle_cast({user_update, SerpentId, Address, LastTick, Direction}, State) ->
-  #state{users = Users} = State,
+  #state{users = Users, game_id = GameId} = State,
   NewState =
     case lists:keytake(SerpentId, #user.serpent_id, Users) of
       false ->
@@ -175,6 +176,7 @@ handle_cast({user_update, SerpentId, Address, LastTick, Direction}, State) ->
         State;
       {value, User, OtherUsers} ->
         NewUsers = [User#user{address = Address, tick = LastTick} | OtherUsers],
+        maybe_change_direction(GameId, User#user.serpent_name, Direction),
         clean_history(State#state{users = NewUsers})
     end,
   {noreply, NewState}.
@@ -240,3 +242,7 @@ purge_history(MinTick, History = [{MinTick, _Game} | _Rest], Acc) ->
   lists:reverse([{MinTick, latest_game(History)} | Acc]);
 purge_history(MinTick, [Newer | History], Acc) ->
   purge_history(MinTick, History, [Newer | Acc]).
+
+maybe_change_direction(_GameId, _SerpentName, undefined) -> ok;
+maybe_change_direction(GameId, SerpentName, Direction) ->
+  ok = spts_core:turn(GameId, SerpentName, Direction).

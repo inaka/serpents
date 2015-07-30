@@ -4,6 +4,8 @@
 
 -behavior(gen_fsm).
 
+-type game_id() :: spts_games:id() | pos_integer().
+
 -record(state, {game :: spts_games:game(), dispatcher :: pid()}).
 
 -type state() :: #state{}.
@@ -80,39 +82,39 @@ create_game(Options) ->
   Game.
 
 %% @doc Adds a serpent to GameId
--spec add_serpent(spts_games:id(), spts_serpents:name()) ->
+-spec add_serpent(game_id(), spts_serpents:name()) ->
   spts_serpents:serpent().
 add_serpent(GameId, SerpentName) ->
   call(GameId, {add_serpent, SerpentName}).
 
 %% @doc Can we start the game?
--spec can_start(spts_games:id()) -> boolean().
+-spec can_start(game_id()) -> boolean().
 can_start(GameId) ->
   call(GameId, can_start).
 
 %% @doc Closes the joining period for the game and starts it
--spec start_game(spts_games:id()) -> ok.
+-spec start_game(game_id()) -> ok.
 start_game(GameId) ->
   cast(GameId, start).
 
 %% @doc Stops the game
--spec stop_game(spts_games:id()) -> ok.
+-spec stop_game(game_id()) -> ok.
 stop_game(GameId) ->
   cast(GameId, stop).
 
 %% @doc a serpent changes direction
--spec turn(spts_games:id(), spts_serpents:name(), spts_games:direction()) -> ok.
+-spec turn(game_id(), spts_serpents:name(), spts_games:direction()) -> ok.
 turn(GameId, SerpentName, Direction) ->
   cast(GameId, {turn, SerpentName, Direction}).
 
 %% @doc Retrieves the status of a game
--spec fetch_game(pos_integer() | spts_games:id()) ->
+-spec fetch_game(game_id()) ->
   spts_games:game().
 fetch_game(GameId) ->
   call(GameId, fetch).
 
 %% @doc Is this game running?
--spec is_game(spts_games:id()) -> boolean().
+-spec is_game(game_id()) -> boolean().
 is_game(GameId) ->
   undefined =/= erlang:whereis(spts_games:process_name(GameId)).
 
@@ -128,14 +130,14 @@ all_games() ->
     end, Processes).
 
 %% @doc Subscribes to the game gen_event dispatcher using gen_event:swap_handler
--spec subscribe(spts_games:id(), module() | {module(), term()}, term()) ->
+-spec subscribe(game_id(), module() | {module(), term()}, term()) ->
   ok.
 subscribe(GameId, Handler, Args) ->
   gen_event:swap_handler(
     call(GameId, dispatcher), {Handler, Args}, {Handler, Args}).
 
 %% @doc Calls the game gen_event dispatcher.
--spec call_handler(spts_games:id(), module() | {module(), term()}, term()) ->
+-spec call_handler(game_id(), module() | {module(), term()}, term()) ->
   term().
 call_handler(GameId, Handler, Request) ->
   gen_event:call(call(GameId, dispatcher), Handler, Request).
@@ -193,10 +195,8 @@ handle_info(tick, started, State) ->
   #state{game = Game} = State,
   NewGame = spts_games_repo:advance(Game),
   NewState = State#state{game = NewGame},
-  OldDeadSerpents =
-    [S || S <- spts_games:serpents(Game), spts_serpents:status(S) == dead],
-  NewDeadSerpents =
-    [S || S <- spts_games:serpents(NewGame), spts_serpents:status(S) == dead],
+  OldDeadSerpents = dead_serpents(Game),
+  NewDeadSerpents = dead_serpents(NewGame),
   lists:foreach(
     fun(DeadSerpent) ->
       notify({collision_detected, DeadSerpent}, NewState)
@@ -406,3 +406,6 @@ tick(Game) -> erlang:send_after(spts_games:ticktime(Game), self(), tick).
 
 notify(Event, State) ->
   ok = gen_event:notify(State#state.dispatcher, Event).
+
+dead_serpents(Game) ->
+  [S || S <- spts_games:serpents(Game), spts_serpents:status(S) == dead].

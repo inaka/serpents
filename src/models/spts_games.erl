@@ -354,7 +354,8 @@ diff_data_to_binary(#{type := rounds, data := Rounds}) ->
   [<<Rounds:?UINT>>];
 diff_data_to_binary(#{type := serpents, data := Serpents}) ->
   NumSerpents = length(Serpents),
-  [<<NumSerpents:?UCHAR>> | [spts_serpents:to_binary(S, complete) || S <- Serpents]];
+  [<<NumSerpents:?UCHAR>> |
+    [spts_serpents:to_binary(S, complete) || S <- Serpents]];
 diff_data_to_binary(#{type := fruit, data := {{Row, Col}, Food}}) ->
   [<<Food:?UCHAR, Row:?UCHAR, Col:?UCHAR>>].
 

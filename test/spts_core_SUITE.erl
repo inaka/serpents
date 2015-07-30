@@ -390,8 +390,7 @@ add_serpent_ok(Config) ->
   Serpent1 = spts_core:add_serpent(GameId, <<"serp1">>),
   [{Row1, Col1}] = spts_serpents:body(Serpent1),
   GameNumericId = spts_serpents:game_id(spts_serpents:numeric_id(Serpent1)),
-  true =
-    lists:member(spts_serpents:direction(Serpent1), [up, down, left, right]),
+  check_direction(Serpent1),
   true = Row1 > 0,
   true = Row1 < 11,
   true = Col1 > 0,
@@ -403,8 +402,7 @@ add_serpent_ok(Config) ->
   Serpent2 = spts_core:add_serpent(GameId, <<"serp2">>),
   [{Row2, Col2}] = spts_serpents:body(Serpent2),
   GameNumericId = spts_serpents:game_id(spts_serpents:numeric_id(Serpent2)),
-  true =
-    lists:member(spts_serpents:direction(Serpent2), [up, down, left, right]),
+  check_direction(Serpent2),
   true = Row2 > 0,
   true = Row2 < 11,
   true = Col2 > 0,
@@ -416,8 +414,7 @@ add_serpent_ok(Config) ->
   Serpent3 = spts_core:add_serpent(GameId, <<"serp3">>),
   [{Row3, Col3}] = spts_serpents:body(Serpent3),
   GameNumericId = spts_serpents:game_id(spts_serpents:numeric_id(Serpent3)),
-  true =
-    lists:member(spts_serpents:direction(Serpent3), [up, down, left, right]),
+  check_direction(Serpent3),
   true = Row3 > 0,
   true = Row3 < 11,
   true = Col3 > 0,
@@ -614,3 +611,7 @@ walls_flag_ok(_Config) ->
   [_|_] = spts_games:walls(Game),
 
   {comment, ""}.
+
+check_direction(Serpent) ->
+  true =
+    lists:member(spts_serpents:direction(Serpent), [up, down, left, right]).
