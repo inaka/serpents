@@ -249,4 +249,5 @@ send(Message, #metadata{socket = UdpSocket, ip = Ip, port = Port}) ->
   send(Message, UdpSocket, Ip, Port).
 
 send(Message, UdpSocket, Ip, Port) ->
+  ct:pal("~p for ~p (~p / ~p)", [Message, UdpSocket, Ip, Port]),
   ok = gen_udp:send(UdpSocket, Ip, Port, Message).

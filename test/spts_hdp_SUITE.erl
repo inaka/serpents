@@ -268,7 +268,7 @@ state_server_update(Config) ->
   [countdown] = [Data || #{data := Data, type := state} <- Diffs],
 
   ct:comment("The client acks the update"),
-  ok = hdp_send(hdp_update(3, S1Id, Tick, none), Config),
+  ok = hdp_direct_send(hdp_update(3, S1Id, Tick, none), Config),
 
   ct:comment("After a tick, the server sends an update with no diffs"),
   Process ! tick,
@@ -309,7 +309,7 @@ countdown_server_update(Config) ->
   {server_update, Tick, Tick, {Tick, _}} = hdp_recv(Config),
 
   ct:comment("The client acks the updates"),
-  ok = hdp_send(hdp_update(3, S1Id, Tick, left), Config),
+  ok = hdp_direct_send(hdp_update(3, S1Id, Tick, left), Config),
 
   ct:comment("After a tick, the server sends an update with no diffs"),
   Process ! tick,
@@ -357,8 +357,10 @@ rounds_server_update(Config) ->
   Process ! tick,
   {server_update, Tick, Tick, {Tick, _}} = hdp_recv(Config),
 
+  clean_queue(Config),
+
   ct:comment("The client acks the updates"),
-  ok = hdp_send(hdp_update(3, S1Id, Tick, right), Config),
+  ok = hdp_direct_send(hdp_update(3, S1Id, Tick, right), Config),
 
   ct:comment("After a tick, the server sends an update with no diffs"),
   Process ! tick,
@@ -397,8 +399,9 @@ serpents_server_update(Config) ->
   {join_response, 3, _, {S2Id, _GD2}} = hdp_recv(Config),
 
   ct:comment(
-    "After a tick, the server sends an update with both serpents"),
+    "After a tick, the server sends updates with both serpents to both users"),
   Process ! tick,
+  {server_update, Tick2, Tick2, {Tick2, Diffs2}} = hdp_recv(Config),
   {server_update, Tick2, Tick2, {Tick2, Diffs2}} = hdp_recv(Config),
   case Tick2 of
     Tick2 when Tick2 =< Tick1 -> ct:fail("Wrong ticks: ~p, ~p", [Tick1, Tick2]);
@@ -414,11 +417,12 @@ serpents_server_update(Config) ->
     [Body || #{id := SId, body := Body} <- SerpentsDiff, SId == S2Id],
 
   ct:comment("The client acks the update"),
-  ok = hdp_send(hdp_update(3, S1Id, Tick2, down), Config),
-  ok = hdp_send(hdp_update(3, S2Id, Tick2, down), Config),
+  ok = hdp_direct_send(hdp_update(3, S1Id, Tick2, down), Config),
+  ok = hdp_direct_send(hdp_update(3, S2Id, Tick2, down), Config),
 
-  ct:comment("After a tick, the server sends an update with no diffs"),
+  ct:pal("After a tick, the server sends updates with no diffs to both users"),
   Process ! tick,
+  {server_update, Tick3, Tick3, {Tick3, []}} = hdp_recv(Config),
   {server_update, Tick3, Tick3, {Tick3, []}} = hdp_recv(Config),
 
   {comment , ""}.
@@ -457,7 +461,7 @@ fruit_server_update(Config) ->
   end,
 
   ct:comment("The client acks the update"),
-  ok = hdp_send(hdp_update(3, S1Id, Tick, up), Config),
+  ok = hdp_direct_send(hdp_update(3, S1Id, Tick, up), Config),
 
   ct:comment("After a tick, the server sends an update with no diffs"),
   Process ! tick,
@@ -468,6 +472,9 @@ fruit_server_update(Config) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Message parsing/handling
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+clean_queue(Config) ->
+  ktn_task:wait_for(fun() -> hdp_recv(Config) end, {error, timeout}).
+
 hdp_recv(Config) ->
   hdp_recv(Config, default).
 hdp_recv(Config, Parser) ->
@@ -608,6 +615,12 @@ hdp_parse_serpents(Serpents) ->
   [ {Id, Name}
   || <<Id:?UINT, NameSize:?UCHAR, Name:NameSize/binary>> <= Serpents
   ].
+
+hdp_direct_send(Message, Config) ->
+  {socket, UdpSocket} = lists:keyfind(socket, 1, Config),
+  Port = application:get_env(serpents, udp_port, 8584) - 1,
+  Data = iolist_to_binary(Message),
+  spts_hdp_handler:handle_udp(Data, UdpSocket, {127,0,0,1}, Port).
 
 hdp_send(Message, Config) ->
   {socket, UdpSocket} = lists:keyfind(socket, 1, Config),

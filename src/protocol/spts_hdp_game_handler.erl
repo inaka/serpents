@@ -147,6 +147,7 @@ handle_info(tick, State) ->
         , game_id = GameId
         } = State,
   CurrentTick = Tick + 1,
+  ct:pal("Tick #~p", [CurrentTick]),
   Game = spts_core:fetch_game(GameId),
   Step =
     case latest_game(History) of
@@ -234,7 +235,11 @@ clean_history(State) ->
       State;
     false ->
       [#user{tick = MinTick}|_] = lists:keysort(#user.tick, Users),
-      PurgedHistory =
-        lists:takewhile(fun({HistTick, _}) -> HistTick >= MinTick end, History),
+      PurgedHistory = purge_history(MinTick, History, []),
       State#state{history = PurgedHistory}
   end.
+
+purge_history(MinTick, History = [{MinTick, _Game} | _Rest], Acc) ->
+  lists:reverse([{MinTick, latest_game(History)} | Acc]);
+purge_history(MinTick, [Newer | History], Acc) ->
+  purge_history(MinTick, History, [Newer | Acc]).
