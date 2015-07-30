@@ -9,7 +9,6 @@
 -export([start_link/1, process_name/1]).
 -export([init/1, terminate/2, code_change/3,
          handle_call/3, handle_cast/2, handle_info/2]).
--export([notify/2]).
 
 -include("binary-sizes.hrl").
 
@@ -42,15 +41,9 @@ user_connected(Name, Address, GameId) ->
       {ok, Pid} -> Pid; % just started now
       {error, InitError} -> throw(InitError)
     end,
-  try gen_server:call(Process, {user_connected, Name, Address}) of
+  case gen_server:call(Process, {user_connected, Name, Address}) of
     {ok, SerpentId} -> SerpentId;
     {error, Error} -> throw(Error)
-  catch
-    _:Exception ->
-      lager:error(
-        "Couldn't connect ~p (~p) to ~p (~p): ~p~nStack: ~p",
-        [Name, Address, GameId, Process, Exception, erlang:get_stacktrace()]),
-      throw(Exception)
   end.
 
 -spec user_update(
@@ -82,10 +75,6 @@ process_name(GameId) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Callback implementation
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% @doc sends an event to a listener
--spec notify(pid(), spts_core:event()) -> ok.
-notify(Pid, Event) -> Pid ! {event, Event}.
-
 -spec init(pos_integer()) -> {ok, state()} | {stop, badgame}.
 init(GameNumericId) ->
   try spts_core:fetch_game(GameNumericId) of
@@ -111,7 +100,8 @@ init(GameNumericId) ->
 
 -spec handle_call(
   {user_connected, binary(), address()}, _, state()) ->
-  {reply, {ok, pos_integer()} | {error, term()}, state()}.
+  {reply, {ok, pos_integer()} | {error, term()}, state()} |
+  {stop, normal, {error, {badgame, pos_integer()}}, state()}.
 handle_call({user_connected, Name, Address}, _From, State) ->
   #state{ users   = Users
         , game_id = GameId
@@ -135,31 +125,40 @@ handle_call({user_connected, Name, Address}, _From, State) ->
                    },
       {reply, {ok, SerpentId}, NewState}
   catch
+    _:{badgame, _GameId} ->
+      lager:warning("Not a game: ~p", [GameId]),
+      {stop, normal, {error, {badgame, GameId}}, State};
     _:Reason ->
       lager:warning("Unable to join game, reason: ~p", [Reason]),
       {reply, {error, Reason}, State}
   end.
 
--spec handle_info(any(), state()) -> {noreply, state()}.
+-spec handle_info(any(), state()) ->
+  {noreply, state()} | {stop, normal, state()}.
 handle_info(tick, State) ->
   #state{ tick    = Tick
         , history = History
         , game_id = GameId
         } = State,
   CurrentTick = Tick + 1,
-  ct:pal("Tick #~p", [CurrentTick]),
-  Game = spts_core:fetch_game(GameId),
-  Step =
-    case latest_game(History) of
-      Game -> no_changes;
-      _OldGame -> Game
-    end,
-  NewState =
-    State#state{ tick = CurrentTick
-               , history = [{CurrentTick, Step} | History]
-               },
-  spawn(fun() -> update_all_users(NewState) end),
-  {noreply, NewState};
+  try spts_core:fetch_game(GameId) of
+    Game ->
+      Step =
+        case latest_game(History) of
+          Game -> no_changes;
+          _OldGame -> Game
+        end,
+      NewState =
+        State#state{ tick = CurrentTick
+                   , history = [{CurrentTick, Step} | History]
+                   },
+      spawn(fun() -> update_all_users(NewState) end),
+      {noreply, NewState}
+  catch
+    _:{badgame, _GameId} ->
+      lager:info("Game Ended: ~p", [GameId]),
+      {stop, normal, State}
+  end;
 handle_info(Msg, State) ->
   lager:notice("received unexpected info message: ~p", [Msg]),
   {noreply, State}.
@@ -169,7 +168,6 @@ handle_info(Msg, State) ->
    undefined | spts_games:direction()}, state()) -> {noreply, state()}.
 handle_cast({user_update, SerpentId, Address, LastTick, Direction}, State) ->
   #state{users = Users} = State,
-  ct:pal("Update for user ~p: ~p, ~p, ~p", [SerpentId, Address, LastTick, Direction]),
   NewState =
     case lists:keytake(SerpentId, #user.serpent_id, Users) of
       false ->
@@ -219,7 +217,6 @@ update_user(User, State) ->
         } = State,
   UserGame = historic_game(UserTick, History),
   CurrentGame = latest_game(History),
-  ct:pal("User ~p: ~p vs. ~p\n~p", [User#user.serpent_id, UserTick, Tick, History]),
   Diffs =
     [ spts_games:diff_to_binary(Diff)
     || Diff <- spts_games:diffs(UserGame, CurrentGame)],

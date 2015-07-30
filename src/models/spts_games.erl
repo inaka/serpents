@@ -351,10 +351,7 @@ diff_data_to_binary(#{type := state, data := Data}) ->
 diff_data_to_binary(#{type := countdown, data := Countdown}) ->
   [<<Countdown:?USHORT>>];
 diff_data_to_binary(#{type := rounds, data := Rounds}) ->
-  case Rounds of
-    infinity -> [<<0:?UINT>>];
-    Rounds -> [<<Rounds:?UINT>>]
-  end;
+  [<<Rounds:?UINT>>];
 diff_data_to_binary(#{type := serpents, data := Serpents}) ->
   NumSerpents = length(Serpents),
   [<<NumSerpents:?UCHAR>> | [spts_serpents:to_binary(S, complete) || S <- Serpents]];

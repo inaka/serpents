@@ -381,11 +381,11 @@ try_call(Process, Event) ->
     {ok, Result} -> Result;
     {error, Error} -> throw(Error)
   catch
-    _:Exception ->
+    _:{noproc, _} ->
       lager:error(
-        "Couldn't send ~p to ~p: ~p~nStack: ~p",
-        [Event, Process, Exception, erlang:get_stacktrace()]),
-      throw(Exception)
+        "Couldn't send ~p to ~p: not a game~nStack: ~p",
+        [Event, Process, erlang:get_stacktrace()]),
+      throw({badgame, Process})
   end.
 
 do_call(Process, can_start) ->

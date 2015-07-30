@@ -16,10 +16,27 @@
         , spts_gen_event_handler/1
         , spts_core/1
         , spts_games/1
+        , spts_hdp_handler/1
+        , spts_hdp_game_handler/1
         ]).
 
 -spec all() -> [atom()].
 all() -> spts_test_utils:all(?MODULE).
+
+-spec spts_hdp_game_handler(spts_test_utils:config()) -> {comment, []}.
+spts_hdp_game_handler(_Config) ->
+  ct:comment("spts_hdp_game_handler:code_change"),
+  {ok, state} = spts_hdp_game_handler:code_change(oldvsn, state, extra),
+  {comment, ""}.
+
+-spec spts_hdp_handler(spts_test_utils:config()) -> {comment, []}.
+spts_hdp_handler(_Config) ->
+  ct:comment("spts_hdp_handler:terminate returns ok"),
+  ok = spts_hdp_handler:terminate(reason, state),
+
+  ct:comment("spts_hdp_handler:code_change"),
+  {ok, state} = spts_hdp_handler:code_change(oldvsn, state, extra),
+  {comment, ""}.
 
 -spec spts_web_utils(spts_test_utils:config()) -> {comment, []}.
 spts_web_utils(_Config) ->
@@ -62,7 +79,6 @@ spts_games(_Config) ->
 
   {comment, ""}.
 
-
 -spec spts_core(spts_test_utils:config()) -> {comment, []}.
 spts_core(_Config) ->
   ct:comment("spts_core:code_change"),
@@ -89,7 +105,7 @@ spts_core(_Config) ->
   try spts_core:add_serpent(<<"no-game-id">>, <<"it">>) of
     RR -> ct:fail("Unexpected result: ~p", [RR])
   catch
-    _:{noproc, _} -> ok
+    _:{badgame, _} -> ok
   end,
 
   ct:comment("turn in started"),

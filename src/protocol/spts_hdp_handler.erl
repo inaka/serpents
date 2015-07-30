@@ -47,15 +47,14 @@ init(noargs) ->
   {ok, UdpSocket} = gen_udp:open(Port, [{mode, binary}, {reuseaddr, true}]),
   {ok, #state{socket = UdpSocket}}.
 
--spec handle_cast(term(), state()) -> {noreply, state()}.
+-spec handle_cast(
+  {send, inet:ip_address(), pos_integer(), pos_integer(), iodata()}, state()) ->
+  {noreply, state()}.
 handle_cast({send, Ip, Port, Tick, Message}, State) ->
   #state{socket = UdpSocket} = State,
   Flags = set_flags([update, success]),
   send(
     [<<Flags:?UCHAR, Tick:?UINT, Tick:?USHORT>>, Message], UdpSocket, Ip, Port),
-  {noreply, State};
-handle_cast(Msg, State) ->
-  lager:warning("Unexpected message: ~p", [Msg]),
   {noreply, State}.
 
 -spec handle_info(term(), state()) -> {noreply, state()}.
@@ -85,23 +84,14 @@ handle_udp(<<Flags:?UCHAR,
              UserId:?UINT,
              Message/binary>> = Data,
            UdpSocket, Ip, Port) ->
-  case get_message_type(Flags band 7) of
-    undefined ->
-      lager:info("received bad type from ~p: ~p", [Ip, Data]);
-    MessageType ->
-      Metadata = #metadata{messageId = MessageId,
-                           userTime = UserTime,
-                           userId = UserId,
-                           socket = UdpSocket,
-                           ip = Ip,
-                           port = Port},
-      case handle_message(MessageType, Message, Metadata) of
-        undefined ->
-          lager:info("received bad message ~p from ~p", [Message, Ip]);
-        _Ok ->
-          ok
-      end
-  end;
+  MessageType = get_message_type(Flags band 7),
+  Metadata = #metadata{messageId = MessageId,
+                       userTime = UserTime,
+                       userId = UserId,
+                       socket = UdpSocket,
+                       ip = Ip,
+                       port = Port},
+  handle_message(MessageType, Message, Metadata);
 % Garbage and malformed messages are simply ignored
 handle_udp(MalforedMessage, _UdpSocket, Ip, _Port) ->
   lager:info("received malformed message from ~p: ~p", [Ip, MalforedMessage]),
@@ -132,16 +122,14 @@ handle_message(info,
                <<GameId:?USHORT>>,
                Metadata = #metadata{messageId = MessageId,
                                     userTime  = UserTime}) ->
-  try
-    % Retrieve the game data
-    GameDesc = spts_games:to_binary(spts_core:fetch_game(GameId), complete),
-
-    Flags = set_flags([info, success]),
-    send([<<Flags:?UCHAR,
-            MessageId:?UINT,
-            UserTime:?USHORT>>,
-            GameDesc],
-           Metadata)
+  try spts_games:to_binary(spts_core:fetch_game(GameId), complete) of
+    GameDesc ->
+      Flags = set_flags([info, success]),
+      send([<<Flags:?UCHAR,
+              MessageId:?UINT,
+              UserTime:?USHORT>>,
+              GameDesc],
+             Metadata)
   catch
     throw:{badgame, GameId} ->
       lager:warning("Game ~p doesn't exist", [GameId]),
@@ -149,21 +137,8 @@ handle_message(info,
       ErrorReason = spts_binary:pascal_string(<<"badgame">>),
       send(
         <<ErrorFlags:?UCHAR, MessageId:?UINT, UserTime:?USHORT,
-          GameId:?USHORT, ErrorReason/binary>>, Metadata);
-    A:B -> lager:warning(
-            "Unexpected error ~p:~p~n~p", [A, B, erlang:get_stacktrace()]),
-           ErrorFlags = set_flags([info, error]),
-           ErrorReason = "unspecified",
-           ErrorReasonLength = length(ErrorReason),
-           send([<<ErrorFlags:?UCHAR,
-                   MessageId:?UINT,
-                   UserTime:?USHORT,
-                   GameId:?USHORT,
-                   ErrorReasonLength:?UCHAR>>,
-                 ErrorReason],
-                Metadata)
+          GameId:?USHORT, ErrorReason/binary>>, Metadata)
   end;
-  
 %% JOIN COMMAND
 handle_message(join,
                <<GameId:?USHORT,
@@ -187,7 +162,7 @@ handle_message(join,
           GameDesc],
          Metadata)
   catch
-    throw:{badgame, GameId} ->
+    throw:{badgame, _} ->
       lager:warning("Game ~p doesn't exist", [GameId]),
       ErrorFlags = set_flags([join, error]),
       ErrorReason = spts_binary:pascal_string(<<"badgame">>),
@@ -213,8 +188,9 @@ handle_message(
   Direction = get_direction(Action),
   spts_hdp_game_handler:user_update(
     Metadata#metadata.userId, Address, LastServerTick, Direction);
-handle_message(_MessageType, _Garbage, _Metadata) ->
-  undefined.
+handle_message(MessageType, Garbage, Metadata) ->
+  lager:warning(
+    "Malformed Message:~n~p~n~p~n~p", [MessageType, Garbage, Metadata]).
 
 %%==============================================================================
 %% Utils
@@ -249,5 +225,4 @@ send(Message, #metadata{socket = UdpSocket, ip = Ip, port = Port}) ->
   send(Message, UdpSocket, Ip, Port).
 
 send(Message, UdpSocket, Ip, Port) ->
-  ct:pal("~p for ~p (~p / ~p)", [Message, UdpSocket, Ip, Port]),
   ok = gen_udp:send(UdpSocket, Ip, Port, Message).
