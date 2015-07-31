@@ -36,7 +36,7 @@ unsubscribe(GameId, Module, Process) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% EVENT CALLBACKS
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
--spec init({pid(), ok|error}) -> {ok, state()}.
+-spec init({{module(), pid()}, ok|error}) -> {ok, state()}.
 init({{Module, Process}, _TerminateResult}) ->
   {ok, #state{module = Module, process = Process}}.
 

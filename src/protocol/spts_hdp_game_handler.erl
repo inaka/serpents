@@ -14,17 +14,17 @@
 -type address() :: {inet:ip_address(), pos_integer()}.
 -record(user, { serpent_id  :: pos_integer()
               , serpent_name:: spts_serpents:name()
-              , tick        :: pos_integer()
+              , tick        :: non_neg_integer()
               , address     :: address()
               }).
 -type user() :: #user{}.
 -type step() :: no_changes | spts_games:game().
 -record(state, { game_id      :: spts_games:id()
-               , tick = 0     :: pos_integer()
+               , tick = 0     :: non_neg_integer()
                , ticktime     :: pos_integer()
                , users = []   :: [user()]
                , tref         :: timer:tref()
-               , history = [] :: [{pos_integer(), step()}]
+               , history = [] :: [{non_neg_integer(), step()}]
                }).
 -type state() :: #state{}.
 -export_type([address/0]).
@@ -75,7 +75,7 @@ process_name(GameId) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Callback implementation
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
--spec init(pos_integer()) -> {ok, state()} | {stop, badgame}.
+-spec init(pos_integer()) -> {ok, state()} | {stop, {badgame, spts_games:id()}}.
 init(GameNumericId) ->
   try spts_core:fetch_game(GameNumericId) of
     Game ->

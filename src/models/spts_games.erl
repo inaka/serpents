@@ -329,7 +329,7 @@ to_binary(Game, reduced) ->
   <<Id:?USHORT, Name/binary, State:?UCHAR,
     NumSerpents:?UCHAR, MaxSerpents:?UCHAR>>.
 
--spec diff_to_binary(diff()) -> binary().
+-spec diff_to_binary(diff()) -> iodata().
 diff_to_binary(Diff) ->
   #{type := Type} = Diff,
   TypeBin =
