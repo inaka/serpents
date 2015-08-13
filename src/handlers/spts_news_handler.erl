@@ -3,6 +3,7 @@
 -author('elbrujohalcon@inaka.net').
 
 -behavior(lasse_handler).
+-behaviour(spts_gen_event_handler).
 
 -export([ init/3
         , handle_notify/2
@@ -35,7 +36,7 @@ init([], _LastEventId, Req) ->
         #{ data => spts_json:encode(spts_games:to_json(Game))
          , event => <<"game_status">>
          },
-      ok = spts_news_event_handler:subscribe(GameId, self()),
+      ok = spts_gen_event_handler:subscribe(GameId, ?MODULE, self()),
       {ok, Req1, [FirstEvent], #{game => GameId}}
   end.
 
@@ -73,6 +74,6 @@ handle_error(Event, Error, State) ->
 -spec terminate(any(), cowboy_req:req(), state()) -> ok.
 terminate(Reason, _Req, #{game := GameId}) ->
   lager:notice("News for ~p terminating: ~p", [GameId, Reason]),
-  catch spts_news_event_handler:unsubscribe(GameId, self()),
+  catch spts_gen_event_handler:unsubscribe(GameId, ?MODULE, self()),
   ok;
 terminate(_Reason, _Req, _State) -> ok.

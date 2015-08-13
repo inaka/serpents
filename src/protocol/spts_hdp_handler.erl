@@ -1,14 +1,23 @@
 -module(spts_hdp_handler).
 -author('hernanrivasacosta@gmail.com').
+-author('elbrujohalcon@inaka.net').
 
-% API
--export([start_link/0, send_update/4]).
-% For internal use only
--export([loop/1, handle_udp/4]).
+-behaviour(gen_server).
 
--define(UCHAR,  8/unsigned-integer).
--define(USHORT, 16/unsigned-integer).
--define(UINT,   32/unsigned-integer).
+%%% gen_server callbacks
+-export([
+         init/1, handle_call/3, handle_cast/2,
+         handle_info/2, terminate/2, code_change/3
+        ]).
+%%% API
+-export([start_link/0, send_update/3]).
+%%% For internal use only
+-export([handle_udp/4]).
+
+-include("binary-sizes.hrl").
+
+-record(state, {socket :: port()}).
+-type state() :: #state{}.
 
 -record(metadata, {messageId      = 0 :: integer(),
                    userTime       = 0 :: integer(),
@@ -17,66 +26,72 @@
                    ip     = undefined :: inet:ip_address() | undefined,
                    port   = undefined :: integer() | undefined}).
 
-%%==============================================================================
-%% API
-%%==============================================================================
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% External API functions
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 -spec start_link() -> {ok, pid()}.
 start_link() ->
+  gen_server:start_link(
+    {local, ?MODULE}, ?MODULE, noargs, [{debug, [trace, log]}]).
+
+-spec send_update(integer(), iodata(), spts_hdp_game_handler:address()) -> ok.
+send_update(Tick, Message, {Ip, Port}) ->
+  gen_server:cast(?MODULE, {send, Ip, Port, Tick, Message}).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Callback implementation
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+-spec init(noargs) -> {ok, state()}.
+init(noargs) ->
   Port = application:get_env(serpents, udp_port, 8584),
-  {ok, UdpSocket} = gen_udp:open(Port, udp_opts()),
-  UdpHandler = spawn_link(?MODULE, loop, [UdpSocket]),
-  register(?MODULE, UdpHandler),
-  gen_udp:controlling_process(UdpSocket, UdpHandler),
-  {ok, UdpHandler}.
+  {ok, UdpSocket} = gen_udp:open(Port, [{mode, binary}, {reuseaddr, true}]),
+  {ok, #state{socket = UdpSocket}}.
 
--spec send_update(integer(), iodata(), inet:ip_address(), integer()) -> ok.
-send_update(Tick, Message, Ip, Port) ->
+-spec handle_cast(
+  {send, inet:ip_address(), pos_integer(), pos_integer(), iodata()}, state()) ->
+  {noreply, state()}.
+handle_cast({send, Ip, Port, Tick, Message}, State) ->
+  #state{socket = UdpSocket} = State,
   Flags = set_flags([update, success]),
-  ?MODULE ! {send_update, [<<Flags:?UCHAR, Tick:?UINT, Tick:?USHORT>>,
-                           Message], Ip, Port}.
+  send(
+    [<<Flags:?UCHAR, Tick:?UINT, Tick:?USHORT>>, Message], UdpSocket, Ip, Port),
+  {noreply, State}.
 
--spec loop(port()) -> _.
-loop(UdpSocket) ->
-  receive
-    {udp, UdpSocket, Ip, Port, Bin} ->
-      _Pid = spawn(?MODULE, handle_udp, [Bin, UdpSocket, Ip, Port]),
-      loop(UdpSocket);
-    {send_update, Message, Ip, Port} ->
-      ok = send(Message, UdpSocket, Ip, Port),
-      loop(UdpSocket);
-    Other ->
-      % Prevent the message queue from filling
-      lager:warning("unexpected message received: ~p", [Other]),
-      loop(UdpSocket)
-  end.
+-spec handle_info(term(), state()) -> {noreply, state()}.
+handle_info(
+  {udp, UdpSocket, Ip, Port, Bin}, State = #state{socket = UdpSocket}) ->
+  _Pid = spawn(?MODULE, handle_udp, [Bin, UdpSocket, Ip, Port]),
+  {noreply, State};
+handle_info(_Info, State) -> {noreply, State}.
 
-%%==============================================================================
-%% Message parsing/handling
-%%==============================================================================
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Unused Callbacks
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+-spec handle_call(X, term(), state()) -> {reply, {unknown, X}, state()}.
+handle_call(X, _From, State) -> {reply, {unknown, X}, State}.
+-spec terminate(term(), state()) -> ok.
+terminate(_Reason, _State) -> ok.
+-spec code_change(term(), state(), term()) -> {ok, state()}.
+code_change(_OldVsn, State, _Extra) -> {ok, State}.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Internal Functions
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 -spec handle_udp(binary(), port(), inet:ip_address(), integer()) -> any().
 handle_udp(<<Flags:?UCHAR,
-             MessageId:?USHORT,
+             MessageId:?UINT,
              UserTime:?USHORT,
-             UserId:?USHORT,
+             UserId:?UINT,
              Message/binary>> = Data,
            UdpSocket, Ip, Port) ->
-  case get_message_type(Flags band 7) of
-    undefined ->
-      lager:info("received bad type from ~p: ~p", [Ip, Data]);
-    MessageType ->
-      Metadata = #metadata{messageId = MessageId,
-                           userTime = UserTime,
-                           userId = UserId,
-                           socket = UdpSocket,
-                           ip = Ip,
-                           port = Port},
-      case handle_message(MessageType, Message, Metadata) of
-        undefined ->
-          lager:info("received bad message ~p from ~p", [Message, Ip]);
-        _Ok ->
-          ok
-      end
-  end;
+  MessageType = get_message_type(Flags band 7),
+  Metadata = #metadata{messageId = MessageId,
+                       userTime = UserTime,
+                       userId = UserId,
+                       socket = UdpSocket,
+                       ip = Ip,
+                       port = Port},
+  handle_message(MessageType, Message, Metadata);
 % Garbage and malformed messages are simply ignored
 handle_udp(MalforedMessage, _UdpSocket, Ip, _Port) ->
   lager:info("received malformed message from ~p: ~p", [Ip, MalforedMessage]),
@@ -93,66 +108,37 @@ handle_message(ping, _Ignored, Metadata = #metadata{messageId = MessageId,
 %% INFO REQUESTS
 handle_message(info, <<>>, Metadata = #metadata{messageId = MessageId,
                                                 userTime  = UserTime}) ->
-  AllGames = spts_hdp_game_handler:get_games(),
+  AllGames =
+    [spts_games:to_binary(Game, reduced) || Game <- spts_core:all_games()],
+
   NumGames = length(AllGames),
   Flags = set_flags([info, success]),
   send([<<Flags:?UCHAR,
           MessageId:?UINT,
           UserTime:?USHORT,
           NumGames:?UCHAR>>,
-        [<<Id:?USHORT, TickRate:?UCHAR, NumPlayers:?UCHAR, MaxPlayers:?UCHAR>>
-         || {Id, TickRate, NumPlayers, MaxPlayers} <- AllGames]],
-       Metadata);
+        AllGames], Metadata);
 handle_message(info,
                <<GameId:?USHORT>>,
                Metadata = #metadata{messageId = MessageId,
                                     userTime  = UserTime}) ->
-  try
-    % Retrieve the game data
-    GameName = spts_hdp_game_handler:get_game_name(GameId),
-    Game = spts_core:fetch_game(GameName),
-    Rows = spts_games:rows(Game),
-    Cols = spts_games:cols(Game),
-    Tickrate = spts_games:ticktime(Game),
-    MaxPlayers =
-      case spts_games:max_serpents(Game) of
-        infinity -> 255;
-        MaxS -> MaxS
-      end,
-
-    % Retrieve the game data that's stored on the game handler
-    Players = spts_hdp_game_handler:get_game_users(GameId),
-    NumPlayers = length(Players),
-    BinPlayersInfo = [[<<Id:?UINT, (size(PlayerName)):?UCHAR>>, PlayerName] ||
-                      {Id, PlayerName} <- Players],
-
-    SuccessFlags = set_flags([info, success]),
-    send([<<SuccessFlags:?UCHAR,
-            MessageId:?UINT,
-            UserTime:?USHORT,
-            GameId:?USHORT,
-            Tickrate:?UCHAR,
-            Cols:?UCHAR,
-            Rows:?UCHAR,
-            NumPlayers:?UCHAR,
-            MaxPlayers:?UCHAR>>,
-            BinPlayersInfo],
-           Metadata)
+  try spts_games:to_binary(spts_core:fetch_game(GameId), complete) of
+    GameDesc ->
+      Flags = set_flags([info, success]),
+      send([<<Flags:?UCHAR,
+              MessageId:?UINT,
+              UserTime:?USHORT>>,
+              GameDesc],
+             Metadata)
   catch
-    A:B -> lager:warning(
-            "Unexpected error ~p:~p~n~p", [A, B, erlang:get_stacktrace()]),
-           ErrorFlags = set_flags([info, error]),
-           ErrorReason = "unspecified",
-           ErrorReasonLength = length(ErrorReason),
-           send([<<ErrorFlags:?UCHAR,
-                   MessageId:?UINT,
-                   UserTime:?USHORT,
-                   GameId:?USHORT,
-                   ErrorReasonLength:?UCHAR>>,
-                 ErrorReason],
-                Metadata)
+    throw:{badgame, GameId} ->
+      lager:warning("Game ~p doesn't exist", [GameId]),
+      ErrorFlags = set_flags([info, error]),
+      ErrorReason = spts_binary:pascal_string(<<"badgame">>),
+      send(
+        <<ErrorFlags:?UCHAR, MessageId:?UINT, UserTime:?USHORT,
+          GameId:?USHORT, ErrorReason/binary>>, Metadata)
   end;
-  
 %% JOIN COMMAND
 handle_message(join,
                <<GameId:?USHORT,
@@ -161,44 +147,28 @@ handle_message(join,
                Metadata = #metadata{messageId = MessageId,
                                     userTime  = UserTime}) ->
   try
-    % Tell the game handler that the user connected
-    Address = get_address_from_metadata(Metadata),
-    {ok, PlayerId, GameName} =
-      spts_hdp_game_handler:user_connected(Name, Address, GameId),
+    Address = {Metadata#metadata.ip, Metadata#metadata.port},
+    SerpentId = spts_hdp_game_handler:user_connected(Name, Address, GameId),
 
     % Retrieve the game data
-    Game = spts_core:fetch_game(GameName),
-    Rows = spts_games:rows(Game),
-    Cols = spts_games:cols(Game),
-    Tickrate = spts_games:ticktime(Game),
-    MaxPlayers =
-      case spts_games:max_serpents(Game) of
-        infinity -> 255;
-        MaxS -> MaxS
-      end,
-
-    % Retrieve the game data that's stored on the game handler
-    Players = spts_hdp_game_handler:get_game_users(GameId),
-    NumPlayers = length(Players),
-    BinPlayersInfo = [[<<Id:?UINT, (size(PlayerName)):?UCHAR>>, PlayerName] ||
-                      {Id, PlayerName} <- Players],
+    GameDesc = spts_games:to_binary(spts_core:fetch_game(GameId), complete),
 
     % Build the response
-    SuccessFlags = set_flags([join, success]),
-    ct:pal("~p: ~w", [NumPlayers, BinPlayersInfo]),
-    send([<<SuccessFlags:?UCHAR,
+    Flags = set_flags([join, success]),
+    send([<<Flags:?UCHAR,
             MessageId:?UINT,
             UserTime:?USHORT,
-            PlayerId:?UINT,
-            GameId:?USHORT,
-            Tickrate:?UCHAR,
-            Cols:?UCHAR,
-            Rows:?UCHAR,
-            NumPlayers:?UCHAR,
-            MaxPlayers:?UCHAR>>,
-          BinPlayersInfo],
+            SerpentId:?UINT>>,
+          GameDesc],
          Metadata)
   catch
+    throw:{badgame, _} ->
+      lager:warning("Game ~p doesn't exist", [GameId]),
+      ErrorFlags = set_flags([join, error]),
+      ErrorReason = spts_binary:pascal_string(<<"badgame">>),
+      send(
+        <<ErrorFlags:?UCHAR, MessageId:?UINT, UserTime:?USHORT,
+          GameId:?USHORT, ErrorReason/binary>>, Metadata);
     A:B -> lager:warning(
             "Unexpected error ~p:~p~n~p", [A, B, erlang:get_stacktrace()]),
            ErrorFlags = set_flags([join, error]),
@@ -212,30 +182,36 @@ handle_message(join,
                  ErrorReason],
                 Metadata)
   end;
-handle_message(action, <<LastUpdate:?USHORT, Direction:?UCHAR>>, Metadata) ->
-  Address = get_address_from_metadata(Metadata),
-  spts_hdp_game_handler:user_update(Address, LastUpdate, Direction);
-handle_message(_MessageType, _Garbage, _Metadata) ->
-  undefined.
+handle_message(
+  action, <<LastServerTick:?USHORT, Action:?UCHAR>>, Metadata) ->
+  Address = {Metadata#metadata.ip, Metadata#metadata.port},
+  Direction = get_direction(Action),
+  spts_hdp_game_handler:user_update(
+    Metadata#metadata.userId, Address, LastServerTick, Direction);
+handle_message(MessageType, Garbage, Metadata) ->
+  lager:warning(
+    "Malformed Message:~n~p~n~p~n~p", [MessageType, Garbage, Metadata]).
 
 %%==============================================================================
 %% Utils
 %%==============================================================================
-udp_opts() ->
-  [{mode, binary}, {reuseaddr, true}].
-
 get_message_type(1) -> ping;
 get_message_type(2) -> info;
 get_message_type(3) -> join;
 get_message_type(4) -> action;
 get_message_type(_Garbage) -> undefined.
 
+get_direction(1) -> left;
+get_direction(2) -> right;
+get_direction(4) -> up;
+get_direction(8) -> down;
+get_direction(_) -> undefined.
+
 set_flags(Flags) ->
   set_flags(Flags, 0).
 set_flags(Flags, Value) ->
   lists:foldl(fun set_flag/2, Value, Flags).
 
-set_flag(Flag) -> set_flag(Flag, 0).
 set_flag(ping, Value) -> (Value band 248) bor 1;
 set_flag(info, Value) -> (Value band 248) bor 2;
 set_flag(join, Value) -> (Value band 248) bor 3;
@@ -249,7 +225,4 @@ send(Message, #metadata{socket = UdpSocket, ip = Ip, port = Port}) ->
   send(Message, UdpSocket, Ip, Port).
 
 send(Message, UdpSocket, Ip, Port) ->
-  gen_udp:send(UdpSocket, Ip, Port, Message).
-
-get_address_from_metadata(Metadata) ->
-  {Metadata#metadata.socket, Metadata#metadata.port}.
+  ok = gen_udp:send(UdpSocket, Ip, Port, Message).

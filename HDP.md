@@ -5,24 +5,24 @@ The HDP protocol consists on 5 different messages types that share a common head
 
 Prefixes all client originated messages
 
-    ClientHeader => Flags MessageID UserTime UserId Message
+    ClientHeader => Flags MessageID ClientTime SerpentId Message
     Flags => uchar => MessageType
     MessageType => PING | INFO | JOIN | ACTION
     PING => 1
     INFO => 2
     JOIN => 3
     ACTION => 4
-    MessageID => ushort
-    UserTime => ushort
-    UserId => ushort
+    MessageID => uint
+    ClientTime => ushort
+    SerpentId => uint
     Message => PingRequest | GamesInfoRequest | GameInfoRequest
 
 Field     | Description
 ----------|-------------
 Flags     | For now, only used to specify the message type
 MessageID | If the command requires a reply, the game will resend this ID to the client. During the game, this ID is expected to be the current tick of the client's game
-UserTime  | The game will return this value as is on every response
-UserId    | The UserId the game provides when joining a game, 0 otherwise
+ClientTime| The game will return this value as is on every response
+SerpentId | The SerpentId the game provides when joining a game, 0 otherwise
 
 ### The Server Message Header ###
 
@@ -45,7 +45,7 @@ Prefixes all server messages, both server originated and the replies.
 Field     | Description
 ----------|-------------
 Flags     | For now, only used to specify the message type
-MessageID | The same message ID the user sent if a reply or an unique server generated ID
+MessageID | The same message ID the client sent if a reply or an unique server generated ID
 Time      | In the case of a response, the value sent by the client, otherwise, this is the current tick
 
 ### Ping Request ###
@@ -62,7 +62,7 @@ Also just a header.
 
 ### Game Info Request ###
 
-If no game is specified, returns a list of the current games being played with some basic information, if a GameId is specified, it returns more information about that specific game.
+If no game is specified, returns a list of the known games in the server with some basic information, if a GameId is specified, it returns more information about that specific game.
 
     GamesInfoRequest => Ø
 
@@ -77,48 +77,76 @@ GameId   | The GameId to request info from
 
 ### Games Info Response ###
 
-Returns information of all current games.
+Returns information of all known games.
 
     GamesInfoResponse => GameCount [GameInfo]
     GameCount => ushort
-    GameInfo => GameId TickRate CurrentPlayers MaxPlayers
+    GameInfo => GameId Name State CurrentSerpents MaxSerpents
     GameId => ushort
-    TickRate => uchar
-    CurrentPlayers => uchar
-    MaxPlayers => uchar
+    Name => StringSize bytes
+    StringSize => uchar
+    State => uchar => CREATED | COUNTDOWN | STARTED | FINISHED
+    CREATED => 0
+    COUNTDOWN => 1
+    STARTED => 2
+    FINISHED => 4
+    CurrentSerpents => uchar
+    MaxSerpents => uchar
 
-Field          | Description
----------------|-------------
-GameCount      | The amount of running games
-GameId         | The game's id
-TickRate       | The game's tick rate
-CurrentPlayers | How many players are currently in the game
-MaxPlayers     | The maximum amount of players allowed in this game
+Field           | Description
+----------------|-------------
+GameCount       | The amount of running games
+GameId          | The game's id
+Name            | The game's name as it should appear on screens
+State           | The game state
+CurrentSerpents | How many serpents are currently in the game
+MaxSerpents     | The maximum amount of serpents allowed in this game
 
 ### Game Info Response ###
 
 Returns information on a single game.
 
-    GameInfoResponse => GameId TickRate Cols Rows CurrentPlayers MaxPlayers [Player]
+    GameInfoResponse => GameId Name State Flags Cols Rows TickRate Countdown Rounds InitialFood MaxSerpents CurrentSerpents [Serpent]
     GameId => ushort
-    TickRate => uchar
+    State => uchar => CREATED | COUNTDOWN | STARTED | FINISHED
+    CREATED => 0
+    COUNTDOWN => 1
+    STARTED => 2
+    FINISHED => 4
+    Flags => uchar => Walls & FoodVariation
+    Walls => WITH_WALLS | NO_WALLS
+    WITH_WALLS => 1
+    NO_WALLS => 0
+    FoodVariation => NONE | RANDOM | LINEAR | RANDOM_INCREMENT
+    NONE => 0
+    RANDOM => 2
+    LINEAR => 4
+    RANDOM_INCREMENT => 6
     Cols => uchar
     Rows => uchar
-    CurrentPlayers => uchar
-    MaxPlayers => uchar
-    Player => PlayerId Name
-    PlayerId => uint
+    TickRate => uchar
+    Countdown => uchar
+    Rounds => uint
+    InitialFood => uchar
+    MaxSerpents => uchar
+    CurrentSerpents => uchar
+    Serpent => SerpentID Name
+    SerpentID => uint
     Name => StringSize bytes
     StringSize => uchar
 
-Field          | Description
----------------|-------------
-GameId         | The game's id
-TickRate       | The game's tick rate
-Cols/Rows      | Indicate the size of the map
-CurrentPlayers | How many players are currently in the game
-MaxPlayers     | The maximum amount of players allowed in this game
-Name           | Any string, this is the player's self chosen name
+Field           | Description
+----------------|-------------
+GameId          | The game's id
+State           | The game state
+Cols/Rows       | Indicate the size of the map
+TickRate        | The game's tick rate (i.e. the # of updates per second, regardless of the actual game speed)
+Countdown       | The game's countdown length (in ticks)
+Rounds          | The game max length (in ticks) - `0` means `no limit`
+InitialFood     | How much food is in the serpents belly when they join
+MaxSerpents     | The maximum amount of serpents allowed in this game
+CurrentSerpents | How many serpents are currently in the game
+Name            | Any string, this is either the game or the serpent name
 
 ### Join Request ###
 
@@ -132,7 +160,7 @@ Joins a game.
 Field          | Description
 ---------------|-------------
 GameId         | The game's id
-Name           | Any string, this is the player's self chosen name
+Name           | Any string, this will be the serpent name
 
 ### Join Response ###
 
@@ -143,80 +171,70 @@ Returns either an error or the game info if the join was successful. Note that t
     GameId => ushort
     Reason => StringSize bytes
     StringSize => uchar
-    Success => PlayerID GameInfoResponse
-    PlayerID => uint
+    Success => SerpentID GameInfoResponse
+    SerpentID => uint
 
 Field              | Description
 -------------------|-------------
 GameId             | The game's id
 Reason             | Any string, this is basically a small user friendly description of the error (usually "full" or "started")
-PlayerId           | The ID the game assigned to the client
+SerpentId          | The ID the game assigned to the client
 GameInfoResponse   | The exact same format as the ``Game Info Response``
 
 ### Client Update ###
 
-Notifies the server that the player moved and that the last update was received.
+Notifies the server that the player moved its serpent and informs the last update that was received.
 
-    ClientUpdate => LastServerUpdate Action
-    LastServerUpdate => ushort
+    ClientUpdate => LastServerTick Action
+    LastServerTick => ushort
     Action => uchar
 
-Field              | Description
--------------------|-------------
-LastServerUpdate   | Should be the last tick received from the server
-Action             | A direction change, set the char to 1 for left, 2 for right, 4 for up and 8 for down, any other value is ignored
+Field            | Description
+-----------------|-------------
+LastServerTick   | Should be the last tick received from the server
+Action           | A direction change, set the char to 1 for left, 2 for right, 4 for up and 8 for down, any other value is ignored
 
 ### Server Update ###
 
-Sent every server tick (50 times per second) with any updates the game had. There is a guarantee that the events will be in chronological order.
+Sent every server tick (50 times per second) with any updates the game had.
 
-    ServerUpdate => NumEvents [Event]
-    NumEvents => uchar
-    Event => Tick EventType EventData
+    ServerUpdate => Tick NumDiffs [GameDiff]
     Tick => ushort
-    EventType => uchar => LEFT_COMMAND | JOINED_COMMAND | DIRECTION_CHANGED_COMMAND | DIED_COMMAND | START_COMMAND | TURN_COMMAND | COUNTDOWN_COMMAND
-    LEFT_COMMAND => 0
-    JOINED_COMMAND => 1
-    DIRECTION_CHANGED_COMMAND => 2
-    DIED_COMMAND => 3
-    START_COMMAND => 4
-    TURN_COMMAND => 5
-    COUNTDOWN_COMMAND => 6
-    EventData => Left | Joined | DirectionChanged | Died | GameStart | Turn | Countdown
-    Left => PlayerId
-    PlayerId => uint
-    Joined => PlayerId Name
-    Name => StringSize bytes
-    StringSize => uchar
-    DirectionChanged => PlayerId Direction
-    Direction => uchar
-    Died => PlayerId
-    GameStart => Walls
-    Walls => Cells
-    Turn => Fruits Occupied Snakes
-    Fruits => Cells
-    Occupied => Cells
-    Cells => NumCells [Cell]
-    NumCells => ushort
-    Cell => Status X Y
-    Status => uchar => ADDED | REMOVED
-    ADDED => 1
-    REMOVED => 2
-    Snakes => SnakeCount [Snake]
-    SnakeCount => uchar
-    Snake => PlayerId Head Tail
-    PlayerId => uint
-    Head => X Y
-    Tail => X Y
-    Countdown => TurnsToGo
-    TurnsToGo => uchar
+    NumDiffs => uchar
+    GameDiff => DiffType DiffData
+    DiffType => uchar => STATE | COUNTDOWN | ROUNDS | SERPENTS | FRUIT
+    STATE => 0
+    COUNTDOWN => 1
+    ROUNDS => 2
+    SERPENTS => 3
+    FRUIT => 4
+    DiffData => State | Countdown | Rounds | Serpents | Fruit
+    State => uchar => CREATED | COUNTDOWN | STARTED | FINISHED
+    CREATED => 0
+    COUNTDOWN => 1
+    STARTED => 2
+    FINISHED => 4
+    Countdown => ushort
+    Rounds => uint
+    Serpents => NumSerpents [Serpent]
+    NumSerpents => uchar
+    Serpent => SerpentID BodyLength [Cell]
+    SerpentID => uint
+    BodyLength => ushort
+    Fruit => Food Cell
+    Food => uchar
+    Cell => Row Col
+    Row => uchar
+    Col => uchar
 
-Field     | Description
-----------|-------------
-NumEvents | The amount of events, this value can be 0
-Time      | The tick in which the event happened
-EventType | The type of event is indicated by uchar
-Direction | The direction, in the same format as in the client update Action
-Turn      | Notifies the user that the server has executed a turn
-Cells     | A list of cells expressed as a diff
-TurnsToGo | Used on the countdown, used clientside to predict when the game will start
+Field      | Description
+-----------|-------------
+Tick       | Am increasing value the client should use as `LastServerTick`
+NumDiffs   | Number of `GameDiff`s included in this update
+State      | The game state
+Countdown  | Countdown rounds until the game starts
+Rounds     | # of Rounds until the game ends
+Food       | How many new cells will be added to the serpent body when a serpent eats this fruit
+BodyLength | The number of cells that compose the serpent body
+Row        | 1-based row index
+Col        | 1-based col index

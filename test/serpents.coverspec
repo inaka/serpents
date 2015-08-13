@@ -4,10 +4,11 @@
  [ serpents
  , spts_core
  , spts_game_sup
+ , spts_gen_event_handler
+ , spts_hdp_sup
  , spts_sup
  , spts_base_handler
  , spts_games_handler
- , spts_news_event_handler
  , spts_news_handler
  , spts_serpents_handler
  , spts_single_game_handler
@@ -17,7 +18,9 @@
  , spts_games_repo
  , spts_serpents
  , spts_hdp_game_handler
+ , spts_hdp_game_sup
  , spts_hdp_handler
+ , spts_binary
  , spts_json
  , spts_web_utils
  ]

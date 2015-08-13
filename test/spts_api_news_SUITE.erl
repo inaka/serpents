@@ -43,16 +43,10 @@ game_status(_Config) ->
   #{<<"id">> := GameId} = Game = spts_json:decode(Body),
 
   ct:comment("A client connects, the first event is game_status"),
-  [#{data := DataBin1}] =
-    spts_test_utils:get_events(
-      <<"/games/", GameId/binary, "/news">>, <<"game_status">>),
-  Game = spts_json:decode(DataBin1),
+  Game = get_game_status(GameId),
 
   ct:comment("Another client connects, the first event is still game_status"),
-  [#{data := DataBin2}] =
-    spts_test_utils:get_events(
-      <<"/games/", GameId/binary, "/news">>, <<"game_status">>),
-  Game = spts_json:decode(DataBin2),
+  Game = get_game_status(GameId),
 
   {comment, ""}.
 
@@ -162,13 +156,7 @@ collision_detected(_Config) ->
   spts_core:start_game(GameId),
 
   ct:comment("The game ticks and the client receives an event"),
-  Task =
-    fun() ->
-      lists:foreach(
-        fun(_) ->
-          spts_games:process_name(GameId) ! tick
-        end, lists:seq(1, 6))
-    end,
+  Task = tick(GameId, 6),
   {ok, [#{data := Data}]} =
     spts_test_utils:get_events_after(
       <<"/games/", GameId/binary, "/news">>, <<"collision_detected">>, Task),
@@ -196,13 +184,7 @@ game_finished(_Config) ->
   spts_core:start_game(GameId),
 
   ct:comment("The game ticks and the client receives an event"),
-  Task =
-    fun() ->
-      lists:foreach(
-        fun(_) ->
-          spts_games:process_name(GameId) ! tick
-        end, lists:seq(1, 6))
-    end,
+  Task = tick(GameId, 6),
   {ok, [#{data := Data}]} =
     spts_test_utils:get_events_after(
       <<"/games/", GameId/binary, "/news">>, <<"game_finished">>, Task),
@@ -239,3 +221,17 @@ ignored_event(_Config) ->
       <<"/games/", GameId/binary, "/news">>, Task2),
 
   {comment, ""}.
+
+get_game_status(GameId) ->
+  [#{data := DataBin}] =
+    spts_test_utils:get_events(
+      <<"/games/", GameId/binary, "/news">>, <<"game_status">>),
+  spts_json:decode(DataBin).
+
+tick(GameId, Ticks) ->
+  fun() ->
+    lists:foreach(
+      fun(_) ->
+        spts_games:process_name(GameId) ! tick
+      end, lists:seq(1, Ticks))
+  end.
