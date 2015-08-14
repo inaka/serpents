@@ -4,7 +4,7 @@ CONFIG ?= test/test.config
 
 RELX_URL := https://github.com/erlware/relx/releases/download/v2.0.0/relx
 
-DEPS = recon mixer lager cowboy jiffy katana lasse
+DEPS = recon mixer lager cowboy jiffy katana lasse epocxy
 SELL_DEPS = sync
 TEST_DEPS = xref_runner shotgun
 
@@ -17,6 +17,7 @@ dep_sync = git https://github.com/inaka/sync.git 0.1
 dep_shotgun = git https://github.com/inaka/shotgun.git 0.1.11
 dep_xref_runner = git https://github.com/inaka/xref_runner.git 0.2.2
 dep_recon = git https://github.com/ferd/recon.git 2.2.1
+dep_epocxy = git https://github.com/duomark/epocxy.git 0.9.9
 
 DIALYZER_DIRS := ebin/
 DIALYZER_OPTS := --verbose --statistics -Werror_handling \
