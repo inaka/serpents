@@ -19,9 +19,9 @@
 -record(state, {socket :: port()}).
 -type state() :: #state{}.
 
--record(metadata, {messageId      = 0 :: integer(),
-                   userTime       = 0 :: integer(),
-                   userId         = 0 :: integer(),
+-record(metadata, {message_id     = 0 :: integer(),
+                   user_time      = 0 :: integer(),
+                   user_id        = 0 :: integer(),
                    socket = undefined :: port() | undefined,
                    ip     = undefined :: inet:ip_address() | undefined,
                    port   = undefined :: integer() | undefined}).
@@ -82,12 +82,12 @@ handle_udp(<<Flags:?UCHAR,
              MessageId:?UINT,
              UserTime:?USHORT,
              UserId:?UINT,
-             Message/binary>> = Data,
+             Message/binary>>,
            UdpSocket, Ip, Port) ->
   MessageType = get_message_type(Flags band 7),
-  Metadata = #metadata{messageId = MessageId,
-                       userTime = UserTime,
-                       userId = UserId,
+  Metadata = #metadata{message_id = MessageId,
+                       user_time = UserTime,
+                       user_id = UserId,
                        socket = UdpSocket,
                        ip = Ip,
                        port = Port},
@@ -98,16 +98,16 @@ handle_udp(MalforedMessage, _UdpSocket, Ip, _Port) ->
   ok.
 
 %% PING
-handle_message(ping, _Ignored, Metadata = #metadata{messageId = MessageId,
-                                                    userTime  = UserTime}) ->
+handle_message(ping, _Ignored, Metadata = #metadata{message_id = MessageId,
+                                                    user_time  = UserTime}) ->
   Flags = set_flags([ping, success]),
   send(<<Flags:?UCHAR,
          MessageId:?UINT,
          UserTime:?USHORT>>,
        Metadata);
 %% INFO REQUESTS
-handle_message(info, <<>>, Metadata = #metadata{messageId = MessageId,
-                                                userTime  = UserTime}) ->
+handle_message(info, <<>>, Metadata = #metadata{message_id = MessageId,
+                                                user_time  = UserTime}) ->
   AllGames =
     [spts_games:to_binary(Game, reduced) || Game <- spts_core:all_games()],
 
@@ -120,8 +120,8 @@ handle_message(info, <<>>, Metadata = #metadata{messageId = MessageId,
         AllGames], Metadata);
 handle_message(info,
                <<GameId:?USHORT>>,
-               Metadata = #metadata{messageId = MessageId,
-                                    userTime  = UserTime}) ->
+               Metadata = #metadata{message_id = MessageId,
+                                    user_time  = UserTime}) ->
   try spts_games:to_binary(spts_core:fetch_game(GameId), complete) of
     GameDesc ->
       Flags = set_flags([info, success]),
@@ -144,8 +144,8 @@ handle_message(join,
                <<GameId:?USHORT,
                  NameSize:?UCHAR,
                  Name:NameSize/binary>>,
-               Metadata = #metadata{messageId = MessageId,
-                                    userTime  = UserTime}) ->
+               Metadata = #metadata{message_id = MessageId,
+                                    user_time  = UserTime}) ->
   try
     Address = {Metadata#metadata.ip, Metadata#metadata.port},
     SerpentId = spts_hdp_game_handler:user_connected(Name, Address, GameId),
@@ -187,7 +187,7 @@ handle_message(
   Address = {Metadata#metadata.ip, Metadata#metadata.port},
   Direction = get_direction(Action),
   spts_hdp_game_handler:user_update(
-    Metadata#metadata.userId, Address, LastServerTick, Direction);
+    Metadata#metadata.user_id, Address, LastServerTick, Direction);
 handle_message(MessageType, Garbage, Metadata) ->
   lager:warning(
     "Malformed Message:~n~p~n~p~n~p", [MessageType, Garbage, Metadata]).
