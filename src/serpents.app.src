@@ -3,18 +3,22 @@
   {vsn, "0.0.1"},
   {id, "serpents"},
   {registered, []},
-  {applications, [
-    kernel,
-    stdlib,
-    sasl,
-    lager,
-    cowboy,
-    jiffy,
-    lasse,
-    katana
-  ]},
+  {applications,
+    [ kernel
+    , stdlib
+    , sasl
+    , lager
+    , cowboy
+    , jiffy
+    , lasse
+    , katana
+    , epocxy
+    ]},
   {modules, []},
   {mod, {serpents, []}},
   {env, []},
-  {start_phases, [{start_cowboy_listeners, []}]}
+  {start_phases,
+    [ {cxy_ctl_setup, []}
+    , {start_cowboy_listeners, []}
+    ]}
  ]}.

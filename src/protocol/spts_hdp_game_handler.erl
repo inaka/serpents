@@ -8,6 +8,7 @@
 -export([start_link/1, process_name/1]).
 -export([init/1, terminate/2, code_change/3,
          handle_call/3, handle_cast/2, handle_info/2]).
+-export([update_all_users/1, update_user/2]).
 
 -include("binary-sizes.hrl").
 
@@ -153,7 +154,7 @@ handle_info(tick, State) ->
         State#state{ tick = CurrentTick
                    , history = [{CurrentTick, Step} | History]
                    },
-      spawn(fun() -> update_all_users(NewState) end),
+      cxy_ctl:execute_task(spts_hdp, ?MODULE, update_all_users, [NewState]),
       {noreply, NewState}
   catch
     _:{badgame, _GameId} ->
@@ -207,7 +208,7 @@ update_all_users(State) ->
   #state{users = Users} = State,
   lists:foreach(
     fun(User) ->
-      spawn(fun() -> update_user(User, State) end)
+      cxy_ctl:execute_task(spts_hdp, ?MODULE, update_user, [User, State])
     end, Users).
 
 update_user(User, State) ->
