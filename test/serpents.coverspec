@@ -21,6 +21,7 @@
  , spts_hdp_game_sup
  , spts_hdp_handler
  , spts_binary
+ , spts_hdp
  , spts_json
  , spts_web_utils
  ]

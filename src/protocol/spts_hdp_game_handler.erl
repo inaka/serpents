@@ -204,6 +204,7 @@ historic_game(Tick, [{Tick, Game} | _History]) -> Game;
 historic_game(undefined, [{_FirstTick, Game}]) -> Game;
 historic_game(Tick, [{_NewTick, _} | History]) -> historic_game(Tick, History).
 
+-spec update_all_users(state()) -> ok.
 update_all_users(State) ->
   #state{users = Users} = State,
   lists:foreach(
@@ -211,6 +212,7 @@ update_all_users(State) ->
       cxy_ctl:execute_task(spts_hdp, ?MODULE, update_user, [User, State])
     end, Users).
 
+-spec update_user(#user{}, state()) -> ok.
 update_user(User, State) ->
   #user{ tick    = UserTick
        , address = Address

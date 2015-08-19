@@ -1,0 +1,213 @@
+%% @doc Utility functions to deal with HDP protocol messages.
+-module(spts_hdp).
+
+-include("binary-sizes.hrl").
+
+-define(VERY_MUCH, 9999999).
+
+-type parser() :: default | detail.
+-type type() :: ping_response
+              | info_response
+              | join_response
+              | server_update
+              | error_join_response
+              | error_info_response
+              .
+-type game() :: map().
+-type diff() :: map().
+-type message() :: pong
+                 | {pos_integer(), [game()]}
+                 | game()
+                 | {pos_integer(), binary()}
+                 | {pos_integer(), game()}
+                 | {pos_integer(), [diff()]}
+                 .
+
+-export_type([parser/0, type/0, game/0, diff/0, message/0]).
+-export([recv/1, recv/2, send/2]).
+-export([join/3, ping/1, games/1, game/2, head/2, update/4]).
+
+-spec send(port(), iodata()) -> ok.
+send(UdpSocket, Message) ->
+  Port = application:get_env(serpents, udp_port, 8584),
+  gen_udp:send(UdpSocket, localhost, Port, Message).
+
+-spec recv(port()) -> {type(), non_neg_integer(), non_neg_integer(), message()}.
+recv(UdpSocket) -> recv(UdpSocket, default).
+
+-spec recv(port(), parser()) ->
+  {type(), non_neg_integer(), non_neg_integer(), message()}.
+recv(UdpSocket, Parser) ->
+  {ok, {{127, 0, 0, 1}, _, Packet}} = gen_udp:recv(UdpSocket, ?VERY_MUCH, 1000),
+  <<Flags:?UCHAR, MsgId:?UINT, Time:?USHORT, Message/binary>> = Packet,
+  Type =
+    case Flags of
+      129 -> ping_response;
+      130 -> info_response;
+      131 -> join_response;
+      132 -> server_update;
+      003 -> error_join_response;
+      002 -> error_info_response
+    end,
+  {Type, MsgId, Time, parse(Type, Parser, Message)}.
+
+-spec join(pos_integer(), pos_integer(), binary()) -> binary().
+join(MsgId, GameId, Name) ->
+  H = head(3, MsgId),
+  S = size(Name),
+  <<H/binary, GameId:?USHORT, S:?UCHAR, Name/binary>>.
+
+-spec game(pos_integer(), pos_integer()) -> binary().
+game(MsgId, GameId) ->
+  H = head(2, MsgId),
+  <<H/binary, GameId:?USHORT>>.
+
+-spec games(pos_integer()) -> binary().
+games(MsgId) -> head(2, MsgId).
+
+-spec ping(pos_integer()) -> binary().
+ping(MsgId) -> head(1, MsgId).
+
+-spec update(
+  pos_integer(), pos_integer(), pos_integer(), spts_games:direction()) ->
+  binary().
+update(MsgId, UserId, LastTick, Direction) ->
+  H = head(4, MsgId, UserId),
+  Action = action(Direction),
+  <<H/binary, LastTick:?USHORT, Action:?UCHAR>>.
+
+-spec head(byte(), pos_integer()) -> binary().
+head(Flags, MsgId) ->
+  head(Flags, MsgId, 0).
+head(Flags, MsgId, UserId) ->
+  {_, _, Nanos} = os:timestamp(),
+  head(Flags, MsgId, Nanos rem 65536, UserId).
+head(Flags, MsgId, UserTime, UserId) ->
+  <<Flags:?UCHAR, MsgId:?UINT, UserTime:?USHORT, UserId:?UINT>>.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Internal Functions
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+parse(ping_response, _, <<>>) -> pong;
+parse(info_response, default, <<GameCount:?UCHAR, Games/binary>>) ->
+  { GameCount
+  , [ #{ id => GameId
+       , name => Name
+       , state => parse_state(State)
+       , current_serpents => CurrentSerpents
+       , max_serpents => MaxSerpents
+       }
+    || << GameId:?USHORT
+        , NameSize:?UCHAR, Name:NameSize/binary
+        , State:?UCHAR
+        , CurrentSerpents:?UCHAR
+        , MaxSerpents:?UCHAR
+        >> <= Games
+    ]
+  };
+parse(info_response, detail, GameDesc) ->
+  << GameId:?USHORT
+   , NameSize:?UCHAR, Name:NameSize/binary
+   , State:?UCHAR
+   , Flags:?UCHAR
+   , Cols:?UCHAR
+   , Rows:?UCHAR
+   , TickRate:?UCHAR
+   , Countdown:?UCHAR
+   , Rounds:?UINT
+   , InitialFood:?UCHAR
+   , MaxSerpents:?UCHAR
+   , CurrentSerpents:?UCHAR
+   , Serpents/binary
+   >> = GameDesc,
+  #{ id => GameId
+   , name => Name
+   , state => parse_state(State)
+   , flags => parse_flags(Flags)
+   , cols => Cols
+   , rows => Rows
+   , tickrate => TickRate
+   , countdown => Countdown
+   , rounds => Rounds
+   , initial_food => InitialFood
+   , max_serpents => MaxSerpents
+   , current_serpents => CurrentSerpents
+   , serpents => parse_serpents(Serpents)
+   };
+parse(error_join_response, _, Error) ->
+  <<GameId:?USHORT, ReasonSize:?UCHAR, Reason:ReasonSize/binary>> = Error,
+  {GameId, Reason};
+parse(error_info_response, _, Error) ->
+  <<GameId:?USHORT, ReasonSize:?UCHAR, Reason:ReasonSize/binary>> = Error,
+  {GameId, Reason};
+parse(join_response, _, Response) ->
+  << SerpentId:?UINT
+   , GameDesc/binary
+   >> = Response,
+  {SerpentId, parse(info_response, detail, GameDesc)};
+parse(server_update, _, <<Tick:?USHORT, _NumDiffs:?UCHAR, Diffs/binary>>) ->
+  {Tick, parse_diffs(Diffs)}.
+
+parse_diffs(<<>>) -> [];
+parse_diffs(<<DiffType:?UCHAR, Rest/binary>>) ->
+  Type = parse_diff_type(DiffType),
+  {Data, Next} = parse_diff_data(Type, Rest),
+  [#{type => Type, data => Data} | parse_diffs(Next)].
+
+parse_diff_type(0) -> state;
+parse_diff_type(1) -> countdown;
+parse_diff_type(2) -> rounds;
+parse_diff_type(3) -> serpents;
+parse_diff_type(4) -> fruit.
+
+parse_diff_data(state, <<State:?UCHAR, Next/binary>>) ->
+  {parse_state(State), Next};
+parse_diff_data(countdown, <<Countdown:?USHORT, Next/binary>>) ->
+  {Countdown, Next};
+parse_diff_data(rounds, <<Rounds:?UINT, Next/binary>>) ->
+  {Rounds, Next};
+parse_diff_data(
+  fruit, <<Food:?UCHAR, Row:?UCHAR, Col:?UCHAR, Next/binary>>) ->
+  {{Food, Row, Col}, Next};
+parse_diff_data(serpents, <<NumSerpents:?UCHAR, Next/binary>>) ->
+  parse_diff_serpents(NumSerpents, Next, []).
+
+parse_diff_serpents(0, Next, Acc) -> {lists:reverse(Acc), Next};
+parse_diff_serpents(
+  N,
+  << SerpentId:?UINT
+   , BodyLength:?USHORT
+   , Body1:BodyLength/binary
+   , Body2:BodyLength/binary
+   , Next/binary
+   >>,
+  Acc) ->
+  Body = <<Body1/binary, Body2/binary>>,
+  Serpent =
+    #{ id => SerpentId
+     , body => [{Row, Col} || <<Row:?UCHAR, Col:?UCHAR>> <= Body]
+     },
+  parse_diff_serpents(N-1, Next, [Serpent|Acc]).
+
+parse_state(0) -> created;
+parse_state(1) -> countdown;
+parse_state(2) -> started;
+parse_state(4) -> finished.
+
+parse_flags(Flags) when Flags rem 2 == 1 ->
+  lists:sort([walls | parse_flags(Flags - 1)]);
+parse_flags(Flags) when Flags >= 4 ->
+  lists:sort([increasing_food | parse_flags(Flags - 4)]);
+parse_flags(0) -> [];
+parse_flags(2) -> [random_food].
+
+parse_serpents(Serpents) ->
+  [ {Id, Name}
+  || <<Id:?UINT, NameSize:?UCHAR, Name:NameSize/binary>> <= Serpents
+  ].
+
+action(left)  -> 1;
+action(right) -> 2;
+action(up)    -> 4;
+action(down)  -> 8;
+action(none)  -> 0.
