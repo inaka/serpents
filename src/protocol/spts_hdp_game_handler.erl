@@ -61,8 +61,7 @@ user_update(SerpentId, Address, LastServerTick, Direction) ->
 -spec start_link(pos_integer()) -> {ok, pid()} | ignore | {error, any()}.
 start_link(GameId) ->
   Process = process_name(GameId),
-  case gen_server:start_link(
-        {local, Process}, ?MODULE, GameId, [{debug, [trace, log]}]) of
+  case gen_server:start_link({local, Process}, ?MODULE, GameId, []) of
     {ok, Pid} -> {ok, Pid};
     {error, {already_started, _Pid}} -> ignore;
     {error, Error} -> Error

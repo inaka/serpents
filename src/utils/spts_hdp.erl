@@ -13,7 +13,25 @@
               | error_join_response
               | error_info_response
               .
--type game() :: map().
+
+-type serpent() :: {pos_integer(), binary()}.
+
+-type game() ::
+  #{ id => pos_integer()
+   , name => binary()
+   , state => spts_games:state()
+   , flags => [spts_games:flag()]
+   , cols => pos_integer()
+   , rows => pos_integer()
+   , tickrate => non_neg_integer()
+   , countdown => non_neg_integer()
+   , rounds => non_neg_integer()
+   , initial_food => non_neg_integer()
+   , max_serpents => pos_integer()
+   , current_serpents => non_neg_integer()
+   , serpents => [serpent()]
+   }.
+
 -type diff() :: map().
 -type message() :: pong
                  | {pos_integer(), [game()]}
@@ -24,7 +42,7 @@
                  .
 
 -export_type([parser/0, type/0, game/0, diff/0, message/0]).
--export([recv/1, recv/2, send/2]).
+-export([recv/1, recv/2, parse/1, parse/2, send/2]).
 -export([join/3, ping/1, games/1, game/2, head/2, update/4]).
 
 -spec send(port(), iodata()) -> ok.
@@ -39,6 +57,15 @@ recv(UdpSocket) -> recv(UdpSocket, default).
   {type(), non_neg_integer(), non_neg_integer(), message()}.
 recv(UdpSocket, Parser) ->
   {ok, {{127, 0, 0, 1}, _, Packet}} = gen_udp:recv(UdpSocket, ?VERY_MUCH, 1000),
+  parse(Packet, Parser).
+
+-spec parse(binary()) ->
+  {type(), non_neg_integer(), non_neg_integer(), message()}.
+parse(Packet) -> parse(Packet, default).
+
+-spec parse(binary(), parser()) ->
+  {type(), non_neg_integer(), non_neg_integer(), message()}.
+parse(Packet, Parser) ->
   <<Flags:?UCHAR, MsgId:?UINT, Time:?USHORT, Message/binary>> = Packet,
   Type =
     case Flags of
