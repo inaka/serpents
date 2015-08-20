@@ -34,9 +34,15 @@ init(_SerpentId, _Game, noargs) -> #state{}.
 -spec handle_update(
   [spts_hdp:diff()], pos_integer(), spts_hdp:game(), state()) ->
   {none | spts_games:direction(), state()}.
+handle_update([], _SerpentId, _Game, State) ->
+  %NOTE: no changes, nothing to do
+  {none, State};
 handle_update(Diffs, SerpentId, Game, State) ->
-  lager:critical("\n\tDiffs = ~p,\n\tSerpentId = ~p,\n\tGame = ~p", [Diffs, SerpentId, Game]),
-  {none, State}.
+  lager:notice("\n\tDiffs = ~p,\n\tSerpentId = ~p,\n\tGame = ~p", [Diffs, SerpentId, Game]),
+  Direction = ktn_random:pick([up, down, left, right]),
+  {Direction, State}.
 
 -spec terminate(term(), pos_integer(), spts_hdp:game(), state()) -> _.
-terminate(_Reason, _SerpentId, _Game, _State) -> ok.
+terminate(_Reason, SerpentId, _Game, _State) ->
+  lager:notice("I (~p) am dead!", [SerpentId]),
+  ok.

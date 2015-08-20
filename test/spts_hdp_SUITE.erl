@@ -196,7 +196,7 @@ single_game(Config) ->
   {info_response, 3, _, GD2} = hdp_recv(Config, detail),
   #{ id := GameId
    , current_serpents := 1
-   , serpents := [{S1Id, <<"s1">>}]
+   , serpents := [#{id := S1Id, name := <<"s1">>}]
    } = GD2,
 
   ct:comment("A second player joins"),
@@ -209,7 +209,8 @@ single_game(Config) ->
   {info_response, 4, _, GD3} = hdp_recv(Config, detail),
   #{ id := GameId
    , current_serpents := 2
-   , serpents := [{S2Id, <<"s2">>}, {S1Id, <<"s1">>}]
+   , serpents :=
+      [#{id := S2Id, name := <<"s2">>}, #{id := S1Id, name := <<"s1">>}]
    } = GD3,
 
   ct:comment("A game with different options is created"),
@@ -274,7 +275,7 @@ join(Config) ->
    , initial_food := 1
    , current_serpents := 1
    , max_serpents := 255
-   , serpents := [{S1Id, <<"s1">>}]
+   , serpents := [#{id := S1Id, name := <<"s1">>}]
    } = GD1,
   [Serpent1] = spts_games:serpents(spts_core:fetch_game(GameName)),
   S1Id = spts_serpents:numeric_id(Serpent1),
@@ -288,7 +289,8 @@ join(Config) ->
   ok = hdp_send(spts_hdp:join(3, GameId, <<"s2">>), Config),
   {join_response, 3, _, {S2Id, GD2}} = hdp_recv(Config),
   #{ current_serpents := 2
-   , serpents := [{S2Id, <<"s2">>}, {S1Id, <<"s1">>}]
+   , serpents :=
+      [#{id := S2Id, name := <<"s2">>}, #{id := S1Id, name := <<"s1">>}]
    } = GD2,
   [_, _] = spts_games:serpents(spts_core:fetch_game(GameName)),
 

@@ -76,7 +76,7 @@ init(Params) ->
 -spec handle_cast(stop, state()) -> {stop, normal, state()}.
 handle_cast(stop, State) -> {stop, normal, State}.
 
--spec handle_info(term(), state()) -> {noreply, state()}.
+-spec handle_info(term(), state()) -> {noreply, state()} | {stop, normal, state()}.
 handle_info(
   {udp, UdpSocket, _Ip, _Port, Packet}, State = #state{socket = UdpSocket}) ->
   #state{ serpent_id = SerpentId
@@ -86,15 +86,18 @@ handle_info(
         } = State,
   {server_update, Tick, Tick, {Tick, Diffs}} = spts_hdp:parse(Packet),
 
-  NewGameDesc = apply_diffs(Diffs, GameDesc),
+  case apply_diffs(Diffs, GameDesc) of
+    #{state := finished} = NewGameDesc ->
+      {stop, normal, State#state{game = NewGameDesc}};
+    NewGameDesc ->
+      {NewDirection, NewModState} =
+        Module:handle_update(Diffs, SerpentId, NewGameDesc, ModState),
 
-  {NewDirection, NewModState} =
-    Module:handle_update(Diffs, SerpentId, NewGameDesc, ModState),
+      ok = spts_hdp:send(
+            UdpSocket, spts_hdp:update(Tick, SerpentId, Tick, NewDirection)),
 
-  ok = spts_hdp:send(
-        UdpSocket, spts_hdp:update(Tick, SerpentId, Tick, NewDirection)),
-
-  {noreply, State#state{mod_state = NewModState, game = NewGameDesc}};
+      {noreply, State#state{mod_state = NewModState, game = NewGameDesc}}
+  end;
 handle_info(_Info, State) -> {noreply, State}.
 
 -spec terminate(term(), state()) -> ok.
@@ -120,4 +123,15 @@ code_change(_OldVsn, State, _Extra) -> {ok, State}.
 %%% Internal Functions
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 apply_diffs(Diffs, GameDesc) ->
-  GameDesc.
+  lists:foldl(fun apply_diff/2, GameDesc, Diffs).
+
+apply_diff(#{type := state, data := State}, Game) ->
+  Game#{state := State};
+apply_diff(#{type := countdown, data := Countdown}, Game) ->
+  Game#{countdown := Countdown};
+apply_diff(#{type := rounds, data := Rounds}, Game) ->
+  Game#{rounds := Rounds};
+apply_diff(#{type := fruit, data := Fruit}, Game) ->
+  Game#{fruit => Fruit};
+apply_diff(#{type := serpents, data := Serpents}, Game) ->
+  Game#{serpents := Serpents}.
