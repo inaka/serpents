@@ -9,8 +9,6 @@
 %%% API
 -export([play/2, quit/1]).
 
--include("binary-sizes.hrl").
-
 -record(state, {}).
 -type state() :: #state{}.
 
@@ -38,7 +36,9 @@ handle_update([], _SerpentId, _Game, State) ->
   %NOTE: no changes, nothing to do
   {none, State};
 handle_update(Diffs, SerpentId, Game, State) ->
-  lager:notice("\n\tDiffs = ~p,\n\tSerpentId = ~p,\n\tGame = ~p", [Diffs, SerpentId, Game]),
+  lager:notice(
+    "\n\tDiffs = ~p,\n\tSerpentId = ~p,\n\tGame = ~p",
+    [Diffs, SerpentId, Game]),
   Direction = ktn_random:pick([up, down, left, right]),
   {Direction, State}.
 
