@@ -211,7 +211,7 @@ update_all_users(State) ->
       cxy_ctl:execute_task(spts_hdp, ?MODULE, update_user, [User, State])
     end, Users).
 
--spec update_user(#user{}, state()) -> ok.
+-spec update_user(user(), state()) -> ok.
 update_user(User, State) ->
   #user{ tick    = UserTick
        , address = Address
