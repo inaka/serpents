@@ -76,7 +76,8 @@ init(Params) ->
 -spec handle_cast(stop, state()) -> {stop, normal, state()}.
 handle_cast(stop, State) -> {stop, normal, State}.
 
--spec handle_info(term(), state()) -> {noreply, state()} | {stop, normal, state()}.
+-spec handle_info(term(), state()) ->
+  {noreply, state()} | {stop, normal, state()}.
 handle_info(
   {udp, UdpSocket, _Ip, _Port, Packet}, State = #state{socket = UdpSocket}) ->
   #state{ serpent_id = SerpentId

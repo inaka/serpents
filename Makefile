@@ -9,7 +9,7 @@ SELL_DEPS = sync
 TEST_DEPS = xref_runner shotgun
 
 dep_lasse = git https://github.com/inaka/lasse.git 1.0.1
-dep_katana = git https://github.com/inaka/erlang-katana.git 94ca20fb
+dep_katana = git https://github.com/inaka/erlang-katana.git 0.2.9
 dep_cowboy = git https://github.com/extend/cowboy.git 1.0.1
 dep_jiffy = git https://github.com/davisp/jiffy.git 0.13.3
 dep_mixer = git https://github.com/inaka/mixer.git 0.1.2
@@ -19,6 +19,7 @@ dep_xref_runner = git https://github.com/inaka/xref_runner.git 0.2.2
 dep_recon = git https://github.com/ferd/recon.git 2.2.1
 dep_epocxy = git https://github.com/duomark/epocxy.git 0.9.9
 
+PLT_APPS := xmerl tools compiler syntax_tools
 DIALYZER_DIRS := ebin/
 DIALYZER_OPTS := --verbose --statistics -Werror_handling \
                  -Wrace_conditions #-Wunmatched_returns
