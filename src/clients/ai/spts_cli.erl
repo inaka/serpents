@@ -12,8 +12,6 @@
 %%% API
 -export([start/4, stop/1]).
 
--include("binary-sizes.hrl").
-
 -record(state, { socket     :: port()
                , serpent_id :: pos_integer()
                , game       :: spts_hdp:game()

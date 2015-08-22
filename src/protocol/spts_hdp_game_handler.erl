@@ -174,6 +174,10 @@ handle_cast({user_update, SerpentId, Address, LastTick, Direction}, State) ->
       false ->
         lager:warning("Invalid user ~p / Users: ~p", [SerpentId, Users]),
         State;
+      {value, User = #user{tick = OldLastTick}, OtherUsers}
+        when OldLastTick > LastTick -> % Out of order message
+        NewUsers = [User#user{address = Address} | OtherUsers],
+        State#state{users = NewUsers};
       {value, User, OtherUsers} ->
         NewUsers = [User#user{address = Address, tick = LastTick} | OtherUsers],
         maybe_change_direction(GameId, User#user.serpent_name, Direction),
@@ -236,6 +240,7 @@ clean_history(State) ->
       State;
     false ->
       [#user{tick = MinTick}|_] = lists:keysort(#user.tick, Users),
+      lager:critical("Here: ~p / ~p", [MinTick, element(1, hd(History))]),
       PurgedHistory = purge_history(MinTick, History, []),
       State#state{history = PurgedHistory}
   end.
