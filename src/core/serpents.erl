@@ -33,10 +33,8 @@ start(_StartType, _Args) ->
 %% @private
 -spec start_phase(atom(), application:start_type(), []) -> ok | {error, _}.
 start_phase(cxy_ctl_setup, _StartType, []) ->
-  case cxy_ctl:init([{spts_hdp, unlimited, 1000, 100000}]) of
-    true -> ok;
-    {error, Error} -> {error, Error}
-  end;
+  true = cxy_ctl:init([{spts_hdp, unlimited, 1000, 100000}]),
+  ok;
 start_phase(start_cowboy_listeners, _StartType, []) ->
   Port = application:get_env(?MODULE, http_port, 8585),
   ListenerCount = application:get_env(?MODULE, http_listener_count, 10),

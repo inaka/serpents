@@ -31,8 +31,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 -spec start_link() -> {ok, pid()}.
 start_link() ->
-  gen_server:start_link(
-    {local, ?MODULE}, ?MODULE, noargs, [{debug, [trace, log]}]).
+  gen_server:start_link({local, ?MODULE}, ?MODULE, noargs, []).
 
 -spec send_update(integer(), iodata(), spts_hdp_game_handler:address()) -> ok.
 send_update(Tick, Message, {Ip, Port}) ->

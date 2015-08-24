@@ -148,7 +148,7 @@ call_handler(GameId, Handler, Request) ->
 -spec start_link(spts_games:game()) -> {ok, pid()} | {error, term()}.
 start_link(Game) ->
   Process = spts_games:process_name(spts_games:id(Game)),
-  gen_fsm:start_link({local, Process}, ?MODULE, Game, [{debug, [trace, log]}]).
+  gen_fsm:start_link({local, Process}, ?MODULE, Game, []).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% FSM CALLBACKS
