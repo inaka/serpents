@@ -6,9 +6,13 @@
 -define(VERY_MUCH, 9999999).
 
 -type parser() :: default | detail.
--type type() :: ping_response
+-type type() :: ping
+              | ping_response
+              | info
               | info_response
+              | join
               | join_response
+              | client_update
               | server_update
               | error_join_response
               | error_info_response
@@ -92,41 +96,48 @@ parse(Packet, Parser) ->
 
 -spec join(pos_integer(), pos_integer(), binary()) -> binary().
 join(MsgId, GameId, Name) ->
-  H = head(3, MsgId),
+  H = head(join, MsgId),
   S = size(Name),
   <<H/binary, GameId:?USHORT, S:?UCHAR, Name/binary>>.
 
 -spec game(pos_integer(), pos_integer()) -> binary().
 game(MsgId, GameId) ->
-  H = head(2, MsgId),
+  H = head(info, MsgId),
   <<H/binary, GameId:?USHORT>>.
 
 -spec games(pos_integer()) -> binary().
-games(MsgId) -> head(2, MsgId).
+games(MsgId) -> head(info, MsgId).
 
 -spec ping(pos_integer()) -> binary().
-ping(MsgId) -> head(1, MsgId).
+ping(MsgId) -> head(ping, MsgId).
 
 -spec update(
   pos_integer(), pos_integer(), pos_integer(), spts_games:direction()) ->
   binary().
 update(MsgId, UserId, LastTick, Direction) ->
-  H = head(4, MsgId, UserId),
+  H = head(client_update, MsgId, UserId),
   Action = action(Direction),
   <<H/binary, LastTick:?USHORT, Action:?UCHAR>>.
 
--spec head(byte(), pos_integer()) -> binary().
+-spec head(byte() | type(), pos_integer()) -> binary().
 head(Flags, MsgId) ->
   head(Flags, MsgId, 0).
-head(Flags, MsgId, UserId) ->
+  head(Flags, MsgId, UserId) ->
   {_, _, Nanos} = os:timestamp(),
   head(Flags, MsgId, Nanos rem 65536, UserId).
+head(Flags, MsgId, UserTime, UserId) when is_atom(Flags) ->
+  head(msg_type(Flags), MsgId, UserTime, UserId);
 head(Flags, MsgId, UserTime, UserId) ->
   <<Flags:?UCHAR, MsgId:?UINT, UserTime:?USHORT, UserId:?UINT>>.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Internal Functions
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+msg_type(ping) -> 1;
+msg_type(info) -> 2;
+msg_type(join) -> 3;
+msg_type(client_update) -> 4.
+
 parse(ping_response, _, <<>>) -> pong;
 parse(info_response, default, <<GameCount:?UCHAR, Games/binary>>) ->
   { GameCount
