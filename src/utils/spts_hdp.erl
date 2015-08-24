@@ -122,7 +122,7 @@ update(MsgId, UserId, LastTick, Direction) ->
 -spec head(byte() | type(), pos_integer()) -> binary().
 head(Flags, MsgId) ->
   head(Flags, MsgId, 0).
-  head(Flags, MsgId, UserId) ->
+head(Flags, MsgId, UserId) ->
   {_, _, Nanos} = os:timestamp(),
   head(Flags, MsgId, Nanos rem 65536, UserId).
 head(Flags, MsgId, UserTime, UserId) when is_atom(Flags) ->
