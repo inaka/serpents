@@ -52,7 +52,7 @@ init(Params) ->
                 , label = Label
                 }}.
 
--spec handle_event(#wx{}, state()) -> {noreply, state()}.
+-spec handle_event(wx(), state()) -> {noreply, state()}.
 handle_event(
   #wx{event = #wxKey{keyCode = KeyCode}}, State)
   when KeyCode =:= ?WXK_UP
