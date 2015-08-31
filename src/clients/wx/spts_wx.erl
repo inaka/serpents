@@ -91,7 +91,7 @@ handle_event(#wx{event = #wxKey{keyCode = ?WXK_ESCAPE}}, State) ->
   {stop, normal, State};
 handle_event(#wx{event = #wxClose{}}, State) ->
   #state{frame = Frame} = State,
-  ok = wxFrame:setStatusText(Frame, "Closing...",[]),
+  ok = wxFrame:setStatusText(Frame, "Closing...", []),
   wxWindow:destroy(Frame),
   {stop, normal, State};
 handle_event(#wx{} = Event, State) ->
@@ -142,7 +142,7 @@ create_screen(SerpentName) ->
   wxFrame:setIcon(Frame, Icon),
   wxIcon:destroy(Icon),
 
-  wxFrame:createStatusBar(Frame,[]),
+  wxFrame:createStatusBar(Frame, []),
   ok = wxFrame:setStatusText(Frame, "Use arrow keys to move", []),
 
   wxFrame:connect(Frame, close_window, [{skip, true}]),
