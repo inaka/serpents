@@ -19,7 +19,7 @@ dep_xref_runner = git https://github.com/inaka/xref_runner.git 0.2.2
 dep_recon = git https://github.com/ferd/recon.git 2.2.1
 dep_epocxy = git https://github.com/duomark/epocxy.git 0.9.9
 
-PLT_APPS := xmerl tools compiler syntax_tools
+PLT_APPS := xmerl tools compiler syntax_tools wx
 DIALYZER_DIRS := ebin/
 DIALYZER_OPTS := --verbose --statistics -Werror_handling \
                  -Wrace_conditions #-Wunmatched_returns

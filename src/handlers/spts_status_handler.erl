@@ -33,7 +33,7 @@ allowed_methods(Req, State) ->
   {[<<"GET">>], Req, State}.
 
 -spec handle_get(cowboy_req:req(), state()) ->
-  {halt | binary(), cowboy_req:req(), state()}.
+  {iodata(), cowboy_req:req(), state()}.
 handle_get(Req, State) ->
   Reply = spts_json:encode(#{status => <<"ok">>}),
   {Reply, Req, State}.
