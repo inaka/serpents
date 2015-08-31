@@ -81,7 +81,7 @@ handle_get(Req, State) ->
     {GameId, Req1} = cowboy_req:binding(game_id, Req),
     Game = spts_core:fetch_game(GameId),
     RespBody = spts_json:encode(spts_games:to_json(Game)),
-    {RespBody, Req, State}
+    {RespBody, Req1, State}
   catch
     _:Exception ->
       spts_web_utils:handle_exception(Exception, Req, State)
