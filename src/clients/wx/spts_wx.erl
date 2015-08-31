@@ -4,11 +4,11 @@
 
 -include_lib("wx/include/wx.hrl").
 
--record(state, { frame              :: wx:wx_object()
-               , label              :: wx:wx_object()
-               , socket             :: port()
-               , serpent_id         :: pos_integer()
-               , direction = none   :: none | spts_games:direction()
+-record(state, { frame        :: wx:wx_object()
+               , label        :: wx:wx_object()
+               , socket       :: port()
+               , serpent_id   :: pos_integer()
+               , tick         :: non_neg_integer()
                }).
 -type state() :: #state{}.
 
@@ -68,24 +68,36 @@ init(Params) ->
   {Frame, #state{ socket = UdpSocket
                 , frame = Frame
                 , serpent_id = SerpentId
-                , direction = none
                 , label = Label
                 }}.
 
 -spec handle_event(#wx{}, state()) -> {noreply, state()}.
 handle_event(
-  #wx{event = #wxKey{keyCode = KeyCode}}, State = #state{label = Label}) ->
+  #wx{event = #wxKey{keyCode = KeyCode}}, State)
+  when KeyCode =:= ?WXK_UP
+     ; KeyCode =:= ?WXK_DOWN
+     ; KeyCode =:= ?WXK_LEFT
+     ; KeyCode =:= ?WXK_RIGHT ->
   Direction =
     case KeyCode of
       ?WXK_UP -> up;
       ?WXK_DOWN -> down;
       ?WXK_LEFT -> left;
-      ?WXK_RIGHT -> right;
-      _ -> State#state.direction
+      ?WXK_RIGHT -> right
     end,
+  #state{ label   = Label
+        , socket  = UdpSocket
+        , serpent_id = SerpentId
+        , tick    = Tick
+        } = State,
+
   wxStaticText:setLabel(Label, atom_to_list(Direction)),
   lager:notice("Key Press: ~p~n", [lager:pr(KeyCode, ?MODULE)]),
-  {noreply, State#state{direction = Direction}};
+
+  ok = spts_hdp:send(
+        UdpSocket, spts_hdp:update(Tick, SerpentId, Tick, Direction)),
+
+  {noreply, State};
 handle_event(#wx{event = #wxClose{}}, State = #state{frame = Frame}) ->
   ok = wxFrame:setStatusText(Frame, "Closing...",[]),
   wxWindow:destroy(Frame),
@@ -98,14 +110,10 @@ handle_event(#wx{} = Event, State) ->
   {noreply, state()} | {stop, normal, state()}.
 handle_info(
   {udp, UdpSocket, _Ip, _Port, Packet}, State = #state{socket = UdpSocket}) ->
-  #state{ serpent_id = SerpentId
-        , direction  = Direction
-        } = State,
+  #state{serpent_id = SerpentId} = State,
   {server_update, Tick, Tick, {Tick, _Diffs}} = spts_hdp:parse(Packet),
   %% @todo do stuff with the Diffs like detecting the game ended
-  ok = spts_hdp:send(
-        UdpSocket, spts_hdp:update(Tick, SerpentId, Tick, Direction)),
-  {noreply, State};
+  {noreply, State#state{tick = Tick}};
 handle_info(Info, State) ->
   lager:warning("Info: ~p", [lager:pr(Info, ?MODULE)]),
   {noreply, State}.
