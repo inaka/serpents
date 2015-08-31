@@ -236,7 +236,6 @@ clean_history(State) ->
       State;
     false ->
       [#user{tick = MinTick}|_] = lists:keysort(#user.tick, Users),
-      lager:critical("Here: ~p / ~p", [MinTick, element(1, hd(History))]),
       PurgedHistory = purge_history(MinTick, History, []),
       State#state{history = PurgedHistory}
   end.
