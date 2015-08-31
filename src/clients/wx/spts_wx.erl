@@ -42,26 +42,7 @@ init(Params) ->
   {join_response, 1, _, {SerpentId, _GameDesc}} = spts_hdp:recv(UdpSocket),
   ok = inet:setopts(UdpSocket, [{active, true}]),
 
-  wx:new(),
-  Frame =
-    wxFrame:new(
-      wx:null(), ?wxID_ANY, binary_to_list(SerpentName),
-      [{size, {300, 300}}, {style, ?wxDEFAULT_FRAME_STYLE}]),
-
-  IconFile = "www/assets/favicon.ico",
-  Icon = wxIcon:new(IconFile, [{type, ?wxBITMAP_TYPE_ICO}]),
-  wxFrame:setIcon(Frame, Icon),
-  wxIcon:destroy(Icon),
-
-  wxFrame:createStatusBar(Frame,[]),
-  wxFrame:connect(Frame, close_window, [{skip, true}]),
-
-  Panel = wxPanel:new(Frame),
-  wxPanel:connect(Panel, key_up),
-
-  Label = wxStaticText:new(Panel, ?wxID_ANY, "llll"),
-
-  ok = wxFrame:setStatusText(Frame, "Use arrow keys to move", []),
+  {Frame, Label} = create_screen(SerpentName),
 
   wxWindow:show(Frame),
 
@@ -91,14 +72,25 @@ handle_event(
         , tick    = Tick
         } = State,
 
-  wxStaticText:setLabel(Label, atom_to_list(Direction)),
+  wxStaticText:setLabel(Label, string:to_upper(atom_to_list(Direction))),
   lager:notice("Key Press: ~p~n", [lager:pr(KeyCode, ?MODULE)]),
 
   ok = spts_hdp:send(
         UdpSocket, spts_hdp:update(Tick, SerpentId, Tick, Direction)),
 
   {noreply, State};
-handle_event(#wx{event = #wxClose{}}, State = #state{frame = Frame}) ->
+handle_event(#wx{event = #wxKey{uniChar = $W, controlDown = true}}, State) ->
+  #state{frame = Frame} = State,
+  wxWindow:close(Frame),
+  wxWindow:destroy(Frame),
+  {stop, normal, State};
+handle_event(#wx{event = #wxKey{keyCode = ?WXK_ESCAPE}}, State) ->
+  #state{frame = Frame} = State,
+  wxWindow:close(Frame),
+  wxWindow:destroy(Frame),
+  {stop, normal, State};
+handle_event(#wx{event = #wxClose{}}, State) ->
+  #state{frame = Frame} = State,
   ok = wxFrame:setStatusText(Frame, "Closing...",[]),
   wxWindow:destroy(Frame),
   {stop, normal, State};
@@ -110,7 +102,6 @@ handle_event(#wx{} = Event, State) ->
   {noreply, state()} | {stop, normal, state()}.
 handle_info(
   {udp, UdpSocket, _Ip, _Port, Packet}, State = #state{socket = UdpSocket}) ->
-  #state{serpent_id = SerpentId} = State,
   {server_update, Tick, Tick, {Tick, _Diffs}} = spts_hdp:parse(Packet),
   %% @todo do stuff with the Diffs like detecting the game ended
   {noreply, State#state{tick = Tick}};
@@ -134,3 +125,37 @@ handle_cast(_Cast, State) -> {noreply, State}.
 handle_call(X, _From, State) -> {reply, {unknown, X}, State}.
 -spec code_change(term(), state(), term()) -> {ok, state()}.
 code_change(_OldVsn, State, _Extra) -> {ok, State}.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Internal Functions
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+create_screen(SerpentName) ->
+  wx:new(),
+  Frame =
+    wxFrame:new(
+      wx:null(), ?wxID_ANY, binary_to_list(SerpentName),
+      [ {size, {320, 150}}
+      , {style, ?wxDEFAULT_FRAME_STYLE band (bnot ?wxRESIZE_BORDER)}]),
+
+  IconFile = "www/assets/favicon.ico",
+  Icon = wxIcon:new(IconFile, [{type, ?wxBITMAP_TYPE_ICO}]),
+  wxFrame:setIcon(Frame, Icon),
+  wxIcon:destroy(Icon),
+
+  wxFrame:createStatusBar(Frame,[]),
+  ok = wxFrame:setStatusText(Frame, "Use arrow keys to move", []),
+
+  wxFrame:connect(Frame, close_window, [{skip, true}]),
+
+  Panel = wxPanel:new(Frame),
+  wxPanel:connect(Panel, key_up),
+
+  Label = wxStaticText:new(
+    Panel, ?wxID_ANY, "MOVE!",
+    [ {style, ?wxALIGN_CENTER_HORIZONTAL bor ?wxALIGN_CENTER_VERTICAL}
+    , {size, {320, 200}}
+    , {pos, {0, 0}}
+    ]),
+  Font = wxFont:new(90, ?wxFONTFAMILY_SWISS, ?wxNORMAL, ?wxBOLD, []),
+  wxStaticText:setFont(Label, Font),
+  {Frame, Label}.
