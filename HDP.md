@@ -106,7 +106,7 @@ MaxSerpents     | The maximum amount of serpents allowed in this game
 
 Returns information on a single game.
 
-    GameInfoResponse => GameId Name State Flags Cols Rows TickRate Countdown Rounds InitialFood MaxSerpents CurrentSerpents [Serpent]
+    GameInfoResponse => GameId Name State Flags Cols Rows TickRate Countdown Rounds InitialFood MaxSerpents Walls Serpents
     GameId => ushort
     State => uchar => CREATED | COUNTDOWN | STARTED | FINISHED
     CREATED => 0
@@ -129,6 +129,12 @@ Returns information on a single game.
     Rounds => uint
     InitialFood => uchar
     MaxSerpents => uchar
+    Walls => NumWalls [Cell]
+    NumWalls => uint
+    Cell => Row Col
+    Row => uchar
+    Col => uchar
+    Serpents => CurrentSerpents [Serpent]
     CurrentSerpents => uchar
     Serpent => SerpentID Name
     SerpentID => uint
@@ -145,6 +151,9 @@ Countdown       | The game's countdown length (in ticks)
 Rounds          | The game max length (in ticks) - `0` means `no limit`
 InitialFood     | How much food is in the serpents belly when they join
 MaxSerpents     | The maximum amount of serpents allowed in this game
+NumWalls        | Number of walls in the board
+Row             | 1-based row index
+Col             | 1-based col index
 CurrentSerpents | How many serpents are currently in the game
 Name            | Any string, this is either the game or the serpent name
 
