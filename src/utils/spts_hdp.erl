@@ -18,10 +18,12 @@
               | error_info_response
               .
 
+-type cell() :: {pos_integer(), pos_integer()}.
+
 -type serpent() ::
   #{ id => pos_integer()
    , name => binary()
-   , body => [{pos_integer(), pos_integer()}]
+   , body => [cell()]
    }.
 
 -type fruit() :: {pos_integer(), pos_integer(), pos_integer()}.
@@ -38,6 +40,7 @@
    , rounds => non_neg_integer()
    , initial_food => non_neg_integer()
    , max_serpents => pos_integer()
+   , walls => [cell()]
    , current_serpents => non_neg_integer()
    , serpents => [serpent()]
    , fruit => fruit()
@@ -167,9 +170,13 @@ parse(info_response, detail, GameDesc) ->
    , Rounds:?UINT
    , InitialFood:?UCHAR
    , MaxSerpents:?UCHAR
+   , NumWalls:?UINT
+   , Walls1:NumWalls
+   , Walls2:NumWalls
    , CurrentSerpents:?UCHAR
    , Serpents/binary
    >> = GameDesc,
+  Walls = <<Walls1/binary, Walls1/binary>>,
   #{ id => GameId
    , name => Name
    , state => parse_state(State)
@@ -181,6 +188,7 @@ parse(info_response, detail, GameDesc) ->
    , rounds => Rounds
    , initial_food => InitialFood
    , max_serpents => MaxSerpents
+   , walls => [{Row, Col} || <<Row:?UCHAR, Col:?UCHAR>> <= Walls]
    , current_serpents => CurrentSerpents
    , serpents => parse_serpents(Serpents)
    };

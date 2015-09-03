@@ -181,8 +181,9 @@ single_game(Config) ->
    , countdown := 10
    , rounds := 0
    , initial_food := 1
-   , current_serpents := 0
    , max_serpents := 255
+   , walls := []
+   , current_serpents := 0
    , serpents := []
    } = GD1,
 
@@ -240,8 +241,9 @@ single_game(Config) ->
    , countdown := 5
    , rounds := 654
    , initial_food := 3
-   , current_serpents := 0
    , max_serpents := 12
+   , walls := [_|_]
+   , current_serpents := 0
    , serpents := []
    } = GD5,
 
