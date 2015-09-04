@@ -70,7 +70,7 @@ get_events_after(Uri, EventType, Task) ->
   {ok, Pid} = shotgun:open("localhost", Port),
   try
     ct:comment("Client connects"),
-    {ok, Ref} = open_request(Pid, Uri),
+    {ok, _Ref} = open_request(Pid, Uri),
 
     ct:comment("Task is performed: ~p", [Task]),
     TaskResult = Task(),
@@ -96,7 +96,7 @@ no_events_after(Uri, Task) ->
   {ok, Pid} = shotgun:open("localhost", Port),
   try
     ct:comment("Client connects"),
-    {ok, Ref} = open_request(Pid, Uri),
+    {ok, _Ref} = open_request(Pid, Uri),
 
     ct:comment("Initial events are collected"),
     ktn_task:wait_for_success(fun() -> [_|_] = shotgun:events(Pid) end),
