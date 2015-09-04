@@ -31,14 +31,8 @@ init(_SerpentId, _Game, noargs) -> #state{}.
 
 -spec handle_update(
   [spts_hdp:diff()], pos_integer(), spts_hdp:game(), state()) ->
-  {none | spts_games:direction(), state()}.
-handle_update([], _SerpentId, _Game, State) ->
-  %NOTE: no changes, nothing to do
-  {none, State};
-handle_update(Diffs, SerpentId, Game, State) ->
-  lager:notice(
-    "\n\tDiffs = ~p,\n\tSerpentId = ~p,\n\tGame = ~p",
-    [Diffs, SerpentId, Game]),
+  {spts_games:direction(), state()}.
+handle_update(_Diffs, _SerpentId, _Game, State) ->
   Direction = ktn_random:pick([up, down, left, right]),
   {Direction, State}.
 

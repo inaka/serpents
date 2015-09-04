@@ -119,8 +119,8 @@ ping(MsgId) -> head(ping, MsgId).
   binary().
 update(MsgId, UserId, LastTick, Direction) ->
   H = head(client_update, MsgId, UserId),
-  Action = action(Direction),
-  <<H/binary, LastTick:?USHORT, Action:?UCHAR>>.
+  DirData = direction(Direction),
+  <<H/binary, LastTick:?USHORT, DirData:?UCHAR>>.
 
 -spec head(byte() | type(), pos_integer()) -> binary().
 head(Flags, MsgId) ->
@@ -268,11 +268,10 @@ parse_serpents(Serpents) ->
   || <<Id:?UINT, NameSize:?UCHAR, Name:NameSize/binary>> <= Serpents
   ].
 
-action(left)  -> 1;
-action(right) -> 2;
-action(up)    -> 4;
-action(down)  -> 8;
-action(none)  -> 0.
+direction(left)  -> 1;
+direction(right) -> 2;
+direction(up)    -> 4;
+direction(down)  -> 8.
 
 do_recv(UdpSocket) ->
   {ok, {{127, 0, 0, 1}, _, Packet}} = gen_udp:recv(UdpSocket, ?VERY_MUCH, 1000),

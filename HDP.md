@@ -194,14 +194,18 @@ GameInfoResponse   | The exact same format as the ``Game Info Response``
 
 Notifies the server that the player moved its serpent and informs the last update that was received.
 
-    ClientUpdate => LastServerTick Action
+    ClientUpdate => LastServerTick Direction
     LastServerTick => ushort
-    Action => uchar
+    Direction => LEFT | RIGHT | UP | DOWN
+    LEFT => 1
+    RIGHT => 2
+    UP => 4
+    DOWN => 8
 
 Field            | Description
 -----------------|-------------
 LastServerTick   | Should be the last tick received from the server
-Action           | A direction change, set the char to 1 for left, 2 for right, 4 for up and 8 for down, any other value is ignored
+Direction        | The desired serpent direction
 
 ### Server Update ###
 
