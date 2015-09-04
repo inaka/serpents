@@ -300,7 +300,6 @@ to_binary(Game, complete) ->
   NumWalls = length(Walls),
   WallsBin = << <<Row:?UCHAR, Col:?UCHAR>> || {Row, Col} <- Walls >>,
 
-  ct:pal("~p~n", [{NumWalls, size(WallsBin)}]),
   [ << Id:?USHORT
      , Name/binary
      , State:?UCHAR
