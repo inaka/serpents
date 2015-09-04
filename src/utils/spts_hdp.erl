@@ -170,7 +170,7 @@ parse(info_response, detail, GameDesc) ->
    , Rounds:?UINT
    , InitialFood:?UCHAR
    , MaxSerpents:?UCHAR
-   , NumWalls:?UINT
+   , NumWalls:?USHORT
    , Walls1:NumWalls/binary
    , Walls2:NumWalls/binary
    , CurrentSerpents:?UCHAR

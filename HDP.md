@@ -130,7 +130,7 @@ Returns information on a single game.
     InitialFood => uchar
     MaxSerpents => uchar
     Walls => NumWalls [Cell]
-    NumWalls => uint
+    NumWalls => ushort
     Cell => Row Col
     Row => uchar
     Col => uchar

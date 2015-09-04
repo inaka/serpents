@@ -311,7 +311,7 @@ to_binary(Game, complete) ->
      , Rounds:?UINT
      , InitialFood:?UCHAR
      , MaxSerpents:?UCHAR
-     , NumWalls:?UINT
+     , NumWalls:?USHORT
      , WallsBin/binary
      , NumSerpents:?UCHAR
      >>
