@@ -171,12 +171,16 @@ parse(info_response, detail, GameDesc) ->
    , InitialFood:?UCHAR
    , MaxSerpents:?UCHAR
    , NumWalls:?UINT
-   , Walls1:NumWalls
-   , Walls2:NumWalls
+   , Walls1:NumWalls/binary
+   , Walls2:NumWalls/binary
    , CurrentSerpents:?UCHAR
    , Serpents/binary
    >> = GameDesc,
-  Walls = <<Walls1/binary, Walls1/binary>>,
+  Walls =
+    case NumWalls of
+      0 -> <<>>;
+      NumWalls -> <<Walls1/binary, Walls2/binary>>
+    end,
   #{ id => GameId
    , name => Name
    , state => parse_state(State)

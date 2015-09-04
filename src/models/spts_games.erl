@@ -296,7 +296,11 @@ to_binary(Game, complete) ->
                 end,
   Serpents = serpents(Game),
   NumSerpents = length(Serpents),
+  Walls = walls(Game),
+  NumWalls = length(Walls),
+  WallsBin = << <<Row:?UCHAR, Col:?UCHAR>> || {Row, Col} <- Walls >>,
 
+  ct:pal("~p~n", [{NumWalls, size(WallsBin)}]),
   [ << Id:?USHORT
      , Name/binary
      , State:?UCHAR
@@ -308,6 +312,8 @@ to_binary(Game, complete) ->
      , Rounds:?UINT
      , InitialFood:?UCHAR
      , MaxSerpents:?UCHAR
+     , NumWalls:?UINT
+     , WallsBin/binary
      , NumSerpents:?UCHAR
      >>
   | [spts_serpents:to_binary(S, reduced) || S <- Serpents]
