@@ -126,7 +126,7 @@ update(MsgId, UserId, LastTick, Direction) ->
 head(Flags, MsgId) ->
   head(Flags, MsgId, 0).
 
--spec head(byte() | type(), pos_integer(), pos_integer()) -> binary().
+-spec head(byte() | type(), pos_integer(), non_neg_integer()) -> binary().
 head(Flags, MsgId, UserId) ->
   {_, _, Nanos} = os:timestamp(),
   head(Flags, MsgId, Nanos rem 65536, UserId).
