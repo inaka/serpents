@@ -256,8 +256,6 @@ collision_with_serpent_self(Config) ->
     spts_games_repo:advance(
       spts_games_repo:turn(NewGame, <<"cwss1">>, left)),
 
-  ct:pal("Old: ~p~nNew: ~p~n", [NewGame, NewerGame]),
-
   ct:comment("The serpent is dead"),
   dead = spts_serpents:status(spts_games:serpent(NewerGame, <<"cwss1">>)),
 

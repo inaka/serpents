@@ -10,7 +10,7 @@
 %%% API
 -export([play/2, quit/1]).
 
--record(state, {}).
+-record(state, {direction = left :: spts_games:direction()}).
 -type state() :: #state{}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -32,10 +32,10 @@ init(_SerpentId, _Game, noargs) -> #state{}.
 
 -spec handle_update(
   [spts_hdp:diff()], pos_integer(), spts_hdp:game(), state()) ->
-  {none | spts_games:direction(), state()}.
+  {spts_games:direction(), state()}.
 handle_update([], _SerpentId, _Game, State) ->
   %NOTE: no changes, nothing to do
-  {none, State};
+  {State#state.direction, State};
 handle_update(_Diffs, SerpentId, #{fruit := {_, FRow, FCol}} = Game, State) ->
   #{serpents := Serpents} = Game,
   [[{HRow, HCol} | _]] =
@@ -48,10 +48,10 @@ handle_update(_Diffs, SerpentId, #{fruit := {_, FRow, FCol}} = Game, State) ->
       {VDelta, HDelta} when VDelta =< HDelta, FCol =< HCol -> left
     end,
   Direction = avoid_collisions(DesiredDirection, HRow, HCol, Game),
-  {Direction, State};
+  {Direction, State#state{direction = Direction}};
 handle_update(_Diffs, _SerpentId, _Game, State) ->
   %NOTE: no fruit, nothing to do
-  {none, State}.
+  {State#state.direction, State}.
 
 -spec terminate(term(), pos_integer(), spts_hdp:game(), state()) -> _.
 terminate(_Reason, SerpentId, _Game, _State) ->
@@ -65,7 +65,7 @@ avoid_collisions(DesiredDirection, HRow, HCol, Game) ->
     [DesiredDirection, up, down, left, right],
     BadCells, HRow, HCol, Rows, Cols).
 
-try_avoid_collision([], _BadCells, _Row, _Col, _Rows, _Cols) -> none;
+try_avoid_collision([], _BadCells, _Row, _Col, _Rows, _Cols) -> left;
 try_avoid_collision([Dir | Rest], BadCells, Row, Col, Rows, Cols) ->
   case is_available(next_cell(Dir, Row, Col), BadCells, Rows, Cols) of
     true -> Dir;

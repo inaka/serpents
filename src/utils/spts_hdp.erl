@@ -64,7 +64,7 @@
 
 -export_type([parser/0, type/0, game/0, diff/0, message/0]).
 -export([recv/1, recv/2, parse/1, parse/2, send/2]).
--export([join/3, ping/1, games/1, game/2, head/2, update/4]).
+-export([join/3, ping/1, games/1, game/2, head/2, head/3, update/4]).
 
 -spec send(port(), iodata()) -> ok.
 send(UdpSocket, Message) ->
@@ -119,12 +119,14 @@ ping(MsgId) -> head(ping, MsgId).
   binary().
 update(MsgId, UserId, LastTick, Direction) ->
   H = head(client_update, MsgId, UserId),
-  Action = action(Direction),
-  <<H/binary, LastTick:?USHORT, Action:?UCHAR>>.
+  DirData = direction(Direction),
+  <<H/binary, LastTick:?USHORT, DirData:?UCHAR>>.
 
 -spec head(byte() | type(), pos_integer()) -> binary().
 head(Flags, MsgId) ->
   head(Flags, MsgId, 0).
+
+-spec head(byte() | type(), pos_integer(), non_neg_integer()) -> binary().
 head(Flags, MsgId, UserId) ->
   {_, _, Nanos} = os:timestamp(),
   head(Flags, MsgId, Nanos rem 65536, UserId).
@@ -268,11 +270,10 @@ parse_serpents(Serpents) ->
   || <<Id:?UINT, NameSize:?UCHAR, Name:NameSize/binary>> <= Serpents
   ].
 
-action(left)  -> 1;
-action(right) -> 2;
-action(up)    -> 4;
-action(down)  -> 8;
-action(none)  -> 0.
+direction(left)  -> 1;
+direction(right) -> 2;
+direction(up)    -> 4;
+direction(down)  -> 8.
 
 do_recv(UdpSocket) ->
   {ok, {{127, 0, 0, 1}, _, Packet}} = gen_udp:recv(UdpSocket, ?VERY_MUCH, 1000),

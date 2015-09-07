@@ -1,6 +1,8 @@
 -module(spts_hdp_SUITE).
 -author('elbrujohalcon@inaka.net').
 
+-include("binary-sizes.hrl").
+
 -include_lib("mixer/include/mixer.hrl").
 -mixin([
         {spts_test_utils,
@@ -24,6 +26,7 @@
         , serpents_server_update/1
         , fruit_server_update/1
         , user_update_changes_direction/1
+        , bad_user_update/1
         , wrong_input/1
         ]).
 
@@ -314,7 +317,7 @@ state_server_update(Config) ->
   GameName = spts_games:id(Game),
   Process = spts_hdp_game_handler:process_name(GameId),
 
-  {S1Id, GD1} = do_join(GameId, <<"s1">>, Config),
+  {S1Id, Dir1, GD1} = do_join(GameId, <<"s1">>, Config),
   #{tickrate := 1} = GD1,
 
   ct:comment("The game starts"),
@@ -327,7 +330,7 @@ state_server_update(Config) ->
   [countdown] = [Data || #{data := Data, type := state} <- Diffs],
 
   ct:comment("The client acks the update"),
-  ok = hdp_direct_send(spts_hdp:update(3, S1Id, Tick, none), Config),
+  ok = hdp_direct_send(spts_hdp:update(3, S1Id, Tick, Dir1), Config),
 
   ct:comment("After a tick, the server sends an update with no diffs"),
   Process ! tick,
@@ -343,7 +346,7 @@ countdown_server_update(Config) ->
   GameName = spts_games:id(Game),
   Process = spts_hdp_game_handler:process_name(GameId),
 
-  {S1Id, GD1} = do_join(GameId, <<"s1">>, Config),
+  {S1Id, Dir1, GD1} = do_join(GameId, <<"s1">>, Config),
   #{tickrate := 1} = GD1,
 
   ct:comment("The game starts"),
@@ -364,7 +367,7 @@ countdown_server_update(Config) ->
   {Tick, [_|_]} = diffs(hdp_recv(Config)),
 
   ct:comment("The client acks the updates"),
-  ok = hdp_direct_send(spts_hdp:update(3, S1Id, Tick, none), Config),
+  ok = hdp_direct_send(spts_hdp:update(3, S1Id, Tick, Dir1), Config),
 
   ct:comment("After a tick, the server sends an update with no diffs"),
   Process ! tick,
@@ -382,7 +385,7 @@ rounds_server_update(Config) ->
   GameName = spts_games:id(Game),
   Process = spts_hdp_game_handler:process_name(GameId),
 
-  {S1Id, GD1} = do_join(GameId, <<"s1">>, Config),
+  {S1Id, Dir1, GD1} = do_join(GameId, <<"s1">>, Config),
   #{tickrate := 1} = GD1,
 
   ct:comment("The game starts"),
@@ -411,14 +414,14 @@ rounds_server_update(Config) ->
   clean_queue(Config),
 
   ct:comment("The client acks the updates"),
-  ok = hdp_direct_send(spts_hdp:update(3, S1Id, Tick, none), Config),
+  ok = hdp_direct_send(spts_hdp:update(3, S1Id, Tick, Dir1), Config),
 
   ct:comment("After a tick, the server sends an update with no diffs"),
   Process ! tick,
   {Tick2, []} = diffs(hdp_recv(Config)),
 
   ct:comment("The client acks the updates again"),
-  ok = hdp_direct_send(spts_hdp:update(3, S1Id, Tick2, none), Config),
+  ok = hdp_direct_send(spts_hdp:update(3, S1Id, Tick2, Dir1), Config),
 
   ct:comment("After a tick, the server sends an update with no diffs (Again)"),
   Process ! tick,
@@ -437,7 +440,7 @@ serpents_server_update(Config) ->
   {socket2, UdpSocket} = lists:keyfind(socket2, 1, Config),
   Config2 = [{socket, UdpSocket} | Config],
 
-  {S1Id, GD1} = do_join(GameId, <<"s1">>, Config),
+  {S1Id, Dir1, GD1} = do_join(GameId, <<"s1">>, Config),
   #{tickrate := 1} = GD1,
 
   ct:comment(
@@ -451,7 +454,7 @@ serpents_server_update(Config) ->
            , SId == S1Id
            ],
 
-  {S2Id, _GD2} = do_join(GameId, <<"s2">>, Config2),
+  {S2Id, _Dir2, _GD2} = do_join(GameId, <<"s2">>, Config2),
 
   ct:comment(
     "After a tick, the server sends updates with both serpents to both users"),
@@ -470,13 +473,13 @@ serpents_server_update(Config) ->
   [{_Row, _Col}] = serpent_body(S2Id, SerpentsDiff),
 
   ct:comment("The client 1 acks the update"),
-  ok = hdp_direct_send(spts_hdp:update(3, S1Id, Tick2, none), Config),
+  ok = hdp_direct_send(spts_hdp:update(3, S1Id, Tick2, Dir1), Config),
 
-  ct:pal("After a tick, the server sends an update with no diffs to user 1"),
+  ct:comment("After a tick, server sends an update with no diffs to user 1"),
   Process ! tick,
   no_diffs(hdp_recv(Config)),
 
-  ct:pal("After a tick, the server sends an update with diffs to user 2"),
+  ct:comment("After a tick, the server sends an update with diffs to user 2"),
   {_, Diffs2} = diffs(hdp_recv(Config2)),
 
   {comment , ""}.
@@ -491,7 +494,7 @@ fruit_server_update(Config) ->
   GameName = spts_games:id(Game),
   Process = spts_hdp_game_handler:process_name(GameId),
 
-  {S1Id, GD1} = do_join(GameId, <<"s1">>, Config),
+  {S1Id, Dir1, GD1} = do_join(GameId, <<"s1">>, Config),
   #{tickrate := 1} = GD1,
 
   ct:comment("The game starts"),
@@ -511,7 +514,7 @@ fruit_server_update(Config) ->
   end,
 
   ct:comment("The client acks the update"),
-  ok = hdp_direct_send(spts_hdp:update(3, S1Id, Tick, none), Config),
+  ok = hdp_direct_send(spts_hdp:update(3, S1Id, Tick, Dir1), Config),
 
   ct:comment("After a tick, the server sends an update with no diffs"),
   Process ! tick,
@@ -540,10 +543,10 @@ wrong_input(Config) ->
   GameId = spts_games:numeric_id(Game),
   GameName = spts_games:id(Game),
 
-  {SId, _} = do_join(GameId, <<"s1">>, Config),
+  {SId, Dir, _} = do_join(GameId, <<"s1">>, Config),
 
   ct:comment("Bad SerpentId is ignored"),
-  ok = hdp_direct_send(spts_hdp:update(3, SId + 1, 1, none), Config),
+  ok = hdp_direct_send(spts_hdp:update(3, SId + 1, 1, Dir), Config),
 
   ct:comment("The game is stopped"),
   ok = spts_core:stop_game(GameName),
@@ -579,7 +582,7 @@ user_update_changes_direction(Config) ->
   GameId = spts_games:numeric_id(Game),
   GameName = spts_games:id(Game),
 
-  {SId, _} = do_join(GameId, <<"s1">>, Config),
+  {SId, _, _} = do_join(GameId, <<"s1">>, Config),
   CheckDir =
     fun() ->
       spts_serpents:direction(
@@ -594,19 +597,35 @@ user_update_changes_direction(Config) ->
 
   ct:comment("Player moves right"),
   right = Turn(right, right),
-  right = Turn(none, right),
 
   ct:comment("Player moves left"),
   left = Turn(left, left),
-  left = Turn(none, left),
 
   ct:comment("Player moves up"),
   up = Turn(up, up),
-  up = Turn(none, up),
 
   ct:comment("Player moves down"),
   down = Turn(down, down),
-  down = Turn(none, down),
+
+  {comment, ""}.
+
+-spec bad_user_update(spts_test_utils:config()) -> {comment, []}.
+bad_user_update(Config) ->
+  ct:comment("A game is created, a player joins"),
+  Game = spts_core:create_game(),
+  GameId = spts_games:numeric_id(Game),
+  GameName = spts_games:id(Game),
+
+  {SId, Dir, _} = do_join(GameId, <<"s1">>, Config),
+  CheckDir =
+    fun() ->
+      spts_serpents:direction(
+        spts_games:serpent(spts_core:fetch_game(GameName), <<"s1">>))
+    end,
+
+  hdp_direct_send(bad_update(30, SId, 1), Config),
+  ktn_task:wait_for(CheckDir, Dir),
+  Dir = CheckDir(),
 
   {comment, ""}.
 
@@ -650,5 +669,13 @@ do_join(GameId, Name, Config) ->
   ct:comment("~p joins ~p", [Name, GameId]),
   ok = hdp_send(spts_hdp:join(16, GameId, Name), Config),
   ct:comment("The response is received"),
-  {join_response, 16, _, Response} = hdp_recv(Config),
-  Response.
+  {join_response, 16, _, {SId, GD}} = hdp_recv(Config),
+  Dir =
+    spts_serpents:direction(
+      spts_games:serpent(spts_core:fetch_game(GameId), Name)),
+  {SId, Dir, GD}.
+
+bad_update(MsgId, UserId, LastTick) ->
+  H = spts_hdp:head(client_update, MsgId, UserId),
+  BadDir = 3,
+  <<H/binary, LastTick:?USHORT, BadDir:?UCHAR>>.

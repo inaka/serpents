@@ -26,7 +26,7 @@
 -callback init(pos_integer(), spts_hdp:game(), term()) -> term().
 -callback handle_update(
   [spts_hdp:diff()], pos_integer(), spts_hdp:game(), term()) ->
-  {none | spts_games:direction(), term()}.
+  {spts_games:direction(), term()}.
 -callback terminate(term(), pos_integer(), spts_hdp:game(), term()) -> _.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

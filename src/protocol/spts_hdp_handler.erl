@@ -182,11 +182,15 @@ handle_message(join,
                 Metadata)
   end;
 handle_message(
-  action, <<LastServerTick:?USHORT, Action:?UCHAR>>, Metadata) ->
+  action, <<LastServerTick:?USHORT, DirData:?UCHAR>>, Metadata) ->
   Address = {Metadata#metadata.ip, Metadata#metadata.port},
-  Direction = get_direction(Action),
-  spts_hdp_game_handler:user_update(
-    Metadata#metadata.user_id, Address, LastServerTick, Direction);
+  case get_direction(DirData) of
+    undefined ->
+      lager:warning("Unknown direction: ~p", [DirData]);
+    Direction ->
+      spts_hdp_game_handler:user_update(
+        Metadata#metadata.user_id, Address, LastServerTick, Direction)
+  end;
 handle_message(MessageType, Garbage, Metadata) ->
   lager:warning(
     "Malformed Message:~n~p~n~p~n~p", [MessageType, Garbage, Metadata]).
