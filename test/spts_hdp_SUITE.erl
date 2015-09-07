@@ -1,6 +1,8 @@
 -module(spts_hdp_SUITE).
 -author('elbrujohalcon@inaka.net').
 
+-include("binary-sizes.hrl").
+
 -include_lib("mixer/include/mixer.hrl").
 -mixin([
         {spts_test_utils,
@@ -24,6 +26,7 @@
         , serpents_server_update/1
         , fruit_server_update/1
         , user_update_changes_direction/1
+        , bad_user_update/1
         , wrong_input/1
         ]).
 
@@ -606,6 +609,26 @@ user_update_changes_direction(Config) ->
 
   {comment, ""}.
 
+-spec bad_user_update(spts_test_utils:config()) -> {comment, []}.
+bad_user_update(Config) ->
+  ct:comment("A game is created, a player joins"),
+  Game = spts_core:create_game(),
+  GameId = spts_games:numeric_id(Game),
+  GameName = spts_games:id(Game),
+
+  {SId, Dir, _} = do_join(GameId, <<"s1">>, Config),
+  CheckDir =
+    fun() ->
+      spts_serpents:direction(
+        spts_games:serpent(spts_core:fetch_game(GameName), <<"s1">>))
+    end,
+
+  hdp_direct_send(bad_update(30, SId, 1), Config),
+  ktn_task:wait_for(CheckDir, Dir),
+  Dir = CheckDir(),
+
+  {comment, ""}.
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Message parsing/handling
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -651,3 +674,8 @@ do_join(GameId, Name, Config) ->
     spts_serpents:direction(
       spts_games:serpent(spts_core:fetch_game(GameId), Name)),
   {SId, Dir, GD}.
+
+bad_update(MsgId, UserId, LastTick) ->
+  H = spts_hdp:head(client_update, MsgId, UserId),
+  BadDir = 3,
+  <<H/binary, LastTick:?USHORT, BadDir:?UCHAR>>.

@@ -64,7 +64,7 @@
 
 -export_type([parser/0, type/0, game/0, diff/0, message/0]).
 -export([recv/1, recv/2, parse/1, parse/2, send/2]).
--export([join/3, ping/1, games/1, game/2, head/2, update/4]).
+-export([join/3, ping/1, games/1, game/2, head/2, head/3, update/4]).
 
 -spec send(port(), iodata()) -> ok.
 send(UdpSocket, Message) ->
@@ -125,6 +125,8 @@ update(MsgId, UserId, LastTick, Direction) ->
 -spec head(byte() | type(), pos_integer()) -> binary().
 head(Flags, MsgId) ->
   head(Flags, MsgId, 0).
+
+-spec head(byte() | type(), pos_integer(), pos_integer()) -> binary().
 head(Flags, MsgId, UserId) ->
   {_, _, Nanos} = os:timestamp(),
   head(Flags, MsgId, Nanos rem 65536, UserId).

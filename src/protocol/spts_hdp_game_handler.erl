@@ -245,6 +245,5 @@ purge_history(MinTick, History = [{MinTick, _Game} | _Rest], Acc) ->
 purge_history(MinTick, [Newer | History], Acc) ->
   purge_history(MinTick, History, [Newer | Acc]).
 
-maybe_change_direction(_GameId, _SerpentName, undefined) -> ok;
 maybe_change_direction(GameId, SerpentName, Direction) ->
   ok = spts_core:turn(GameId, SerpentName, Direction).
