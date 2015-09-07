@@ -472,11 +472,11 @@ serpents_server_update(Config) ->
   ct:comment("The client 1 acks the update"),
   ok = hdp_direct_send(spts_hdp:update(3, S1Id, Tick2, Dir1), Config),
 
-  ct:pal("After a tick, the server sends an update with no diffs to user 1"),
+  ct:comment("After a tick, server sends an update with no diffs to user 1"),
   Process ! tick,
   no_diffs(hdp_recv(Config)),
 
-  ct:pal("After a tick, the server sends an update with diffs to user 2"),
+  ct:comment("After a tick, the server sends an update with diffs to user 2"),
   {_, Diffs2} = diffs(hdp_recv(Config2)),
 
   {comment , ""}.

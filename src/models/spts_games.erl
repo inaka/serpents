@@ -245,6 +245,16 @@ diffs(OldGame, NewGame, fruit) ->
     OldFruit -> [];
     NewFruit -> [#{type => fruit, data => NewFruit}]
   end;
+diffs(OldGame, NewGame, serpents) ->
+  Sort =
+    fun(SerpentA, SerpentB) ->
+      spts_serpents:name(SerpentA) =< spts_serpents:name(SerpentB)
+    end,
+  OldSerpents = lists:sort(Sort, serpents(OldGame)),
+  case lists:sort(Sort, serpents(NewGame)) of
+    OldSerpents -> [];
+    NewSerpents -> [#{type => serpents, data => NewSerpents}]
+  end;
 diffs(OldGame, NewGame, Type) ->
   OldData = maps:get(Type, OldGame),
   case maps:get(Type, NewGame) of
