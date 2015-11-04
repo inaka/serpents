@@ -6,9 +6,15 @@
   {applications,
     [ kernel
     , stdlib
+    , crypto
+    , inets
+    , ssl
     , sasl
+
     , lager
     , cowboy
+    , trails
+    , cowboy_swagger
     , jiffy
     , lasse
     , katana

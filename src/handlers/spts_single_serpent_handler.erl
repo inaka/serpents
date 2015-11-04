@@ -20,15 +20,6 @@
 
 -type state() :: spts_base_handler:state().
 
--spec init({atom(), atom()}, cowboy_req:req(), state()) ->
-  {upgrade, protocol, cowboy_rest}.
--spec rest_init(cowboy_req:req(), state()) ->
-  {ok, cowboy_req:req(), term()}.
--spec content_types_accepted(cowboy_req:req(), state()) ->
-  {[term()], cowboy_req:req(), state()}.
--spec content_types_provided(cowboy_req:req(), state()) ->
-  {[term()], cowboy_req:req(), state()}.
-
 -spec allowed_methods(cowboy_req:req(), state()) ->
   {[binary()], cowboy_req:req(), state()}.
 allowed_methods(Req, State) ->
