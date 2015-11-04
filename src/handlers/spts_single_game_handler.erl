@@ -3,29 +3,54 @@
 -author('elbrujohalcon@inaka.net').
 
 -include_lib("mixer/include/mixer.hrl").
--mixin([
-        {spts_base_handler,
-         [ init/3
-         , rest_init/2
-         , content_types_accepted/2
-         , content_types_provided/2
-         ]}
-       ]).
+-mixin([{ spts_single_base_handler
+        , [ init/3
+          , rest_init/2
+          , allowed_methods/2
+          , content_types_accepted/2
+          , content_types_provided/2
+          ]
+        }]).
 
--export([ allowed_methods/2
-        , forbidden/2
+-export([ forbidden/2
         , handle_put/2
         , handle_get/2
         , delete_resource/2
         , resource_exists/2
+        , trails/0
         ]).
 
--type state() :: spts_base_handler:state().
+-type state() :: spts_single_base_handler:state().
 
--spec allowed_methods(cowboy_req:req(), state()) ->
-  {[binary()], cowboy_req:req(), state()}.
-allowed_methods(Req, State) ->
-  {[<<"PUT">>, <<"GET">>, <<"DELETE">>], Req, State}.
+-behaviour(trails_handler).
+
+-spec trails() -> trails:trails().
+trails() ->
+  Metadata =
+    #{ get =>
+       #{ tags => ["games"]
+        , description => "Returns the description of a game"
+        , produces => ["application/json"]
+        , parameters => [spts_web:param(game_id)]
+        }
+     , put =>
+       #{ tags => ["games"]
+        , description => "Updates a game"
+        , consumes => ["application/json"]
+        , produces => ["application/json"]
+        , parameters => [ spts_web:param(request_body)
+                        , spts_web:param(game_id)
+                        ]
+        }
+     , delete =>
+       #{ tags => ["games"]
+        , description => "Deletes a game"
+        , parameters => [spts_web:param(game_id)]
+        }
+     },
+  Path = "/api/games/:game_id",
+  Opts = #{path => Path},
+  [trails:trail(Path, ?MODULE, Opts, Metadata)].
 
 -spec forbidden(cowboy_req:req(), term()) ->
   {boolean(), cowboy_req:req(), term()}.
@@ -62,7 +87,7 @@ handle_put(Req, State) ->
     {true, Req3, State}
   catch
     _:Exception ->
-      spts_web_utils:handle_exception(Exception, Req, State)
+      spts_web:handle_exception(Exception, Req, State)
   end.
 
 -spec handle_get(cowboy_req:req(), state()) ->
@@ -75,7 +100,7 @@ handle_get(Req, State) ->
     {RespBody, Req1, State}
   catch
     _:Exception ->
-      spts_web_utils:handle_exception(Exception, Req, State)
+      spts_web:handle_exception(Exception, Req, State)
   end.
 
 -spec delete_resource(cowboy_req:req(), state()) ->
@@ -87,7 +112,7 @@ delete_resource(Req, State) ->
     {true, Req1, State}
   catch
     _:Exception ->
-      spts_web_utils:handle_exception(Exception, Req, State)
+      spts_web:handle_exception(Exception, Req, State)
   end.
 
 check_body(#{<<"state">> := <<"started">>}) -> ok;

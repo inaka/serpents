@@ -3,30 +3,47 @@
 -author('elbrujohalcon@inaka.net').
 
 -include_lib("mixer/include/mixer.hrl").
--mixin([
-        {spts_base_handler,
-         [ init/3
-         , rest_init/2
-         , content_types_accepted/2
-         , content_types_provided/2
-         , resource_exists/2
-         ]}
-       ]).
+-mixin([{ spts_base_handler
+        , [ init/3
+          , rest_init/2
+          , allowed_methods/2
+          , content_types_accepted/2
+          , content_types_provided/2
+          , resource_exists/2
+          ]
+        }]).
 
--export([ allowed_methods/2
-        , handle_post/2
+-export([ handle_post/2
         , handle_get/2
+        , trails/0
         ]).
 
 -type state() :: spts_base_handler:state().
 
--spec allowed_methods(cowboy_req:req(), state()) ->
-  {[binary()], cowboy_req:req(), state()}.
-allowed_methods(Req, State) ->
-  {[<<"POST">>, <<"GET">>], Req, State}.
+-behaviour(trails_handler).
+
+-spec trails() -> trails:trails().
+trails() ->
+  Metadata =
+    #{ get =>
+       #{ tags => ["games"]
+        , description => "Returns the list of running games"
+        , produces => ["application/json"]
+        }
+     , post =>
+       #{ tags => ["games"]
+        , description => "Creates a new game"
+        , consumes => ["application/json"]
+        , produces => ["application/json"]
+        , parameters => [spts_web:param(request_body)]
+        }
+     },
+  Path = "/api/games",
+  Opts = #{path => Path},
+  [trails:trail(Path, ?MODULE, Opts, Metadata)].
 
 -spec handle_post(cowboy_req:req(), state()) ->
-  {halt | {boolean(), binary()}, cowboy_req:req(), state()}.
+  {halt | {true, binary()}, cowboy_req:req(), state()}.
 handle_post(Req, State) ->
   try
     {ok, Body, Req1} = cowboy_req:body(Req),
@@ -38,7 +55,7 @@ handle_post(Req, State) ->
     {{true, <<"/api/games/", GameId/binary>>}, Req2, State}
   catch
     _:Exception ->
-      spts_web_utils:handle_exception(Exception, Req, State)
+      spts_web:handle_exception(Exception, Req, State)
   end.
 
 -spec handle_get(cowboy_req:req(), state()) ->
