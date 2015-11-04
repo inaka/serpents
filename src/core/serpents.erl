@@ -39,27 +39,29 @@ start_phase(start_cowboy_listeners, _StartType, []) ->
   Port = application:get_env(?MODULE, http_port, 8585),
   ListenerCount = application:get_env(?MODULE, http_listener_count, 10),
 
-  Routes =
-    [{'_',
-      [ {"/", cowboy_static, {file, "www/index.html"}}
-      , {"/favicon.ico", cowboy_static, {file, "www/assets/favicon.ico"}}
-      , {"/assets/[...]", cowboy_static, {dir, "www/assets"}}
-      , {"/game/:game_id", cowboy_static, {file, "www/game.html"}}
-      , {"/api/status", spts_status_handler,  []}
-      , {"/api/games", spts_games_handler, []}
-      , {"/api/games/:game_id", spts_single_game_handler, []}
-      , {"/api/games/:game_id/serpents", spts_serpents_handler, []}
-      , { "/api/games/:game_id/serpents/:token"
-        , spts_single_serpent_handler, []
-        }
-      , {"/api/games/:game_id/news", lasse_handler, [spts_news_handler]}
-      ]
-     }
+  Handlers =
+    [ spts_status_handler
+    , spts_games_handler
+    , spts_single_game_handler
+    , spts_serpents_handler
+    , spts_single_serpent_handler
+    , spts_news_handler
+    , cowboy_swagger_handler
     ],
-  Dispatch = cowboy_router:compile(Routes),
+  Trails =
+    [ {"/", cowboy_static, {file, "www/index.html"}}
+    , {"/favicon.ico", cowboy_static, {file, "www/assets/favicon.ico"}}
+    , {"/assets/[...]", cowboy_static, {dir, "www/assets"}}
+    , {"/game/:game_id", cowboy_static, {file, "www/game.html"}}
+    | trails:trails(Handlers)
+    ],
+  trails:store(Trails),
+  Dispatch = trails:single_host_compile(Trails),
+
+  TransOpts = [{port, Port}],
+  ProtoOpts = [{env, [{dispatch, Dispatch}, {compress, true}]}],
   case cowboy:start_http(
-        spts_http_listener, ListenerCount, [{port, Port}],
-        [{env, [{dispatch, Dispatch}]}]) of
+        spts_http_listener, ListenerCount, TransOpts, ProtoOpts) of
     {ok, _} -> ok;
     {error, {already_started, _}} -> ok
   end.

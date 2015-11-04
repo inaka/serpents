@@ -3,36 +3,54 @@
 -author('elbrujohalcon@inaka.net').
 
 -include_lib("mixer/include/mixer.hrl").
--mixin([
-        {spts_base_handler,
-         [ init/3
-         , rest_init/2
-         , content_types_accepted/2
-         , content_types_provided/2
-         ]}
-       ]).
+-mixin([{ spts_single_base_handler
+        , [ init/3
+          , rest_init/2
+          , allowed_methods/2
+          , content_types_accepted/2
+          , content_types_provided/2
+          ]
+        }]).
 
--export([ allowed_methods/2
-        , forbidden/2
+-export([ forbidden/2
         , handle_put/2
         , resource_exists/2
+        , trails/0
         ]).
 
--type state() :: spts_base_handler:state().
+-type state() :: spts_single_base_handler:state().
 
--spec init({atom(), atom()}, cowboy_req:req(), state()) ->
-  {upgrade, protocol, cowboy_rest}.
--spec rest_init(cowboy_req:req(), state()) ->
-  {ok, cowboy_req:req(), term()}.
--spec content_types_accepted(cowboy_req:req(), state()) ->
-  {[term()], cowboy_req:req(), state()}.
--spec content_types_provided(cowboy_req:req(), state()) ->
-  {[term()], cowboy_req:req(), state()}.
+-behaviour(trails_handler).
 
--spec allowed_methods(cowboy_req:req(), state()) ->
-  {[binary()], cowboy_req:req(), state()}.
-allowed_methods(Req, State) ->
-  {[<<"PUT">>, <<"GET">>, <<"DELETE">>], Req, State}.
+-spec trails() -> trails:trails().
+trails() ->
+  Metadata =
+    #{ get =>
+       #{ tags => ["serpents"]
+        , description => "Returns the description of a game"
+        , produces => ["application/json"]
+        , parameters => [ spts_web:param(game_id)
+                        , spts_web:param(token)
+                        ]
+        }
+     , put =>
+       #{ tags => ["serpents"]
+        , description => "Updates a game"
+        , consumes => ["application/json"]
+        , produces => ["application/json"]
+        , parameters => [ spts_web:param(request_body)
+                        , spts_web:param(game_id)
+                        ]
+        }
+     , delete =>
+       #{ tags => ["serpents"]
+        , description => "Deletes a game"
+        , parameters => [spts_web:param(game_id)]
+        }
+     },
+  Path = "/api/games/:game_id/serpents/:token",
+  Opts = #{path => Path},
+  [trails:trail(Path, ?MODULE, Opts, Metadata)].
 
 -spec forbidden(cowboy_req:req(), term()) ->
   {boolean(), cowboy_req:req(), term()}.
@@ -84,7 +102,7 @@ handle_put(Req, State) ->
     {true, Req4, State}
   catch
     _:Exception ->
-      spts_web_utils:handle_exception(Exception, Req, State)
+      spts_web:handle_exception(Exception, Req, State)
   end.
 
 parse_body(#{<<"direction">> := D}) when D == <<"up">>

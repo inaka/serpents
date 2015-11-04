@@ -12,20 +12,47 @@
         , terminate/3
         ]).
 -export([ notify/2
+        , trails/0
         ]).
 
 -type state() :: #{game => spts_games:id()}.
+
+-behaviour(trails_handler).
+
+-spec trails() -> trails:trails().
+trails() ->
+  Metadata =
+    #{ get =>
+       #{ tags => ["news"]
+        , summary =>
+          "WARNING: Do not try to use this endpoint from this page."
+          "Swagger doesn't understand SSE"
+        , description =>
+          "Opens an [SSE](http://www.w3.org/TR/eventsource/) "
+          "connection to retrieve game updates"
+        , externalDocs =>
+          #{ description => "RFC"
+           , url => "http://www.w3.org/TR/eventsource/"
+           }
+        , produces => ["application/json"]
+        , parameters => [spts_web:param(game_id)]
+        }
+     },
+  Path = "/api/games/:game_id/news",
+  Opts = #{path => Path},
+  [trails:trail(
+    Path, lasse_handler, #{module => ?MODULE, init_args => Opts}, Metadata)].
 
 %% @doc sends an event to a listener
 -spec notify(pid(), spts_core:event()) -> ok.
 notify(Pid, Event) -> lasse_handler:notify(Pid, Event).
 
--spec init([], _, cowboy_req:req()) ->
+-spec init(spts_base_handler:options(), _, cowboy_req:req()) ->
   {ok, cowboy_req:req(), [lasse_handler:event()], state()} |
   {shutdown, cowboy:http_status(), cowboy:http_headers(), iodata(),
     cowboy_req:req()}.
-init([], _LastEventId, Req) ->
-  Req0 = spts_web_utils:announce_req(Req, []),
+init(_Opts, _LastEventId, Req) ->
+  Req0 = spts_web:announce_req(Req, []),
   {GameId, Req1} = cowboy_req:binding(game_id, Req0),
   case spts_core:is_game(GameId) of
     false ->

@@ -10,7 +10,7 @@
        ]).
 
 -export([ all/0
-        , spts_web_utils/1
+        , spts_web/1
         , spts_single_game_handler/1
         , spts_news_handler/1
         , spts_gen_event_handler/1
@@ -38,11 +38,11 @@ spts_hdp_handler(_Config) ->
   {ok, state} = spts_hdp_handler:code_change(oldvsn, state, extra),
   {comment, ""}.
 
--spec spts_web_utils(spts_test_utils:config()) -> {comment, []}.
-spts_web_utils(_Config) ->
-  ct:comment("spts_web_utils:handle_exception with unknown exception"),
+-spec spts_web(spts_test_utils:config()) -> {comment, []}.
+spts_web(_Config) ->
+  ct:comment("spts_web:handle_exception with unknown exception"),
   {halt, req, state} =
-    spts_web_utils:handle_exception({unknown, reason}, req, state),
+    spts_web:handle_exception({unknown, reason}, req, state),
   {comment, ""}.
 
 -spec spts_single_game_handler(spts_test_utils:config()) -> {comment, []}.

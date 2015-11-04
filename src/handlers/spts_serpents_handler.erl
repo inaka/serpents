@@ -3,37 +3,40 @@
 -author('elbrujohalcon@inaka.net').
 
 -include_lib("mixer/include/mixer.hrl").
--mixin([
-        {spts_base_handler,
-         [ init/3
-         , rest_init/2
-         , content_types_accepted/2
-         , content_types_provided/2
-         , resource_exists/2
-         ]}
-       ]).
+-mixin([{ spts_base_handler
+        , [ init/3
+          , rest_init/2
+          , allowed_methods/2
+          , content_types_accepted/2
+          , content_types_provided/2
+          , resource_exists/2
+          ]
+        }]).
 
--export([ allowed_methods/2
-        , handle_post/2
+-export([ handle_post/2
+        , trails/0
         ]).
 
 -type state() :: spts_base_handler:state().
 
--spec init({atom(), atom()}, cowboy_req:req(), state()) ->
-  {upgrade, protocol, cowboy_rest}.
--spec rest_init(cowboy_req:req(), state()) ->
-  {ok, cowboy_req:req(), term()}.
--spec content_types_accepted(cowboy_req:req(), state()) ->
-  {[term()], cowboy_req:req(), state()}.
--spec content_types_provided(cowboy_req:req(), state()) ->
-  {[term()], cowboy_req:req(), state()}.
--spec resource_exists(cowboy_req:req(), term()) ->
-  {boolean(), cowboy_req:req(), term()}.
+-behaviour(trails_handler).
 
-
--spec allowed_methods(cowboy_req:req(), state()) ->
-  {[binary()], cowboy_req:req(), state()}.
-allowed_methods(Req, State) -> {[<<"POST">>], Req, State}.
+-spec trails() -> trails:trails().
+trails() ->
+  Metadata =
+    #{ post =>
+       #{ tags => ["serpents"]
+        , description => "Adds a serpent to a game"
+        , consumes => ["application/json"]
+        , produces => ["application/json"]
+        , parameters => [ spts_web:param(request_body)
+                        , spts_web:param(game_id)
+                        ]
+        }
+     },
+  Path = "/api/games/:game_id/serpents",
+  Opts = #{path => Path},
+  [trails:trail(Path, ?MODULE, Opts, Metadata)].
 
 -spec handle_post(cowboy_req:req(), state()) ->
   {halt | {boolean(), binary()}, cowboy_req:req(), state()}.
@@ -56,7 +59,7 @@ handle_post(Req, State) ->
     {{true, <<"/api/games/", Name/binary>>}, Req3, State}
   catch
     _:Exception ->
-      spts_web_utils:handle_exception(Exception, Req, State)
+      spts_web:handle_exception(Exception, Req, State)
   end.
 
 parse_body(#{<<"name">> := Name}) -> Name;

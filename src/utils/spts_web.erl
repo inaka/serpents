@@ -1,8 +1,9 @@
 %%% @doc utilities for web handlers
--module(spts_web_utils).
+-module(spts_web).
 -author('elbrujohalcon@inaka.net').
 
 -export([announce_req/2, handle_exception/3]).
+-export([param/1]).
 
 -spec announce_req(cowboy_req:req(), iodata()) -> cowboy_req:req().
 announce_req(Req, Suffix) ->
@@ -36,3 +37,26 @@ handle_exception(Reason, Req, State) ->
         {ok, Req}
     end,
   {halt, Req1, State}.
+
+%% @doc returns standard params for swagger metadata.
+-spec param(atom()) -> map().
+param(request_body) ->
+  #{ name => <<"request body">>
+   , in => body
+   , description => <<"request body (as json)">>
+   , required => true
+   };
+param(token) ->
+  #{ name => token
+   , in => path
+   , description => <<"Serpent Token">>
+   , required => true
+   , type => string
+   };
+param(game_id) ->
+  #{ name => game_id
+   , in => path
+   , description => <<"Game Identifier">>
+   , required => true
+   , type => string
+   }.

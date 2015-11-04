@@ -3,34 +3,35 @@
 -author('elbrujohalcon@inaka.net').
 
 -include_lib("mixer/include/mixer.hrl").
--mixin([
-        {spts_base_handler,
-         [ init/3
-         , rest_init/2
-         , content_types_provided/2
-         , resource_exists/2
-         ]}
-       ]).
+-mixin([{ spts_base_handler
+        , [ init/3
+          , rest_init/2
+          , allowed_methods/2
+          , resource_exists/2
+          , content_types_provided/2
+          ]
+        }]).
 
--export([ allowed_methods/2
-        , handle_get/2
+-export([ handle_get/2
+        , trails/0
         ]).
 
 -type state() :: spts_base_handler:state().
 
--spec init({atom(), atom()}, cowboy_req:req(), state()) ->
-  {upgrade, protocol, cowboy_rest}.
--spec rest_init(cowboy_req:req(), state()) ->
-  {ok, cowboy_req:req(), term()}.
--spec content_types_provided(cowboy_req:req(), state()) ->
-  {[term()], cowboy_req:req(), state()}.
--spec resource_exists(cowboy_req:req(), term()) ->
-  {boolean(), cowboy_req:req(), term()}.
+-behaviour(trails_handler).
 
--spec allowed_methods(cowboy_req:req(), state()) ->
-  {[binary()], cowboy_req:req(), state()}.
-allowed_methods(Req, State) ->
-  {[<<"GET">>], Req, State}.
+-spec trails() -> trails:trails().
+trails() ->
+  Metadata =
+    #{ get =>
+       #{ tags => ["status"]
+        , description => "Returns the system status"
+        , produces => ["application/json"]
+        }
+     },
+  Path = "/api/status",
+  Opts = #{path => Path},
+  [trails:trail(Path, ?MODULE, Opts, Metadata)].
 
 -spec handle_get(cowboy_req:req(), state()) ->
   {iodata(), cowboy_req:req(), state()}.
