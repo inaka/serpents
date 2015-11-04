@@ -39,6 +39,8 @@ start_phase(start_cowboy_listeners, _StartType, []) ->
   Port = application:get_env(?MODULE, http_port, 8585),
   ListenerCount = application:get_env(?MODULE, http_listener_count, 10),
 
+  hack_cowboy_swagger_path(),
+
   Handlers =
     [ spts_status_handler
     , spts_games_handler
@@ -69,3 +71,23 @@ start_phase(start_cowboy_listeners, _StartType, []) ->
 %% @private
 -spec stop([]) -> ok.
 stop([]) -> ok.
+
+%% @doc Properly sets cowboy swagger priv path.
+%% @hack Waiting for https://github.com/inaka/cowboy-swagger/issues/26
+%% @todo revert cowboy-swagger workaround
+%%       once https://github.com/inaka/cowboy-swagger/issues/26 is fixed
+-spec hack_cowboy_swagger_path() -> ok.
+hack_cowboy_swagger_path() ->
+  CowboySwaggerPriv =
+    case code:priv_dir(cowboy_swagger) of
+      {error, bad_name} ->
+        filename:join(
+          [ filename:dirname(code:which(cowboy_swagger_handler))
+          , ".."
+          , "priv"
+          ]);
+      Path -> Path
+    end,
+  StaticFiles = filename:join(CowboySwaggerPriv, "swagger"),
+  application:set_env(cowboy_swagger, static_files, StaticFiles),
+  ok.
