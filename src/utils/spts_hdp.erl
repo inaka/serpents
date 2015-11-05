@@ -55,11 +55,11 @@
   .
 
 -type message() :: pong
-                 | {pos_integer(), [game()]}
+                 | {non_neg_integer(), [game()]}
                  | game()
-                 | {pos_integer(), binary()}
-                 | {pos_integer(), game()}
-                 | {pos_integer(), [diff()]}
+                 | {non_neg_integer(), binary()}
+                 | {non_neg_integer(), game()}
+                 | {non_neg_integer(), [diff()]}
                  .
 
 -export_type([parser/0, type/0, game/0, diff/0, message/0]).

@@ -20,6 +20,8 @@
         , spts_hdp_game_handler/1
         ]).
 
+-dialyzer([no_opaque, no_fail_call, no_return]).
+
 -spec all() -> [atom()].
 all() -> spts_test_utils:all(?MODULE).
 

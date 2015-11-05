@@ -56,7 +56,7 @@ serpent_added(_Config) ->
   GameId = spts_games:id(spts_core:create_game()),
 
   ct:comment("A serpent is added and the client receives an event"),
-  Task = fun() -> spts_core:add_serpent(GameId, <<"sa">>) end,
+  Task = fun() -> _ = spts_core:add_serpent(GameId, <<"sa">>) end,
   {Serpent, [#{data := Data}]} =
     spts_test_utils:get_events_after(
       <<"/games/", GameId/binary, "/news">>, <<"serpent_added">>, Task),
@@ -75,7 +75,7 @@ game_countdown(_Config) ->
   GameId = spts_games:id(spts_core:create_game()),
 
   ct:comment("A serpent is added"),
-  spts_core:add_serpent(GameId, <<"gc">>),
+  _ = spts_core:add_serpent(GameId, <<"gc">>),
 
   ct:comment("The game is started and the client receives an event"),
   Task = fun() -> spts_core:start_game(GameId) end,
@@ -99,7 +99,7 @@ game_started(_Config) ->
   GameId = spts_games:id(spts_core:create_game(#{countdown => 0})),
 
   ct:comment("A serpent is added"),
-  spts_core:add_serpent(GameId, <<"gs">>),
+  _ = spts_core:add_serpent(GameId, <<"gs">>),
 
   ct:comment("The game is started and the client receives an event"),
   Task = fun() -> spts_core:start_game(GameId) end,
@@ -124,7 +124,7 @@ game_updated(_Config) ->
     spts_games:id(spts_core:create_game(#{countdown => 0, ticktime => 60000})),
 
   ct:comment("A serpent is added and the game is started"),
-  spts_core:add_serpent(GameId, <<"gu">>),
+  _ = spts_core:add_serpent(GameId, <<"gu">>),
   spts_core:start_game(GameId),
 
   ct:comment("The game ticks and the client receives an event"),
@@ -152,7 +152,7 @@ collision_detected(_Config) ->
         #{rows => 5, cols => 5, countdown => 0, ticktime => 60000})),
 
   ct:comment("A serpent is added, the game is started and played till the end"),
-  spts_core:add_serpent(GameId, <<"gu">>),
+  _ = spts_core:add_serpent(GameId, <<"gu">>),
   spts_core:start_game(GameId),
 
   ct:comment("The game ticks and the client receives an event"),
@@ -180,7 +180,7 @@ game_finished(_Config) ->
         #{rows => 5, cols => 5, countdown => 0, ticktime => 60000})),
 
   ct:comment("A serpent is added, the game is started and played till the end"),
-  spts_core:add_serpent(GameId, <<"gu">>),
+  _ = spts_core:add_serpent(GameId, <<"gu">>),
   spts_core:start_game(GameId),
 
   ct:comment("The game ticks and the client receives an event"),

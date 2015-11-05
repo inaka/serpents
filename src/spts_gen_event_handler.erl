@@ -53,7 +53,7 @@ handle_info(Info, State) -> State#state.process ! Info, {ok, State}.
 
 -spec terminate(term(), state()) -> ok.
 terminate(Reason, State) ->
-  lager:notice("~p for ~p terminating: ~p", [?MODULE, State, Reason]).
+  _ = lager:notice("~p for ~p terminating: ~p", [?MODULE, State, Reason]).
 
 -spec code_change(term(), state(), term()) -> {ok, state()}.
 code_change(_OldVsn, State, _Extra) -> {ok, State}.

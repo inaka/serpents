@@ -101,9 +101,9 @@ init_per_testcase(serpent_movement, Config) ->
     spts_games:id(
       spts_core:create_game(
         #{cols => 5, rows => 5, ticktime => 600000, countdown => 0})),
-  spts_core:add_serpent(GameId, <<"sm1">>),
-  spts_core:add_serpent(GameId, <<"sm2">>),
-  spts_core:add_serpent(GameId, <<"sm3">>),
+  _ = spts_core:add_serpent(GameId, <<"sm1">>),
+  _ = spts_core:add_serpent(GameId, <<"sm2">>),
+  _ = spts_core:add_serpent(GameId, <<"sm3">>),
   [{game, GameId} | Config];
 init_per_testcase(Test, Config) when Test == collision_with_serpent_body;
                                      Test == collision_with_serpent_head;
@@ -117,14 +117,14 @@ init_per_testcase(countdown, Config) ->
     spts_games:id(
       spts_core:create_game(
         #{cols => 5, rows => 5, ticktime => 600000, countdown => 5})),
-  spts_core:add_serpent(GameId, <<"cd1">>),
+  _ = spts_core:add_serpent(GameId, <<"cd1">>),
   [{game, GameId} | Config];
 init_per_testcase(_Test, Config) ->
   GameId =
     spts_games:id(
       spts_core:create_game(
         #{cols => 5, rows => 5, ticktime => 600000, countdown => 0})),
-  spts_core:add_serpent(GameId, <<"serp1">>),
+  _ = spts_core:add_serpent(GameId, <<"serp1">>),
   [{game, GameId} | Config].
 
 -spec end_per_testcase(atom(), spts_test_utils:config()) ->
@@ -556,8 +556,8 @@ max_serpents(Config) ->
   {game, GameId} = lists:keyfind(game, 1, Config),
 
   ct:comment("2 serpents can be added"),
-  spts_core:add_serpent(GameId, <<"ms1">>),
-  spts_core:add_serpent(GameId, <<"ms2">>),
+  _ = spts_core:add_serpent(GameId, <<"ms1">>),
+  _ = spts_core:add_serpent(GameId, <<"ms2">>),
 
   ct:comment("the 3rd one can not"),
   try spts_core:add_serpent(GameId, <<"ms3">>) of

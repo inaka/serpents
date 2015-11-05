@@ -3,6 +3,7 @@
 -behaviour(wx_object).
 
 -include_lib("wx/include/wx.hrl").
+-include_lib("wx/src/wxe.hrl").
 
 -record(state, { frame        :: wx:wx_object()
                , label        :: wx:wx_object()
@@ -73,7 +74,7 @@ handle_event(
         } = State,
 
   wxStaticText:setLabel(Label, string:to_upper(atom_to_list(Direction))),
-  lager:notice("Key Press: ~p~n", [lager:pr(KeyCode, ?MODULE)]),
+  _ = lager:notice("Key Press: ~p~n", [_ = lager:pr(KeyCode, ?MODULE)]),
 
   ok = spts_hdp:send(
         UdpSocket, spts_hdp:update(Tick, SerpentId, Tick, Direction)),
@@ -95,7 +96,7 @@ handle_event(#wx{event = #wxClose{}}, State) ->
   wxWindow:destroy(Frame),
   {stop, normal, State};
 handle_event(#wx{} = Event, State) ->
-  lager:notice("Something happened: ~p~n", [lager:pr(Event, ?MODULE)]),
+  _ = lager:notice("Something happened: ~p~n", [_ = lager:pr(Event, ?MODULE)]),
   {noreply, State}.
 
 -spec handle_info(term(), state()) ->
@@ -106,7 +107,7 @@ handle_info(
   %% @todo do stuff with the Diffs like detecting the game ended
   {noreply, State#state{tick = Tick}};
 handle_info(Info, State) ->
-  lager:warning("Info: ~p", [lager:pr(Info, ?MODULE)]),
+  _ = lager:warning("Info: ~p", [_ = lager:pr(Info, ?MODULE)]),
   {noreply, State}.
 
 -spec terminate(term(), state()) -> ok.
@@ -130,7 +131,7 @@ code_change(_OldVsn, State, _Extra) -> {ok, State}.
 %%% Internal Functions
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 create_screen(SerpentName) ->
-  wx:new(),
+  #wx_ref{} = wx:new(),
   Frame =
     wxFrame:new(
       wx:null(), ?wxID_ANY, binary_to_list(SerpentName),
@@ -142,7 +143,7 @@ create_screen(SerpentName) ->
   wxFrame:setIcon(Frame, Icon),
   wxIcon:destroy(Icon),
 
-  wxFrame:createStatusBar(Frame, []),
+  #wx_ref{} = wxFrame:createStatusBar(Frame, []),
   ok = wxFrame:setStatusText(Frame, "Use arrow keys to move", []),
 
   wxFrame:connect(Frame, close_window, [{skip, true}]),

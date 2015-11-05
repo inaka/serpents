@@ -93,7 +93,8 @@ handle_udp(<<Flags:?UCHAR,
   handle_message(MessageType, Message, Metadata);
 % Garbage and malformed messages are simply ignored
 handle_udp(MalforedMessage, _UdpSocket, Ip, _Port) ->
-  lager:info("received malformed message from ~p: ~p", [Ip, MalforedMessage]),
+  _ =
+    lager:info("received malformed message from ~p: ~p", [Ip, MalforedMessage]),
   ok.
 
 %% PING
@@ -131,7 +132,7 @@ handle_message(info,
              Metadata)
   catch
     throw:{badgame, GameId} ->
-      lager:warning("Game ~p doesn't exist", [GameId]),
+      _ = lager:warning("Game ~p doesn't exist", [GameId]),
       ErrorFlags = set_flags([info, error]),
       ErrorReason = spts_binary:pascal_string(<<"badgame">>),
       send(
@@ -162,13 +163,13 @@ handle_message(join,
          Metadata)
   catch
     throw:{badgame, _} ->
-      lager:warning("Game ~p doesn't exist", [GameId]),
+      _ = lager:warning("Game ~p doesn't exist", [GameId]),
       ErrorFlags = set_flags([join, error]),
       ErrorReason = spts_binary:pascal_string(<<"badgame">>),
       send(
         <<ErrorFlags:?UCHAR, MessageId:?UINT, UserTime:?USHORT,
           GameId:?USHORT, ErrorReason/binary>>, Metadata);
-    A:B -> lager:warning(
+    A:B -> _ = lager:warning(
             "Unexpected error ~p:~p~n~p", [A, B, erlang:get_stacktrace()]),
            ErrorFlags = set_flags([join, error]),
            ErrorReason = "unspecified",
@@ -186,14 +187,16 @@ handle_message(
   Address = {Metadata#metadata.ip, Metadata#metadata.port},
   case get_direction(DirData) of
     undefined ->
-      lager:warning("Unknown direction: ~p", [DirData]);
+      _ = lager:warning("Unknown direction: ~p", [DirData]),
+      ok;
     Direction ->
       spts_hdp_game_handler:user_update(
         Metadata#metadata.user_id, Address, LastServerTick, Direction)
   end;
 handle_message(MessageType, Garbage, Metadata) ->
-  lager:warning(
-    "Malformed Message:~n~p~n~p~n~p", [MessageType, Garbage, Metadata]).
+  _ = lager:warning(
+    "Malformed Message:~n~p~n~p~n~p", [MessageType, Garbage, Metadata]),
+  ok.
 
 %%==============================================================================
 %% Utils

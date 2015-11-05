@@ -35,19 +35,21 @@ init_per_suite(Config) ->
 
 -spec end_per_suite(config()) -> config().
 end_per_suite(Config) ->
-  serpents:stop(),
-  shotgun:stop(),
+  ok = serpents:stop(),
+  ok = shotgun:stop(),
   Config.
 
--spec api_call(atom(), string()) -> #{}.
+-spec api_call(atom(), binary() | string()) -> #{}.
 api_call(Method, Uri) ->
   api_call(Method, Uri, #{}).
 
--spec api_call(atom(), string(), #{}) -> #{}.
+-spec api_call(atom(), binary() | string(), #{}) -> #{}.
 api_call(Method, Uri, Headers) ->
   api_call(Method, Uri, Headers, []).
 
--spec api_call(atom(), string(), #{}, iodata()) -> #{}.
+-spec api_call(atom(), binary() | string(), #{}, iodata()) -> #{}.
+api_call(Method, Uri, Headers, Body) when is_binary(Uri) ->
+  api_call(Method, binary_to_list(Uri), Headers, Body);
 api_call(Method, Uri, Headers, Body) ->
   Port = application:get_env(serpents, http_port, 8585),
   {ok, Pid} = shotgun:open("localhost", Port),
@@ -59,12 +61,13 @@ api_call(Method, Uri, Headers, Body) ->
     shotgun:close(Pid)
   end.
 
--spec get_events(iodata(), binary()) -> [{nofin | fin, reference(), binary()}].
+-spec get_events(binary() | string(), binary()) -> [map()].
 get_events(Uri, EventType) ->
   {ok, Events} = get_events_after(Uri, EventType, fun() -> ok end),
   Events.
 
--spec get_events_after(iodata(), binary(), fun(() -> X)) -> {X, [map()]}.
+-spec get_events_after(binary() | string(), binary(), fun(() -> X)) ->
+  {X, [map()]}.
 get_events_after(Uri, EventType, Task) ->
   Port = application:get_env(serpents, http_port, 8585),
   {ok, Pid} = shotgun:open("localhost", Port),
@@ -130,5 +133,7 @@ check_bounds({Row, _}, Rows, _) when Row > Rows -> out;
 check_bounds({_, Col}, _, Cols) when Col > Cols -> out;
 check_bounds(_, _, _) -> in.
 
+open_request(Pid, Uri) when is_binary(Uri) ->
+  open_request(Pid, binary_to_list(Uri));
 open_request(Pid, Uri) ->
   shotgun:get(Pid, "/api" ++ Uri, #{}, #{async => true, async_mode => sse}).
