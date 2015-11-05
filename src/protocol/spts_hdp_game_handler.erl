@@ -94,7 +94,7 @@ init(GameNumericId) ->
                  }}
   catch
     _:{badgame, GameId} ->
-      lager:warning("Not a game: ~p", [GameId]),
+      _ = lager:warning("Not a game: ~p", [GameId]),
       {stop, {badgame, GameId}}
   end.
 
@@ -127,10 +127,10 @@ handle_call({user_connected, Name, Address}, _From, State) ->
       {reply, {ok, SerpentId}, NewState}
   catch
     _:{badgame, _GameId} ->
-      lager:warning("Not a game: ~p", [GameId]),
+      _ = lager:warning("Not a game: ~p", [GameId]),
       {stop, normal, {error, {badgame, GameId}}, State};
     _:Reason ->
-      lager:warning("Unable to join game, reason: ~p", [Reason]),
+      _ = lager:warning("Unable to join game, reason: ~p", [Reason]),
       {reply, {error, Reason}, State}
   end.
 
@@ -157,11 +157,11 @@ handle_info(tick, State) ->
       {noreply, NewState}
   catch
     _:{badgame, _GameId} ->
-      lager:info("Game Ended: ~p", [GameId]),
+      _ = lager:info("Game Ended: ~p", [GameId]),
       {stop, normal, State}
   end;
 handle_info(Msg, State) ->
-  lager:notice("received unexpected info message: ~p", [Msg]),
+  _ = lager:notice("received unexpected info message: ~p", [Msg]),
   {noreply, State}.
 
 -spec handle_cast(
@@ -172,7 +172,7 @@ handle_cast({user_update, SerpentId, Address, LastTick, Direction}, State) ->
   NewState =
     case lists:keytake(SerpentId, #user.serpent_id, Users) of
       false ->
-        lager:warning("Invalid user ~p / Users: ~p", [SerpentId, Users]),
+        _ = lager:warning("Invalid user ~p / Users: ~p", [SerpentId, Users]),
         State;
       {value, User, OtherUsers} ->
         NewUsers = [User#user{address = Address, tick = LastTick} | OtherUsers],
@@ -183,7 +183,7 @@ handle_cast({user_update, SerpentId, Address, LastTick, Direction}, State) ->
 
 -spec terminate(atom(), state()) -> ok.
 terminate(Reason, #state{game_id = GameId}) ->
-  lager:notice("HDP handler for ~p terminating: ~p", [GameId, Reason]),
+  _ = lager:notice("HDP handler for ~p terminating: ~p", [GameId, Reason]),
   ok.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

@@ -11,6 +11,9 @@
         , stop/1
         ]).
 
+%% @todo remove when https://github.com/inaka/cowboy-trails/issues/43 is fixed
+-dialyzer([{no_fail_call, start_phase/3}]).
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Start / Stop
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -51,13 +54,14 @@ start_phase(start_cowboy_listeners, _StartType, []) ->
     , cowboy_swagger_handler
     ],
   Trails =
-    [ {"/", cowboy_static, {file, "www/index.html"}}
-    , {"/favicon.ico", cowboy_static, {file, "www/assets/favicon.ico"}}
-    , {"/assets/[...]", cowboy_static, {dir, "www/assets"}}
-    , {"/game/:game_id", cowboy_static, {file, "www/game.html"}}
+    [ trails:trail("/", cowboy_static, {file, "www/index.html"})
+    , trails:trail(
+        "/favicon.ico", cowboy_static, {file, "www/assets/favicon.ico"})
+    , trails:trail("/assets/[...]", cowboy_static, {dir, "www/assets"})
+    , trails:trail("/game/:game_id", cowboy_static, {file, "www/game.html"})
     | trails:trails(Handlers)
     ],
-  trails:store(Trails),
+  ok = trails:store(Trails),
   Dispatch = trails:single_host_compile(Trails),
 
   TransOpts = [{port, Port}],

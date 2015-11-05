@@ -211,13 +211,13 @@ handle_info(tick, started, State) ->
       {next_state, started, NewState}
   end;
 handle_info(Info, StateName, State) ->
-  lager:notice("~p received at ~p", [Info, StateName]),
+  _ = lager:notice("~p received at ~p", [Info, StateName]),
   {next_state, StateName, State}.
 
 -spec terminate(term(), atom(), state()) -> ok.
 terminate(Reason, StateName, State) ->
   catch gen_event:stop(State#state.dispatcher),
-  lager:notice("Terminating in ~p with reason ~p", [StateName, Reason]).
+  _ = lager:notice("Terminating in ~p with reason ~p", [StateName, Reason]).
 
 -spec code_change(term() | {down, term()}, atom(), state(), term()) ->
     {ok, atom(), state()}.
@@ -231,7 +231,7 @@ created({add_serpent, SerpentName}, From, State) ->
 
 -spec created(term(), state()) -> {next_state, created, state()}.
 created(Request, State) ->
-  lager:warning("Invalid Request: ~p", [Request]),
+  _ = lager:warning("Invalid Request: ~p", [Request]),
   {next_state, created, State}.
 
 -spec open(
@@ -267,7 +267,7 @@ open({turn, SerpentName, Direction}, State) ->
       {next_state, open, State#state{game = NewGame}}
   catch
     throw:invalid_serpent ->
-      lager:warning("Invalid Turn: ~p / ~p", [SerpentName, Direction]),
+      _ = lager:warning("Invalid Turn: ~p / ~p", [SerpentName, Direction]),
       {next_state, open, State}
   end;
 open(start, State) ->
@@ -276,7 +276,7 @@ open(start, State) ->
 -spec closed(term(), _From, state()) ->
     {reply, {error, invalid_state}, closed, state()}.
 closed(Request, _From, State) ->
-  lager:warning("Invalid Request: ~p", [Request]),
+  _ = lager:warning("Invalid Request: ~p", [Request]),
   {reply, {error, invalid_state}, closed, State}.
 
 -spec closed(
@@ -289,7 +289,7 @@ closed({turn, SerpentName, Direction}, State) ->
       {next_state, closed, State#state{game = NewGame}}
   catch
     throw:invalid_serpent ->
-      lager:warning("Invalid Turn: ~p / ~p", [SerpentName, Direction]),
+      _ = lager:warning("Invalid Turn: ~p / ~p", [SerpentName, Direction]),
       {next_state, closed, State}
   end;
 closed(start, State) ->
@@ -298,7 +298,7 @@ closed(start, State) ->
 -spec countdown(term(), _From, state()) ->
     {reply, {error, invalid_state}, countdown, state()}.
 countdown(Request, _From, State) ->
-  lager:warning("Invalid Request: ~p", [Request]),
+  _ = lager:warning("Invalid Request: ~p", [Request]),
   {reply, {error, invalid_state}, countdown, State}.
 
 -spec countdown(
@@ -311,17 +311,17 @@ countdown({turn, SerpentName, Direction}, State) ->
       {next_state, countdown, State#state{game = NewGame}}
   catch
     throw:invalid_serpent ->
-      lager:warning("Invalid Turn: ~p / ~p", [SerpentName, Direction]),
+      _ = lager:warning("Invalid Turn: ~p / ~p", [SerpentName, Direction]),
       {next_state, countdown, State}
   end;
 countdown(Request, State) ->
-  lager:warning("Invalid Request: ~p", [Request]),
+  _ = lager:warning("Invalid Request: ~p", [Request]),
   {next_state, countdown, State}.
 
 -spec started(term(), _From, state()) ->
                 {reply, {error, invalid_state}, started, state()}.
 started(Request, _From, State) ->
-  lager:warning("Invalid Request: ~p", [Request]),
+  _ = lager:warning("Invalid Request: ~p", [Request]),
   {reply, {error, invalid_state}, started, State}.
 
 -spec started(
@@ -334,22 +334,22 @@ started({turn, SerpentName, Direction}, State) ->
       {next_state, started, State#state{game = NewGame}}
   catch
     throw:invalid_serpent ->
-      lager:warning("Invalid Turn: ~p / ~p", [SerpentName, Direction]),
+      _ = lager:warning("Invalid Turn: ~p / ~p", [SerpentName, Direction]),
       {next_state, started, State}
   end;
 started(Request, State) ->
-  lager:warning("Invalid Request: ~p", [Request]),
+  _ = lager:warning("Invalid Request: ~p", [Request]),
   {next_state, started, State}.
 
 -spec finished(term(), _From, state()) ->
                 {reply, {error, invalid_state}, finished, state()}.
 finished(Request, _From, State) ->
-  lager:warning("Invalid Request: ~p", [Request]),
+  _ = lager:warning("Invalid Request: ~p", [Request]),
   {reply, {error, invalid_state}, finished, State}.
 
 -spec finished(term(), state()) -> {next_state, finished, state()}.
 finished(Request, State) ->
-  lager:warning("Invalid Request: ~p", [Request]),
+  _ = lager:warning("Invalid Request: ~p", [Request]),
   {next_state, finished, State}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -365,7 +365,7 @@ call(GameId, Event) when is_integer(GameId) ->
     end,
   case lists:dropwhile(NotGameId, Processes) of
     [] ->
-      lager:error(
+      _ = lager:error(
         "Couldn't send ~p to ~p: not a game~nStack: ~p",
         [Event, GameId, erlang:get_stacktrace()]),
       throw({badgame, GameId});
@@ -382,7 +382,7 @@ try_call(Process, Event) ->
     {error, Error} -> throw(Error)
   catch
     _:{noproc, _} ->
-      lager:error(
+      _ = lager:error(
         "Couldn't send ~p to ~p: not a game~nStack: ~p",
         [Event, Process, erlang:get_stacktrace()]),
       throw({badgame, Process})

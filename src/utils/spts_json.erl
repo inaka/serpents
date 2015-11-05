@@ -14,6 +14,6 @@ decode(Data) ->
   try jiffy:decode(Data, [return_maps])
   catch
     _:{error, _} ->
-      lager:warning("Bad Json: ~p", [Data]),
+      _ = lager:warning("Bad Json: ~p", [Data]),
       throw(bad_json)
   end.

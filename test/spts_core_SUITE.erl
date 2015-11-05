@@ -41,8 +41,8 @@ init_per_testcase(turn_ok, Config0) ->
   Config = init_per_testcase(turn_wrong, Config0),
   {game, Game} = lists:keyfind(game, 1, Config),
   GameId = spts_games:id(Game),
-  spts_core:add_serpent(GameId, <<"serp1">>),
-  spts_core:add_serpent(GameId, <<"serp2">>),
+  _ = spts_core:add_serpent(GameId, <<"serp1">>),
+  _ = spts_core:add_serpent(GameId, <<"serp2">>),
   Config;
 init_per_testcase(AddSerpentTest, Config)
   when AddSerpentTest == add_serpent_ok
@@ -435,7 +435,7 @@ add_serpent_wrong(Config) ->
   [] = spts_games:serpents(spts_core:fetch_game(GameId)),
 
   ct:comment("serp1 is added"),
-  spts_core:add_serpent(GameId, <<"serp1">>),
+  _ = spts_core:add_serpent(GameId, <<"serp1">>),
   [Serpent1] = spts_games:serpents(spts_core:fetch_game(GameId)),
   <<"serp1">> = spts_serpents:name(Serpent1),
 
@@ -522,7 +522,7 @@ start_game(Config) ->
   created = spts_games:state(spts_core:fetch_game(GameId)),
 
   ct:comment("The game can start after the first serpent is added"),
-  spts_core:add_serpent(GameId, <<"serp1">>),
+  _ = spts_core:add_serpent(GameId, <<"serp1">>),
   ok = spts_core:start_game(GameId),
   countdown = spts_games:state(spts_core:fetch_game(GameId)),
 
@@ -589,7 +589,8 @@ turn_ok(Config) ->
       {down, left} = TryWith(<<"serp2">>, left),
       {left, left} = TryWith(<<"serp1">>, left),
       {left, right} = TryWith(<<"serp2">>, right),
-      {right, right} = TryWith(<<"serp1">>, right)
+      {right, right} = TryWith(<<"serp1">>, right),
+      ok
     end,
 
   ct:comment("Before the game starts, serpents can turn"),

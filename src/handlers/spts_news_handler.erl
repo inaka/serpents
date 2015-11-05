@@ -85,22 +85,22 @@ handle_notify({Type, Game}, State) when Type == game_countdown;
      },
   {send, Event, State};
 handle_notify(Event, State) ->
-  lager:warning("Ignored Event: ~p on ~p", [Event, State]),
+  _ = lager:warning("Ignored Event: ~p on ~p", [Event, State]),
   {nosend, State}.
 
 -spec handle_info(any(), state()) -> lasse_handler:result().
 handle_info(Info, State) ->
-  lager:notice("~p received at ~p", [Info, State]),
+  _ = lager:notice("~p received at ~p", [Info, State]),
   {nosend, State}.
 
 -spec handle_error(lasse_handler:event(), term(), state()) -> state().
 handle_error(Event, Error, State) ->
-  lager:warning("Couldn't send ~p in ~p: ~p", [Event, State, Error]),
+  _ = lager:warning("Couldn't send ~p in ~p: ~p", [Event, State, Error]),
   State.
 
 -spec terminate(any(), cowboy_req:req(), state()) -> ok.
 terminate(Reason, _Req, #{game := GameId}) ->
-  lager:notice("News for ~p terminating: ~p", [GameId, Reason]),
+  _ = lager:notice("News for ~p terminating: ~p", [GameId, Reason]),
   catch spts_gen_event_handler:unsubscribe(GameId, ?MODULE, self()),
   ok;
 terminate(_Reason, _Req, _State) -> ok.

@@ -95,7 +95,7 @@ game_states(Config) ->
   created = CheckState(1),
 
   ct:comment("Countdown"),
-  spts_core:add_serpent(GameName, <<"s1">>),
+  _ = spts_core:add_serpent(GameName, <<"s1">>),
   spts_core:start_game(GameName),
   countdown = CheckState(2),
 
@@ -401,7 +401,7 @@ rounds_server_update(Config) ->
       {_, Diffs} = diffs(hdp_recv(Config)),
       case [Data || #{data := Data, type := state} <- Diffs] of
         [finished] -> ok;
-        _ -> [I] = [Data || #{data := Data, type := rounds} <- Diffs]
+        _ -> [I] = [Data || #{data := Data, type := rounds} <- Diffs], ok
       end,
       spts_games:process_name(GameName) ! tick
     end,
@@ -559,7 +559,7 @@ wrong_input(Config) ->
   Game2 = spts_core:create_game(),
   Game2Id = spts_games:numeric_id(Game2),
   Game2Name = spts_games:id(Game2),
-  do_join(Game2Id, <<"s1">>, Config),
+  _ = do_join(Game2Id, <<"s1">>, Config),
   ok = spts_core:stop_game(Game2Name),
 
   ct:comment("The handler is still alive"),
@@ -661,7 +661,7 @@ serpent_body(SerpentId, SerpentsDiff) ->
     [Body || #{id := SId, body := Body} <- SerpentsDiff, SId == SerpentId],
   SBody.
 
-no_diffs(Update) -> {_, []} = diffs(Update).
+no_diffs(Update) -> {_, []} = diffs(Update), ok.
 
 diffs({server_update, Tick, Tick, {Tick, Diffs}}) -> {Tick, Diffs}.
 

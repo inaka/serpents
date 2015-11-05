@@ -38,5 +38,5 @@ handle_update(_Diffs, _SerpentId, _Game, State) ->
 
 -spec terminate(term(), pos_integer(), spts_hdp:game(), state()) -> _.
 terminate(_Reason, SerpentId, _Game, _State) ->
-  lager:notice("I (~p) am dead!", [SerpentId]),
+  _ = lager:notice("I (~p) am dead!", [SerpentId]),
   ok.

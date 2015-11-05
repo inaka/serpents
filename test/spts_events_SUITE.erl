@@ -70,7 +70,7 @@ game_started(Config) ->
   {game, GameId} = lists:keyfind(game, 1, Config),
 
   ct:comment("A serpent is added"),
-  spts_core:add_serpent(GameId, <<"serp1">>),
+  _ = spts_core:add_serpent(GameId, <<"serp1">>),
 
   ok = spts_test_handler:subscribe(GameId, self()),
   ct:comment("The Game starts, we receive an event"),
@@ -87,7 +87,7 @@ game_started(Config) ->
 -spec game_finished(spts_test_utils:config()) -> {comment, []}.
 game_finished(Config) ->
   {game, GameId} = lists:keyfind(game, 1, Config),
-  spts_core:add_serpent(GameId, <<"serp1">>),
+  _ = spts_core:add_serpent(GameId, <<"serp1">>),
   ok = spts_core:start_game(GameId),
 
   ok = spts_test_handler:subscribe(GameId, self()),
@@ -112,7 +112,7 @@ game_finished(Config) ->
 -spec game_updated(spts_test_utils:config()) -> {comment, []}.
 game_updated(Config) ->
   {game, GameId} = lists:keyfind(game, 1, Config),
-  spts_core:add_serpent(GameId, <<"serp1">>),
+  _ = spts_core:add_serpent(GameId, <<"serp1">>),
   ok = spts_core:start_game(GameId),
 
   ok = spts_test_handler:subscribe(GameId, self()),
@@ -137,9 +137,9 @@ game_updated(Config) ->
 -spec collision_detected(spts_test_utils:config()) -> {comment, []}.
 collision_detected(Config) ->
   {game, GameId} = lists:keyfind(game, 1, Config),
-  spts_core:add_serpent(GameId, <<"serp1">>),
-  spts_core:add_serpent(GameId, <<"serp2">>),
-  spts_core:add_serpent(GameId, <<"serp3">>),
+  _ = spts_core:add_serpent(GameId, <<"serp1">>),
+  _ = spts_core:add_serpent(GameId, <<"serp2">>),
+  _ = spts_core:add_serpent(GameId, <<"serp3">>),
   ok = spts_core:start_game(GameId),
 
   ReceiveCollision =
@@ -171,7 +171,7 @@ collision_detected(Config) ->
 -spec game_countdown(spts_test_utils:config()) -> {comment, []}.
 game_countdown(Config) ->
   {game, GameId} = lists:keyfind(game, 1, Config),
-  spts_core:add_serpent(GameId, <<"serp1">>),
+  _ = spts_core:add_serpent(GameId, <<"serp1">>),
 
   ok = spts_test_handler:subscribe(GameId, self()),
   ok = spts_core:start_game(GameId),

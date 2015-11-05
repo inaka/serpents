@@ -25,7 +25,7 @@ include erlang.mk
 
 LOCAL_DEPS := xmerl tools compiler syntax_tools common_test inets ssl public_key test_server dialyzer wx
 DIALYZER_DIRS := ebin/ test/
-DIALYZER_OPTS := --verbose --statistics
+DIALYZER_OPTS := --verbose --statistics -Wunmatched_returns
 
 ERLC_OPTS := +'{parse_transform, lager_transform}'
 ERLC_OPTS += +warn_unused_vars +warn_export_all +warn_shadow_vars +warn_unused_import +warn_unused_function

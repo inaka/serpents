@@ -364,7 +364,7 @@ put_game_wrong(_Config) ->
   #{status_code := 403} =
     spts_test_utils:api_call(put, Url, Headers, "{\"state\":\"started\"}"),
 
-  spts_core:add_serpent(GameId, SerpentName),
+  _ = spts_core:add_serpent(GameId, SerpentName),
 
   ct:comment("PUT without body fails"),
   #{status_code := 400} = spts_test_utils:api_call(put, Url, Headers),

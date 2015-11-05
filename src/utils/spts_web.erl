@@ -9,7 +9,7 @@
 announce_req(Req, Suffix) ->
   {Method, Req1} = cowboy_req:method(Req),
   {Path,   Req2} = cowboy_req:path(Req1),
-  lager:info("~s ~s ~s", [Method, Path, Suffix]),
+  _ = lager:info("~s ~s ~s", [Method, Path, Suffix]),
   Req2.
 
 -spec handle_exception(atom(), cowboy_req:req(), term()) ->
@@ -26,12 +26,12 @@ handle_exception(Error, Req, State) when is_atom(Error) ->
   {ok, Req1} = cowboy_req:reply(400, [], Response, Req),
   {halt, Req1, State};
 handle_exception(Reason, Req, State) ->
-  lager:error("~p. Stack Trace: ~p", [Reason, erlang:get_stacktrace()]),
+  _ = lager:error("~p. Stack Trace: ~p", [Reason, erlang:get_stacktrace()]),
   {ok, Req1} =
     try cowboy_req:reply(500, Req)
     catch
       _:Error ->
-        lager:critical(
+        _ = lager:critical(
           "~p trying to report error through cowboy. Stack Trace: ~p",
           [Error, erlang:get_stacktrace()]),
         {ok, Req}

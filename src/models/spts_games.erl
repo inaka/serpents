@@ -2,8 +2,8 @@
 -module(spts_games).
 -author('elbrujohalcon@inaka.net').
 
--type row() :: pos_integer().
--type col() :: pos_integer().
+-type row() :: non_neg_integer().
+-type col() :: non_neg_integer().
 -type position() :: {row(), col()}.
 -type direction() :: left | right | up | down.
 -type content() :: wall | {fruit, pos_integer()}.
