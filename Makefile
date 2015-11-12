@@ -9,7 +9,7 @@ SELL_DEPS = sync
 TEST_DEPS = xref_runner shotgun
 
 dep_lasse = git https://github.com/inaka/lasse.git 1.0.1
-dep_katana = git https://github.com/inaka/erlang-katana.git 0.2.13
+dep_katana = git https://github.com/inaka/erlang-katana.git 0.2.14
 dep_cowboy = git https://github.com/extend/cowboy.git 1.0.3
 dep_jiffy = git https://github.com/davisp/jiffy.git 0.14.3
 dep_mixer = git https://github.com/inaka/mixer.git 0.1.4
