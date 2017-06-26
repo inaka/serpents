@@ -3,7 +3,8 @@
 
 -export([encode/1, decode/1]).
 
--type json() :: #{} | [#{}] | binary() | number() | boolean() | null.
+-type json() :: #{} | [#{}] | binary() | number() | boolean() |
+                map()| [map()] | null.
 -export_type([json/0]).
 
 -spec encode(json()) -> iodata().

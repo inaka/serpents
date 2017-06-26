@@ -9,7 +9,7 @@
                , label        :: wx:wx_object()
                , socket       :: port()
                , serpent_id   :: pos_integer()
-               , tick         :: non_neg_integer()
+               , tick         :: non_neg_integer() | undefined
                }).
 -type state() :: #state{}.
 

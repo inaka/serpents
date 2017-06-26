@@ -10,7 +10,7 @@
     , inets
     , ssl
     , sasl
-
+    , wx
     , lager
     , cowboy
     , trails

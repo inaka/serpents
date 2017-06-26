@@ -15,12 +15,12 @@ This repo provides the game _server_. Players should write their clients on thei
 
 To start the server, run
 ```bash
-$ make && make shell
+$ rebar3 compile && rebar3 shell
 ```
 
-Or you can generate a release with `make` and then start it
+Or you can generate a release with `rebar3 release` and then start it
 ```bash
-$ _rel/serpents/bin/serpents start
+$ ./_build/default/rel/serpents/bin/serpents start
 ```
 
 ### The Website
