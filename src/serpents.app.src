@@ -23,6 +23,10 @@
   {modules, []},
   {mod, {serpents, []}},
   {env, []},
+  {maintainers, ["Inaka"]},
+  {licenses, ["Apache 2.0"]},
+  {links, [{"Github", "https://github.com/inaka/serpents"}]},
+  {build_tools, ["rebar3"]},
   {start_phases,
     [ {cxy_ctl_setup, []}
     , {start_cowboy_listeners, []}
