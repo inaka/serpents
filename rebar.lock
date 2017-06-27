@@ -1,6 +1,6 @@
 {"1.1.0",
 [{<<"aleppo">>,{pkg,<<"inaka_aleppo">>,<<"1.0.0">>},3},
- {<<"cowboy">>,{pkg,<<"cowboy">>,<<"1.1.2">>},0},
+ {<<"cowboy">>,{pkg,<<"cowboy">>,<<"1.0.4">>},0},
  {<<"cowboy_swagger">>,{pkg,<<"cowboy_swagger">>,<<"1.2.3">>},0},
  {<<"cowlib">>,{pkg,<<"cowlib">>,<<"1.0.2">>},1},
  {<<"elvis">>,{pkg,<<"elvis_core">>,<<"0.3.2">>},1},
@@ -13,14 +13,14 @@
  {<<"lager">>,{pkg,<<"lager">>,<<"3.5.1">>},0},
  {<<"lasse">>,{pkg,<<"lasse">>,<<"1.1.1">>},0},
  {<<"mixer">>,{pkg,<<"inaka_mixer">>,<<"0.1.5">>},0},
- {<<"ranch">>,{pkg,<<"ranch">>,<<"1.3.2">>},1},
+ {<<"ranch">>,{pkg,<<"ranch">>,<<"1.4.0">>},1},
  {<<"recon">>,{pkg,<<"recon">>,<<"2.3.2">>},0},
  {<<"trails">>,{pkg,<<"trails">>,<<"0.2.1">>},0},
  {<<"zipper">>,{pkg,<<"zipper">>,<<"1.0.0">>},2}]}.
 [
 {pkg_hash,[
  {<<"aleppo">>, <<"8DB14CF16BB8C263C14FF4C3F69F64D7C849D40888944F4204D2CA74F1114CEB">>},
- {<<"cowboy">>, <<"61AC29EA970389A88ECA5A65601460162D370A70018AFE6F949A29DCA91F3BB0">>},
+ {<<"cowboy">>, <<"A324A8DF9F2316C833A470D918AAF73AE894278B8AA6226CE7A9BF699388F878">>},
  {<<"cowboy_swagger">>, <<"4168815770508D6A8C6EFC3A1A9055994FDAFCF9DD2E62049CD7B80F54C4B294">>},
  {<<"cowlib">>, <<"9D769A1D062C9C3AC753096F868CA121E2730B9A377DE23DEC0F7E08B1DF84EE">>},
  {<<"elvis">>, <<"5424DBD17BEC4265A6808F49064CC1A8D2D1B593B5C4E94E747EDB157ABDE6DE">>},
@@ -33,7 +33,7 @@
  {<<"lager">>, <<"63897A61AF646C59BB928FEE9756CE8BDD02D5A1A2F3551D4A5E38386C2CC071">>},
  {<<"lasse">>, <<"028411E647275740D33AFBC40A6160C317B9FC0DD8C04AD9CAF1D13AF7B9426C">>},
  {<<"mixer">>, <<"754630C0E60221B23E4D83ADF6E789A8B283855E23F9391EEC40980E6E800486">>},
- {<<"ranch">>, <<"E4965A144DC9FBE70E5C077C65E73C57165416A901BD02EA899CFD95AA890986">>},
+ {<<"ranch">>, <<"10272F95DA79340FA7E8774BA7930B901713D272905D0012B06CA6D994F8826B">>},
  {<<"recon">>, <<"4444C879BE323B1B133EEC5241CB84BD3821EA194C740D75617E106BE4744318">>},
  {<<"trails">>, <<"6769F7A2B777EC9CEAF07F22C23E5F3BE6A7F07E9A11B44725B102A832334D46">>},
  {<<"zipper">>, <<"812CF95E93A025FAAAB1276B5789260A08CC129961DE226ADDC13EF56DF507B9">>}]}
