@@ -2,6 +2,12 @@
 -author('elbrujohalcon@inaka.net').
 
 -include_lib("mixer/include/mixer.hrl").
+
+-dialyzer([{nowarn_function, [ game_creation_bad_flags/1
+                             , game_creation_bad_food/1
+                             , game_creation_bad_serpents/1
+                             , game_creation_bad_countdown/1]}]).
+
 -mixin([
         {spts_test_utils,
          [ init_per_suite/1

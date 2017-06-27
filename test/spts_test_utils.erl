@@ -21,6 +21,13 @@
         , check_bounds/2
         ]).
 
+-type response() ::
+  #{
+     status_code => integer(),
+     header => map(),
+     body => binary()
+   }.
+
 -spec all(atom()) -> [atom()].
 all(Module) ->
   ExcludedFuns = [module_info, init_per_suite, end_per_suite, group, all],
@@ -39,15 +46,15 @@ end_per_suite(Config) ->
   ok = shotgun:stop(),
   Config.
 
--spec api_call(atom(), binary() | string()) -> #{}.
+-spec api_call(atom(), binary() | string()) -> response().
 api_call(Method, Uri) ->
   api_call(Method, Uri, #{}).
 
--spec api_call(atom(), binary() | string(), #{}) -> #{}.
+-spec api_call(atom(), binary() | string(), map()) -> response().
 api_call(Method, Uri, Headers) ->
   api_call(Method, Uri, Headers, []).
 
--spec api_call(atom(), binary() | string(), #{}, iodata()) -> #{}.
+-spec api_call(atom(), binary() | string(), map(), iodata()) -> response().
 api_call(Method, Uri, Headers, Body) when is_binary(Uri) ->
   api_call(Method, binary_to_list(Uri), Headers, Body);
 api_call(Method, Uri, Headers, Body) ->
@@ -84,7 +91,7 @@ get_events_after(Uri, EventType, Task) ->
         fun() ->
           Events =
             [shotgun:parse_event(Bin) || {_, _, Bin} <- shotgun:events(Pid)],
-          ct:pal("Events: ~p / EventType: ~p", [Events, EventType]),
+          ct:log("Events: ~p / EventType: ~p", [Events, EventType]),
           [_|_] = [Event || Event = #{event := ET} <- Events, ET == EventType]
         end),
 

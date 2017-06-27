@@ -33,7 +33,7 @@ rest_init(Req, Opts) ->
   {[binary()], cowboy_req:req(), state()}.
 allowed_methods(Req, State) ->
   #{opts := #{path := Path}} = State,
-  #{metadata := Metadata} = trails:retrieve(Path),
+  Metadata = trails:metadata(trails:retrieve(Path)),
   Methods = [atom_to_method(Method) || Method <- maps:keys(Metadata)],
   {Methods, Req, State}.
 

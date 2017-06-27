@@ -50,7 +50,7 @@ notify(Pid, Event) -> lasse_handler:notify(Pid, Event).
 -spec init(spts_base_handler:options(), _, cowboy_req:req()) ->
   {ok, cowboy_req:req(), [lasse_handler:event()], state()} |
   {shutdown, cowboy:http_status(), cowboy:http_headers(), iodata(),
-    cowboy_req:req()}.
+    cowboy_req:req(), #{}}.
 init(_Opts, _LastEventId, Req) ->
   Req0 = spts_web:announce_req(Req, []),
   {GameId, Req1} = cowboy_req:binding(game_id, Req0),

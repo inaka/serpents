@@ -15,7 +15,7 @@
 -type address() :: {inet:ip_address(), pos_integer()}.
 -record(user, { serpent_id  :: pos_integer()
               , serpent_name:: spts_serpents:name()
-              , tick        :: non_neg_integer()
+              , tick        :: non_neg_integer() | undefined
               , address     :: address()
               }).
 -type user() :: #user{}.
@@ -230,7 +230,7 @@ update_user(User, State) ->
 
 clean_history(State) ->
   #state{users = Users, history = History} = State,
-  case lists:keyfind(undefined, #user.tick, Users) of
+  _ = case lists:keyfind(undefined, #user.tick, Users) of
     #user{} ->
       %% NOTE: Can't clean, there is a user who needs the very first game, still
       State;

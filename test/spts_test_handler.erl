@@ -34,7 +34,7 @@ wait_for(Event, Options) ->
   receive
     {event, Event} -> ok;
     {event, OtherEvent} when IgnoreOthers ->
-      ct:pal("Ignored Event: ~p", [OtherEvent]),
+      ct:log("Ignored Event: ~p", [OtherEvent]),
       wait_for(Event, Options);
     {event, OtherEvent} -> ct:fail("Unexpected Event: ~p", [OtherEvent]);
     {info, Info} -> ct:fail("Unexpected Info: ~p", [Info]);

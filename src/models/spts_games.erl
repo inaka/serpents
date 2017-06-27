@@ -300,10 +300,7 @@ to_binary(Game, complete) ->
              Rs -> Rs
            end,
   InitialFood = initial_food(Game),
-  MaxSerpents = case max_serpents(Game) of
-                  infinity -> 255;
-                  Value -> Value
-                end,
+  MaxSerpents = get_max_serpents(Game),
   Serpents = serpents(Game),
   NumSerpents = length(Serpents),
   Walls = walls(Game),
@@ -336,10 +333,7 @@ to_binary(Game, reduced) ->
             started -> 2;
             finished -> 4
           end,
-  MaxSerpents = case max_serpents(Game) of
-                  infinity -> 255;
-                  Value -> Value
-                end,
+  MaxSerpents = get_max_serpents(Game),
   NumSerpents = length(serpents(Game)),
   <<Id:?USHORT, Name/binary, State:?UCHAR,
     NumSerpents:?UCHAR, MaxSerpents:?UCHAR>>.
@@ -360,6 +354,12 @@ diff_to_binary(Diff) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% INTERNAL FUNCTIONS
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+get_max_serpents(Game) ->
+  case max_serpents(Game) of
+    infinity -> 255;
+    Value -> Value
+  end.
+
 diff_data_to_binary(#{type := state, data := Data}) ->
   State = state_to_binary(Data),
   [<<State:?UCHAR>>];
