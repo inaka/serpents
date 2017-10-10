@@ -35,9 +35,6 @@ If you don't know where to start in order to write your serpents client, you can
 ---
 
 ## Contact Us
-For **questions** or **general comments** regarding the use of this project,
-please use our public [hipchat room](http://inaka.net/hipchat).
-
 If you find any **bugs** or have a **problem** while using this project, please
 [open an issue](https://github.com/inaka/shotgun/issues/new) in this repo
 (or a pull request :)).
